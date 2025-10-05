@@ -11,9 +11,7 @@ const isProduction = process.env.NODE_ENV === 'production'
 const chainId = isProduction ? BASE_MAINNET_CHAIN_ID : BASE_TESTNET_CHAIN_ID
 
 // Biconomy configuration for Base
-const PAYMASTER_API_KEY = process.env.NEXT_PUBLIC_BICONOMY_PAYMASTER_API_KEY!
-const BUNDLER_URL = process.env.NEXT_PUBLIC_BICONOMY_BUNDLER_URL || 
-  `https://bundler.biconomy.io/api/v2/${chainId}`
+const PAYMASTER_API_KEY = process.env.NEXT_PUBLIC_BICONOMY_PAYMASTER_API_KEY
 
 // Base RPC URLs
 const BASE_RPC_URLS = {
@@ -21,17 +19,24 @@ const BASE_RPC_URLS = {
   [BASE_TESTNET_CHAIN_ID]: 'https://sepolia.base.org'
 }
 
-if (!PAYMASTER_API_KEY) {
-  console.warn('NEXT_PUBLIC_BICONOMY_PAYMASTER_API_KEY is not set')
-}
-
 export const createBiconomySmartAccount = async (walletClient: WalletClient): Promise<BiconomySmartAccountV2> => {
+  // Validate required environment variables
+  if (!PAYMASTER_API_KEY || PAYMASTER_API_KEY === 'your_biconomy_paymaster_api_key_here') {
+    throw new Error('Please set NEXT_PUBLIC_BICONOMY_PAYMASTER_API_KEY in your .env.local file with a valid Biconomy API key')
+  }
+
   try {
+    // Ensure proper bundler URL format with explicit chain ID
+    const bundlerUrl = `https://bundler.biconomy.io/api/v2/${chainId}`
+    
+    console.log(`Creating smart account for chain ${chainId} with bundler: ${bundlerUrl}`)
+    
     const smartAccount = await createSmartAccountClient({
       signer: walletClient,
-      bundlerUrl: BUNDLER_URL,
+      bundlerUrl: bundlerUrl,
       biconomyPaymasterApiKey: PAYMASTER_API_KEY,
       rpcUrl: BASE_RPC_URLS[chainId],
+      chainId: chainId,
     })
 
     console.log(`Smart account created on Base ${isProduction ? 'Mainnet' : 'Testnet'} (Chain ID: ${chainId})`)
