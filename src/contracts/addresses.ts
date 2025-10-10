@@ -1,0 +1,36 @@
+export const CONTRACT_ADDRESSES = {
+  // Base Sepolia (testnet)
+  84532: {
+    SpendSaveStorage: '0x0000000000000000000000000000000000000000', // TODO: Add after deployment
+    SpendSaveHook: '0x0000000000000000000000000000000000000000',
+    SavingStrategy: '0x0000000000000000000000000000000000000000',
+    Savings: '0x0000000000000000000000000000000000000000',
+    DCA: '0x0000000000000000000000000000000000000000',
+    DailySavings: '0x0000000000000000000000000000000000000000',
+    Token: '0x0000000000000000000000000000000000000000',
+    SlippageControl: '0x0000000000000000000000000000000000000000'
+  },
+  // Localhost (for testing)
+  31337: {
+    SpendSaveStorage: '0x0000000000000000000000000000000000000000',
+    SpendSaveHook: '0x0000000000000000000000000000000000000000',
+    SavingStrategy: '0x0000000000000000000000000000000000000000',
+    Savings: '0x0000000000000000000000000000000000000000',
+    DCA: '0x0000000000000000000000000000000000000000',
+    DailySavings: '0x0000000000000000000000000000000000000000',
+    Token: '0x0000000000000000000000000000000000000000',
+    SlippageControl: '0x0000000000000000000000000000000000000000'
+  }
+} as const;
+
+export type ContractName = keyof typeof CONTRACT_ADDRESSES[84532];
+export type SupportedChainId = keyof typeof CONTRACT_ADDRESSES;
+
+export function getContractAddress(chainId: number, contractName: ContractName): `0x${string}` {
+  const addresses = CONTRACT_ADDRESSES[chainId as SupportedChainId];
+  if (!addresses) {
+    throw new Error(`Unsupported chain ID: ${chainId}`);
+  }
+  return addresses[contractName] as `0x${string}`;
+}
+
