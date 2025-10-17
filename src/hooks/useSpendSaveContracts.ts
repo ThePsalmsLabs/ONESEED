@@ -2,7 +2,15 @@
 
 import { useChainId } from 'wagmi';
 import { getContractAddress } from '@/contracts/addresses';
-import { SavingStrategyABI, SavingsABI, TokenABI } from '@/contracts/abis';
+import { 
+  SavingStrategyABI, 
+  SavingsABI, 
+  TokenABI,
+  DailySavingsABI,
+  DCAABI,
+  SlippageControlABI,
+  SpendSaveHookABI
+} from '@/contracts/abis';
 
 export function useSpendSaveContracts() {
   const chainId = useChainId();
@@ -19,6 +27,22 @@ export function useSpendSaveContracts() {
     token: {
       address: getContractAddress(chainId, 'Token'),
       abi: TokenABI
+    },
+    dailySavings: {
+      address: getContractAddress(chainId, 'DailySavings'),
+      abi: DailySavingsABI
+    },
+    dca: {
+      address: getContractAddress(chainId, 'DCA'),
+      abi: DCAABI
+    },
+    slippageControl: {
+      address: getContractAddress(chainId, 'SlippageControl'),
+      abi: SlippageControlABI
+    },
+    spendSaveHook: {
+      address: getContractAddress(chainId, 'SpendSaveHook'),
+      abi: SpendSaveHookABI
     }
   };
 }
