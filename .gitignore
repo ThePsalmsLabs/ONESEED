@@ -43,3 +43,11 @@ next-env.d.ts
 CLAUDE.md
 contracts/*
 /Users/mac/oneseed/contracts
+
+# Documentation files (session notes)
+BICONOMY_INTEGRATION.md
+SESSION_SUMMARY.md
+NEXT_STEPS.md
+BUILD_SUMMARY.md
+FRONTEND_*.md
+PRODUCTION_*.md
