@@ -57,19 +57,51 @@ const metadata = {
   icons: ['https://avatars.githubusercontent.com/u/179229932']
 }
 
-// Create the modal
-createAppKit({
-  adapters: [wagmiAdapter],
-  projectId,
-  networks: [base, baseSepolia],
-  defaultNetwork: baseSepolia,
-  metadata,
-  features: {
-    analytics: true,
-    email: false,
-    socials: [],
-    emailShowWallets: false
-  }
-})
+// Singleton pattern to prevent multiple initializations
+let appKitInstance: ReturnType<typeof createAppKit> | null = null
 
-export { wagmiConfig, queryClient }
+function initializeAppKit() {
+  if (appKitInstance) {
+    return appKitInstance
+  }
+
+  // Only initialize if we're in the browser
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  try {
+    appKitInstance = createAppKit({
+      adapters: [wagmiAdapter],
+      projectId,
+      networks: [base, baseSepolia],
+      defaultNetwork: baseSepolia,
+      metadata,
+      features: {
+        analytics: true,
+        email: false,
+        socials: [],
+        emailShowWallets: false
+      },
+      enableWalletConnect: true,
+      enableInjected: true,
+      enableCoinbase: false,
+    })
+  } catch (error) {
+    // Suppress initialization errors in development (hot reload issues)
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('AppKit initialization warning:', error)
+    } else {
+      throw error
+    }
+  }
+
+  return appKitInstance
+}
+
+// Initialize on module load
+if (typeof window !== 'undefined') {
+  initializeAppKit()
+}
+
+export { wagmiConfig, queryClient, initializeAppKit }
