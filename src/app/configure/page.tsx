@@ -506,9 +506,9 @@ export default function ConfigurePage() {
           <div className="flex justify-between items-center">
             <Button
               variant="ghost"
-              onClick={() => currentStep > 0 ? setCurrentStep(currentStep - 1) : router.push('/dashboard')}
+              onClick={() => currentStep > 0 ? setCurrentStep(currentStep - 1) : router.push('/')}
             >
-              {currentStep > 0 ? '← Previous' : '← Dashboard'}
+              {currentStep > 0 ? '← Previous' : '← Home'}
             </Button>
 
             {currentStep < steps.length - 1 && (

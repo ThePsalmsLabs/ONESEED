@@ -35,12 +35,13 @@ export default function DashboardPage() {
     }
   }, [isConnected, router]);
 
-  // Redirect to configure if no strategy set
-  useEffect(() => {
-    if (!isLoadingStrategy && !hasStrategy) {
-      router.push('/configure');
-    }
-  }, [hasStrategy, isLoadingStrategy, router]);
+  // Optional: Allow viewing dashboard without strategy
+  // Users can explore the interface before configuring
+  // useEffect(() => {
+  //   if (!isLoadingStrategy && !hasStrategy) {
+  //     router.push('/configure');
+  //   }
+  // }, [hasStrategy, isLoadingStrategy, router]);
 
   if (!isConnected || isLoadingStrategy) {
     return null;
