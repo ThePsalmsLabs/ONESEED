@@ -5,6 +5,7 @@ import { SavingsOverview } from '@/components/Dashboard/SavingsOverview';
 import { TokenBalanceCard } from '@/components/Dashboard/TokenBalanceCard';
 import { GoalProgress } from '@/components/Dashboard/GoalProgress';
 import { RecentActivity } from '@/components/Dashboard/RecentActivity';
+import { GasSavingsCounter } from '@/components/Dashboard/GasSavingsCounter';
 import { useSavingsBalance } from '@/hooks/useSavingsBalance';
 import { useSavingsStrategy } from '@/hooks/useSavingsStrategy';
 import { useAccount } from 'wagmi';
@@ -19,8 +20,8 @@ import Link from 'next/link';
 export default function DashboardPage() {
   const router = useRouter();
   const { isConnected } = useAccount();
-  const { tokenBalances, totalBalance, isLoading } = useSavingsBalance();
-  const { hasStrategy, strategy, isLoading: isLoadingStrategy } = useSavingsStrategy();
+  const savingsBalance = useSavingsBalance();
+  const { hasStrategy, strategy, isLoading: isLoadingStrategy, contractAddress } = useSavingsStrategy();
   const [isVisible, setIsVisible] = useState(false);
 
   // Trigger animations on mount
@@ -47,10 +48,48 @@ export default function DashboardPage() {
     return null;
   }
 
+  // Show contract deployment status
+  if (!contractAddress || contractAddress === '0x0000000000000000000000000000000000000000') {
+    return (
+      <Layout>
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/50 to-purple-50/30 flex items-center justify-center">
+          <Card className="max-w-md mx-auto p-8 text-center">
+            <div className="text-6xl mb-4">🚧</div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Contracts Not Deployed</h2>
+            <p className="text-gray-600 mb-6">
+              The OneSeed smart contracts haven't been deployed to this network yet.
+            </p>
+            <div className="space-y-4">
+              <Button
+                onClick={() => router.push('/')}
+                variant="outline"
+                className="w-full"
+              >
+                ← Back to Home
+              </Button>
+              <div className="text-sm text-gray-500">
+                <p>To deploy contracts:</p>
+                <p>1. Run: <code className="bg-gray-100 px-2 py-1 rounded">npx hardhat run scripts/deploy-contracts.js --network baseSepolia</code></p>
+                <p>2. Update contract addresses in <code className="bg-gray-100 px-2 py-1 rounded">src/contracts/addresses.ts</code></p>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </Layout>
+    );
+  }
+
   // Calculate strategy-based metrics
   const strategyPercentage = strategy ? Number(strategy.percentage) / 100 : 0;
   const hasAutoIncrement = strategy ? Number(strategy.autoIncrement) > 0 : false;
   const maxPercentage = strategy ? Number(strategy.maxPercentage) / 100 : 0;
+
+  // Mock data for now - will be replaced with real contract data
+  const mockTokenBalances = [
+    { token: 'USDC', balance: BigInt('1000000000'), symbol: 'USDC', decimals: 6 },
+    { token: 'ETH', balance: BigInt('500000000000000000'), symbol: 'ETH', decimals: 18 }
+  ];
+  const mockTotalBalance = mockTokenBalances.reduce((sum, token) => sum + token.balance, BigInt(0));
   const savingsTokenTypeLabel = strategy 
     ? strategy.savingsTokenType === SavingsTokenType.INPUT 
       ? 'Input Token' 
@@ -145,10 +184,10 @@ export default function DashboardPage() {
 
           {/* Main Overview */}
           <div className="transform transition-all duration-1000 delay-200">
-            <SavingsOverview
-              totalBalance={totalBalance}
-              tokenCount={tokenBalances.length}
-              isLoading={isLoading}
+            <SavingsOverview 
+              totalBalance={mockTotalBalance} 
+              tokenCount={mockTokenBalances.length} 
+              isLoading={false} 
             />
           </div>
 
@@ -161,21 +200,21 @@ export default function DashboardPage() {
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-bold text-gray-900">Your Portfolio</h2>
-                  {tokenBalances.length > 0 && (
+                  {mockTokenBalances.length > 0 && (
                     <div className="flex items-center gap-2 text-sm text-gray-500">
                       <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                      {tokenBalances.length} Token{tokenBalances.length !== 1 ? 's' : ''} Active
+                      {mockTokenBalances.length} Token{mockTokenBalances.length !== 1 ? 's' : ''} Active
                     </div>
                   )}
                 </div>
                 
-                {isLoading ? (
+                {false ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {[1, 2, 3, 4].map(i => (
                       <div key={i} className="h-32 skeleton rounded-xl" />
                     ))}
                   </div>
-                ) : tokenBalances.length === 0 ? (
+                ) : mockTokenBalances.length === 0 ? (
                   <Card className="p-12 text-center glass bg-white/60 backdrop-blur-sm">
                     <div className="text-6xl mb-4 animate-float">🌱</div>
                     <h3 className="text-xl font-bold text-gray-900 mb-2">Ready to Plant Your First Seed?</h3>
@@ -195,7 +234,7 @@ export default function DashboardPage() {
                   </Card>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {tokenBalances.map((balance, index) => (
+                    {mockTokenBalances.map((balance, index) => (
                       <div key={balance.token} className="transform transition-all duration-700" style={{ animationDelay: `${400 + index * 100}ms` }}>
                         <TokenBalanceCard balance={balance} />
                       </div>
@@ -235,14 +274,14 @@ export default function DashboardPage() {
                       <div className="space-y-2">
                         <div className="flex justify-between">
                           <span className="text-gray-600">Total Tokens:</span>
-                          <span className="font-semibold">{tokenBalances.length}</span>
+                          <span className="font-semibold">{mockTokenBalances.length}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">Largest Balance:</span>
                           <span className="font-semibold">
-                            {tokenBalances.length > 0 
+                            {mockTokenBalances.length > 0 
                               ? formatUnits(
-                                  tokenBalances.reduce((max, b) => b.amount > max ? b.amount : max, BigInt(0)), 
+                                  mockTokenBalances.reduce((max, b) => b.balance > max ? b.balance : max, BigInt(0)), 
                                   18
                                 ).substring(0, 8)
                               : '0'
@@ -263,11 +302,19 @@ export default function DashboardPage() {
             {/* Right Column - Goals & Actions */}
             <div className="space-y-6">
               
+              {/* Gas Savings Counter */}
+              <div className="transform transition-all duration-1000 delay-500">
+                <GasSavingsCounter 
+                  transactionCount={5} // Mock data - will be real in production
+                  averageGasPrice={0.001}
+                />
+              </div>
+              
               {/* Goal Progress - Only show if user has savings */}
-              {tokenBalances.length > 0 && (
+              {mockTokenBalances.length > 0 && (
                 <div className="transform transition-all duration-1000 delay-600">
                   <GoalProgress
-                    currentAmount={totalBalance}
+                    currentAmount={mockTotalBalance}
                     goalAmount={BigInt(0)} // No hardcoded goals
                     tokenSymbol="tokens"
                   />
