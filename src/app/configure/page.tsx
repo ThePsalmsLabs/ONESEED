@@ -8,14 +8,16 @@ import { useSavingsStrategy } from '@/hooks/useSavingsStrategy';
 import { SavingsTokenType } from '@/contracts/types';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { BatchSetupWizard } from '@/components/Configure/BatchSetupWizard';
 
 export default function ConfigurePage() {
   const router = useRouter();
   const { isConnected } = useAccount();
-  const { strategy, setSavingStrategy, isPending } = useSavingsStrategy();
+  const { strategy, setSavingStrategy, isPending, contractAddress, isLoading } = useSavingsStrategy();
 
   const [currentStep, setCurrentStep] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
+  const [showBatchSetup, setShowBatchSetup] = useState(false);
   
   // Form state
   const [percentage, setPercentage] = useState(strategy?.percentage ? Number(strategy.percentage) / 100 : 500); // Default 5%
@@ -41,6 +43,59 @@ export default function ConfigurePage() {
     return null;
   }
 
+  // Show batch setup wizard if requested
+  if (showBatchSetup) {
+    return (
+      <Layout>
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/50 to-purple-50/30">
+          <div className="container mx-auto px-4 py-8">
+            <div className="mb-8">
+              <Button
+                onClick={() => setShowBatchSetup(false)}
+                variant="secondary"
+                className="mb-4"
+              >
+                ← Back to Regular Setup
+              </Button>
+            </div>
+            <BatchSetupWizard onComplete={() => router.push('/dashboard')} />
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Show contract deployment status
+  if (!contractAddress || contractAddress === '0x0000000000000000000000000000000000000000') {
+    return (
+      <Layout>
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/50 to-purple-50/30 flex items-center justify-center">
+          <Card className="max-w-md mx-auto p-8 text-center">
+            <div className="text-6xl mb-4">🚧</div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Contracts Not Deployed</h2>
+            <p className="text-gray-600 mb-6">
+              The OneSeed smart contracts haven't been deployed to this network yet.
+            </p>
+            <div className="space-y-4">
+              <Button
+                onClick={() => router.push('/')}
+                variant="secondary"
+                className="w-full"
+              >
+                ← Back to Home
+              </Button>
+              <div className="text-sm text-gray-500">
+                <p>To deploy contracts:</p>
+                <p>1. Run: <code className="bg-gray-100 px-2 py-1 rounded">npx hardhat run scripts/deploy-contracts.js --network baseSepolia</code></p>
+                <p>2. Update contract addresses in <code className="bg-gray-100 px-2 py-1 rounded">src/contracts/addresses.ts</code></p>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </Layout>
+    );
+  }
+
   const steps = [
     {
       title: "Let's Set Your Savings Rate",
@@ -57,6 +112,24 @@ export default function ConfigurePage() {
           </div>
 
           <div className="max-w-lg mx-auto space-y-6">
+            {/* Batch Setup Option */}
+            <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-xl p-6 mb-6">
+              <div className="text-center">
+                <div className="text-4xl mb-3">⚡</div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">Quick Setup Available</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Set up savings, DCA, and daily goals in one gas-free transaction
+                </p>
+                <Button
+                  onClick={() => setShowBatchSetup(true)}
+                  variant="secondary"
+                  className="border-green-300 text-green-700 hover:bg-green-50"
+                >
+                  Try Quick Setup →
+                </Button>
+              </div>
+            </div>
+
             {/* Visual Percentage Display */}
             <div className="text-center">
               <div className="text-7xl font-black gradient-text mb-2">
@@ -435,32 +508,45 @@ export default function ConfigurePage() {
                 <span>{roundUp ? 'Round-up savings enabled' : 'Exact percentage savings'}</span>
               </div>
 
-              <Button
-                onClick={async () => {
-                  try {
-                    await setSavingStrategy({
-                      percentage: BigInt(percentage),
-                      autoIncrement: BigInt(autoIncrement),
-                      maxPercentage: BigInt(maxPercentage),
-                      roundUpSavings: roundUp,
-                      savingsTokenType: tokenType,
-                      specificSavingsToken: tokenType === SavingsTokenType.SPECIFIC && specificToken
-                        ? specificToken as `0x${string}`
-                        : undefined
-                    });
-                    router.push('/dashboard');
-                  } catch (error) {
-                    console.error('Error setting strategy:', error);
-                  }
-                }}
-                variant="primary"
-                size="lg"
-                className="w-full bg-gradient-to-r from-primary-500 to-blue-600 hover:from-primary-600 hover:to-blue-700 shadow-xl hover-lift text-xl py-4"
-                isLoading={isPending}
-                disabled={isPending}
-              >
-                {isPending ? 'Activating Strategy...' : '🚀 Activate My Savings Strategy'}
-              </Button>
+              <div className="space-y-4">
+                {/* Gas Savings Indicator */}
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="text-2xl">⚡</div>
+                    <div>
+                      <div className="font-semibold text-green-800">Gas-Free Transaction</div>
+                      <div className="text-sm text-green-600">Powered by Biconomy - You pay $0 in gas fees</div>
+                    </div>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={async () => {
+                    try {
+                      await setSavingStrategy({
+                        percentage: BigInt(percentage),
+                        autoIncrement: BigInt(autoIncrement),
+                        maxPercentage: BigInt(maxPercentage),
+                        roundUpSavings: roundUp,
+                        savingsTokenType: tokenType,
+                        specificSavingsToken: tokenType === SavingsTokenType.SPECIFIC && specificToken
+                          ? specificToken as `0x${string}`
+                          : undefined
+                      });
+                      router.push('/dashboard');
+                    } catch (error) {
+                      console.error('Error setting strategy:', error);
+                    }
+                  }}
+                  variant="primary"
+                  size="lg"
+                  className="w-full bg-gradient-to-r from-primary-500 to-blue-600 hover:from-primary-600 hover:to-blue-700 shadow-xl hover-lift text-xl py-4"
+                  isLoading={isPending}
+                  disabled={isPending}
+                >
+                  {isPending ? 'Activating Strategy...' : '🚀 Activate My Savings Strategy (Gas-Free)'}
+                </Button>
+              </div>
             </Card>
           </div>
         </div>
