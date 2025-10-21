@@ -1,68 +1,120 @@
 'use client';
 
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
+import { Button } from '../ui/Button';
+import { Badge } from '../ui/Badge';
+import { Progress } from '../ui/Progress';
 import { useDailySavings } from '@/hooks/useDailySavings';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
+import { formatEther } from 'viem';
 import { 
-  PlayIcon,
-  PauseIcon,
-  CurrencyDollarIcon,
-  TargetIcon,
-  ClockIcon,
-  ExclamationTriangleIcon,
-  CheckCircleIcon,
-  CalendarIcon
-} from '@heroicons/react/24/outline';
-import { formatEther, parseEther } from 'viem';
+  Target, 
+  Calendar, 
+  DollarSign, 
+  TrendingUp, 
+  Clock, 
+  Play, 
+  Pause, 
+  Settings, 
+  History,
+  AlertCircle,
+  CheckCircle,
+  Zap,
+  Shield,
+  BarChart3
+} from 'lucide-react';
 
 interface DailySavingsDashboardProps {
-  className?: string;
+  onConfigure?: () => void;
+  onViewHistory?: () => void;
 }
 
-export function DailySavingsDashboard({ className = '' }: DailySavingsDashboardProps) {
-  const {
-    config,
-    status,
+interface TokenSavingsData {
+  token: `0x${string}`;
+  symbol: string;
+  icon: string;
+  status: any;
+  executionStatus: any;
+  isLoading: boolean;
+}
+
+export function DailySavingsDashboard({ onConfigure, onViewHistory }: DailySavingsDashboardProps) {
+  const { 
     hasPending,
-    executionStatus,
+    useDailySavingsStatus,
+    useDailyExecutionStatus,
     executeDailySavings,
     executeDailySavingsForToken,
-    withdrawDailySavings,
     disableDailySavings,
     isExecuting,
-    isWithdrawing,
-    isDisabling
+    isDisabling,
+    contractAddress,
+    formatAmount,
+    calculateProgress,
+    calculateDaysRemaining
   } = useDailySavings();
 
-  const [selectedToken, setSelectedToken] = useState<`0x${string}` | null>(null);
-  const [withdrawAmount, setWithdrawAmount] = useState('');
+  // Mock token data - in real implementation, this would come from token metadata
+  const [activeTokens] = useState<Omit<TokenSavingsData, 'status' | 'executionStatus' | 'isLoading'>[]>([
+    {
+      token: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC
+      symbol: 'USDC',
+      icon: '💰'
+    },
+    {
+      token: '0x4200000000000000000000000000000000000006', // WETH
+      symbol: 'ETH',
+      icon: '🔷'
+    }
+  ]);
 
-  if (!config || !status) {
-    return (
-      <div className={`text-center py-12 ${className}`}>
-        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
-          <CalendarIcon className="w-8 h-8 text-muted-foreground" />
-        </div>
-        <h3 className="text-lg font-semibold mb-2">No Daily Savings Configured</h3>
-        <p className="text-muted-foreground mb-4">
-          Set up daily savings to start building your wealth automatically
-        </p>
-        <Button>Configure Daily Savings</Button>
-      </div>
-    );
-  }
+  // Get status for each token
+  const tokenStatuses = activeTokens.map(tokenData => {
+    const status = useDailySavingsStatus(tokenData.token);
+    const executionStatus = useDailyExecutionStatus(tokenData.token);
+    
+    // Transform tuple data to object
+    const statusData = status.data ? {
+      enabled: status.data[0],
+      dailyAmount: status.data[1],
+      goalAmount: status.data[2],
+      currentAmount: status.data[3],
+      remainingAmount: status.data[4],
+      penaltyAmount: status.data[5],
+      estimatedCompletionDate: status.data[6]
+    } : null;
+    
+    const executionData = executionStatus.data ? {
+      canExecute: executionStatus.data[0],
+      daysPassed: executionStatus.data[1],
+      amountToSave: executionStatus.data[2]
+    } : null;
+    
+    return {
+      ...tokenData,
+      status: statusData,
+      executionStatus: executionData,
+      isLoading: status.isLoading || executionStatus.isLoading
+    };
+  });
 
-  const progressPercentage = status.goalAmount > 0n 
-    ? Number((status.currentAmount * 100n) / status.goalAmount)
-    : 0;
+  const formatCurrency = (value: bigint) => {
+    const formatted = formatEther(value);
+    return `$${parseFloat(formatted).toFixed(2)}`;
+  };
 
-  const daysRemaining = status.estimatedCompletionDate > 0n
-    ? Math.ceil((Number(status.estimatedCompletionDate) - Date.now() / 1000) / (24 * 60 * 60))
-    : 0;
+  const formatTokenAmount = (value: bigint, symbol: string) => {
+    const formatted = formatEther(value);
+    return `${parseFloat(formatted).toFixed(4)} ${symbol}`;
+  };
 
-  const handleExecute = async () => {
+  const getStatusBadge = (enabled: boolean, canExecute: boolean) => {
+    if (!enabled) return <Badge>Inactive</Badge>;
+    if (canExecute) return <Badge>Ready to Execute</Badge>;
+    return <Badge>Active</Badge>;
+  };
+
+  const handleExecuteAll = async () => {
     try {
       await executeDailySavings();
     } catch (error) {
@@ -70,290 +122,333 @@ export function DailySavingsDashboard({ className = '' }: DailySavingsDashboardP
     }
   };
 
-  const handleWithdraw = async () => {
-    if (!selectedToken || !withdrawAmount) return;
-    
+  const handleExecuteToken = async (token: `0x${string}`) => {
     try {
-      await withdrawDailySavings({
-        token: selectedToken,
-        amount: withdrawAmount
-      });
-      setWithdrawAmount('');
+      await executeDailySavingsForToken({ token });
     } catch (error) {
-      console.error('Failed to withdraw:', error);
+      console.error('Failed to execute token savings:', error);
     }
   };
 
-  const handleDisable = async () => {
-    if (!selectedToken) return;
-    
+  const handleDisableToken = async (token: `0x${string}`) => {
     try {
-      await disableDailySavings(selectedToken);
+      await disableDailySavings({ token });
     } catch (error) {
       console.error('Failed to disable daily savings:', error);
     }
   };
 
+
+  const activeSavings = tokenStatuses.filter(t => t.status?.enabled);
+  const totalGoalAmount = activeSavings.reduce((sum, t) => sum + (t.status?.goalAmount || BigInt(0)), BigInt(0));
+  const totalCurrentAmount = activeSavings.reduce((sum, t) => sum + (t.status?.currentAmount || BigInt(0)), BigInt(0));
+  const overallProgress = totalGoalAmount > 0 ? calculateProgress(totalCurrentAmount, totalGoalAmount) : 0;
+
   return (
-    <div className={`space-y-6 ${className}`}>
-      {/* Status Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-6">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <CurrencyDollarIcon className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <h3 className="font-semibold">Current Savings</h3>
-              <p className="text-2xl font-bold">
-                {formatEther(status.currentAmount)} ETH
-              </p>
-            </div>
-          </div>
-          <div className="text-sm text-muted-foreground">
-            {status.enabled ? 'Active' : 'Inactive'}
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-              <TargetIcon className="w-5 h-5 text-green-600" />
-            </div>
-            <div>
-              <h3 className="font-semibold">Goal Progress</h3>
-              <p className="text-2xl font-bold">
-                {progressPercentage.toFixed(1)}%
-              </p>
-            </div>
-          </div>
-          <div className="w-full bg-muted rounded-full h-2 mt-2">
-            <div 
-              className="bg-green-500 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${Math.min(progressPercentage, 100)}%` }}
-            />
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-              <ClockIcon className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <h3 className="font-semibold">Days Remaining</h3>
-              <p className="text-2xl font-bold">
-                {daysRemaining}
-              </p>
-            </div>
-          </div>
-          <div className="text-sm text-muted-foreground">
-            Estimated completion
-          </div>
-        </Card>
-      </div>
-
-      {/* Daily Savings Details */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold">Daily Savings Details</h2>
-          <div className="flex items-center gap-2">
-            {status.enabled ? (
-              <div className="flex items-center gap-2 text-green-600">
-                <CheckCircleIcon className="w-4 h-4" />
-                <span className="text-sm font-medium">Active</span>
+    <div className="space-y-6">
+      {/* Overall Progress */}
+      {activeSavings.length > 0 && (
+        <Card className="bg-gradient-to-r from-blue-50 to-green-50">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Target className="w-5 h-5" />
+              <span>Your Daily Savings Progress</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-gray-900">
+                  {formatCurrency(totalCurrentAmount)}
+                </div>
+                <div className="text-sm text-gray-600">
+                  of {formatCurrency(totalGoalAmount)} goal
+                </div>
               </div>
-            ) : (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <PauseIcon className="w-4 h-4" />
-                <span className="text-sm font-medium">Paused</span>
+
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Overall Progress</span>
+                  <span>{overallProgress.toFixed(1)}%</span>
+                </div>
+                <Progress value={overallProgress} className="h-3" />
               </div>
-            )}
-          </div>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">
-                Daily Amount
-              </label>
-              <p className="text-lg font-semibold">
-                {formatEther(status.dailyAmount)} ETH
-              </p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">
-                Goal Amount
-              </label>
-              <p className="text-lg font-semibold">
-                {formatEther(status.goalAmount)} ETH
-              </p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">
-                Remaining Amount
-              </label>
-              <p className="text-lg font-semibold">
-                {formatEther(status.remainingAmount)} ETH
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">
-                Penalty Amount
-              </label>
-              <p className="text-lg font-semibold text-red-600">
-                {formatEther(status.penaltyAmount)} ETH
-              </p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">
-                Estimated Completion
-              </label>
-              <p className="text-lg font-semibold">
-                {status.estimatedCompletionDate > 0n 
-                  ? new Date(Number(status.estimatedCompletionDate) * 1000).toLocaleDateString()
-                  : 'N/A'
-                }
-              </p>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* Execution Status */}
-      {executionStatus && (
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Execution Status</h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Can Execute</span>
-              <div className={`px-3 py-1 rounded-full text-sm ${
-                executionStatus.canExecute 
-                  ? 'bg-green-100 text-green-800' 
-                  : 'bg-red-100 text-red-800'
-              }`}>
-                {executionStatus.canExecute ? 'Yes' : 'No'}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                <div>
+                  <div className="text-2xl font-bold text-blue-600">{activeSavings.length}</div>
+                  <div className="text-sm text-gray-600">Active Goals</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-green-600">
+                    {hasPending ? 'Yes' : 'No'}
+                  </div>
+                  <div className="text-sm text-gray-600">Pending Executions</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-purple-600">
+                    {formatCurrency(totalGoalAmount - totalCurrentAmount)}
+                  </div>
+                  <div className="text-sm text-gray-600">Remaining</div>
+                </div>
               </div>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Days Passed</span>
-              <span className="text-sm font-semibold">
-                {executionStatus.daysPassed.toString()}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Amount to Save</span>
-              <span className="text-sm font-semibold">
-                {formatEther(executionStatus.amountToSave)} ETH
-              </span>
-            </div>
-          </div>
+          </CardContent>
         </Card>
       )}
 
-      {/* Actions */}
-      <div className="flex flex-wrap gap-3">
-        {executionStatus?.canExecute && (
-          <Button
-            onClick={handleExecute}
-            disabled={isExecuting}
-            className="flex items-center gap-2"
-          >
-            {isExecuting ? (
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <PlayIcon className="w-4 h-4" />
-            )}
-            Execute Daily Savings
-          </Button>
-        )}
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Zap className="w-5 h-5" />
+              <span>Quick Actions</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button
+              variant="secondary"
+              onClick={handleExecuteAll}
+              disabled={isExecuting || !hasPending}
+              className="w-full justify-start"
+            >
+              {isExecuting ? (
+                <>
+                  <div className="w-4 h-4 mr-2 border-2 border-gray-600 border-t-transparent rounded-full animate-spin" />
+                  Executing...
+                </>
+              ) : (
+                <>
+                  <Play className="w-4 h-4 mr-2" />
+                  Execute All Pending
+                </>
+              )}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={onConfigure}
+              className="w-full justify-start"
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Configure New Goal
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={onViewHistory}
+              className="w-full justify-start"
+            >
+              <History className="w-4 h-4 mr-2" />
+              View History
+            </Button>
+          </CardContent>
+        </Card>
 
-        <Button
-          variant="outline"
-          onClick={() => setSelectedToken('0x4200000000000000000000000000000000000006')}
-          className="flex items-center gap-2"
-        >
-          <CurrencyDollarIcon className="w-4 h-4" />
-          Withdraw
-        </Button>
-
-        <Button
-          variant="outline"
-          onClick={handleDisable}
-          disabled={isDisabling}
-          className="flex items-center gap-2 text-red-600 hover:text-red-700"
-        >
-          <PauseIcon className="w-4 h-4" />
-          Disable
-        </Button>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <BarChart3 className="w-5 h-5" />
+              <span>Status Overview</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Active Goals:</span>
+                <Badge>{activeSavings.length}</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Pending Executions:</span>
+                <Badge>
+                  {hasPending ? 'Yes' : 'None'}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Gas Cost:</span>
+                <div className="flex items-center space-x-1">
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  <span className="text-sm font-medium text-green-600">Free</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">Next Execution:</span>
+                <span className="text-sm font-medium">Tomorrow 12:00 AM</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Withdrawal Modal */}
-      <AnimatePresence>
-        {selectedToken && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-lg p-6 w-full max-w-md mx-4"
-            >
-              <h3 className="text-lg font-semibold mb-4">Withdraw Savings</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Amount to Withdraw
-                  </label>
-                  <input
-                    type="number"
-                    value={withdrawAmount}
-                    onChange={(e) => setWithdrawAmount(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                  />
-                </div>
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                  <div className="flex items-center gap-2 text-yellow-800">
-                    <ExclamationTriangleIcon className="w-4 h-4" />
-                    <span className="text-sm font-medium">Penalty Warning</span>
+      {/* Individual Token Goals */}
+      {tokenStatuses.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Target className="w-5 h-5" />
+              <span>Your Savings Goals</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {tokenStatuses.map((tokenData, index) => {
+                const { token, symbol, icon, status, executionStatus, isLoading } = tokenData;
+                
+                if (isLoading) {
+                  return (
+                    <div key={index} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-center h-20">
+                        <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                        <p className="ml-4 text-gray-600">Loading {symbol} savings...</p>
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (!status?.enabled) {
+                  return (
+                    <div key={index} className="border rounded-lg p-4 bg-gray-50">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <span className="text-2xl">{icon}</span>
+                          <div>
+                            <div className="font-medium text-gray-900">{symbol} Savings</div>
+                            <div className="text-sm text-gray-600">Not configured</div>
+                          </div>
+                        </div>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={onConfigure}
+                        >
+                          <Settings className="w-4 h-4 mr-2" />
+                          Setup
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                }
+
+                const progress = calculateProgress(status.currentAmount, status.goalAmount);
+                const daysRemaining = calculateDaysRemaining(status.estimatedCompletionDate);
+                const canExecute = executionStatus?.canExecute || false;
+
+                return (
+                  <div key={index} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                    <div className="space-y-4">
+                      {/* Header */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <span className="text-2xl">{icon}</span>
+                          <div>
+                            <div className="font-medium text-gray-900">{symbol} Daily Savings</div>
+                            <div className="text-sm text-gray-600">
+                              {formatTokenAmount(status.dailyAmount, symbol)} daily
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {getStatusBadge(status.enabled, canExecute)}
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handleDisableToken(token)}
+                            disabled={isDisabling}
+                          >
+                            {isDisabling ? (
+                              <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <Pause className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Progress */}
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span>Progress</span>
+                          <span>{progress.toFixed(1)}%</span>
+                        </div>
+                        <Progress value={progress} className="h-2" />
+                        <div className="flex justify-between text-sm text-gray-600">
+                          <span>{formatTokenAmount(status.currentAmount, symbol)}</span>
+                          <span>{formatTokenAmount(status.goalAmount, symbol)}</span>
+                        </div>
+                      </div>
+
+                      {/* Details */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-600">Goal:</span>
+                          <div className="font-medium">{formatTokenAmount(status.goalAmount, symbol)}</div>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Remaining:</span>
+                          <div className="font-medium">{formatTokenAmount(status.remainingAmount, symbol)}</div>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Days Left:</span>
+                          <div className="font-medium">{daysRemaining}</div>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Penalty:</span>
+                          <div className="font-medium">{formatTokenAmount(status.penaltyAmount, symbol)}</div>
+                        </div>
+                      </div>
+
+                      {/* Execution Status */}
+                      {canExecute && (
+                        <div className="bg-yellow-50 p-3 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <Clock className="w-4 h-4 text-yellow-600" />
+                              <span className="text-sm font-medium text-yellow-800">
+                                Ready to execute {executionStatus ? formatTokenAmount(executionStatus.amountToSave, symbol) : '0'}
+                              </span>
+                            </div>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => handleExecuteToken(token)}
+                              disabled={isExecuting}
+                            >
+                              {isExecuting ? (
+                                <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <>
+                                  <Play className="w-4 h-4 mr-2" />
+                                  Execute
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-sm text-yellow-700 mt-1">
-                    Early withdrawal will incur a penalty fee.
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-3 mt-6">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setSelectedToken(null);
-                    setWithdrawAmount('');
-                  }}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleWithdraw}
-                  disabled={isWithdrawing || !withdrawAmount}
-                  className="flex-1"
-                >
-                  {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
-                </Button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* No Active Goals */}
+      {tokenStatuses.length === 0 && (
+        <Card>
+          <CardContent className="p-6 text-center">
+            <Target className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">No Daily Savings Goals</h3>
+            <p className="text-gray-600 mb-4">
+              Set up your first daily savings goal to start building wealth automatically.
+            </p>
+            <Button onClick={onConfigure}>
+              <Target className="w-4 h-4 mr-2" />
+              Create Your First Goal
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

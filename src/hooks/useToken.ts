@@ -2,7 +2,7 @@ import { useAccount, useWriteContract } from 'wagmi';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { parseEther, formatEther } from 'viem';
 import { CONTRACT_ADDRESSES } from '@/contracts/addresses';
-import { TokenABI } from '@/contracts/abis';
+import { TokenModuleABI as TokenABI } from '@/contracts/abis/Token';
 import { 
   TokenInfo, 
   TokenTransfer,

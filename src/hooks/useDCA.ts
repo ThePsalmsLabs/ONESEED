@@ -1,68 +1,63 @@
-import { useAccount, useWriteContract } from 'wagmi';
+'use client';
+
+import { useAccount, useReadContract, useChainId } from 'wagmi';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { parseEther, formatEther } from 'viem';
 import { CONTRACT_ADDRESSES } from '@/contracts/addresses';
-import { DCAABI } from '@/contracts/abis';
+import { DCAABI } from '@/contracts/abis/DCA';
 import { 
   DCAConfig, 
   DCAExecution, 
   PendingDCA,
   TransactionResult 
 } from '@/contracts/types';
+import { useSmartContractWrite } from './useSmartContractWrite';
 
 export function useDCA() {
   const { address } = useAccount();
-  const { writeContract } = useWriteContract();
+  const chainId = useChainId();
   const queryClient = useQueryClient();
 
-  // Get DCA configuration
-  const getDCAConfig = useQuery({
-    queryKey: ['dcaConfig', address],
-    queryFn: async (): Promise<DCAConfig | null> => {
-      if (!address) return null;
-      
-      // This would need to be implemented based on the actual contract interface
-      return {
-        enabled: false,
-        targetToken: '0x0000000000000000000000000000000000000000' as `0x${string}`,
-        minAmount: BigInt(0),
-        maxSlippage: BigInt(0),
-        lowerTick: 0,
-        upperTick: 0
-      };
-    },
-    enabled: !!address
+  // Get contract address for current chain
+  const contractAddress = CONTRACT_ADDRESSES[chainId as keyof typeof CONTRACT_ADDRESSES]?.DCA;
+
+  // Get DCA configuration from contract
+  const { data: config, isLoading: isLoadingConfig, refetch: refetchConfig } = useReadContract({
+    address: contractAddress as `0x${string}`,
+    abi: DCAABI,
+    functionName: 'getDCAConfig',
+    args: address ? [address] : undefined,
+    query: {
+      enabled: !!address && !!contractAddress
+    }
   });
 
-  // Get pending DCA
-  const getPendingDCA = useQuery({
-    queryKey: ['pendingDCA', address],
-    queryFn: async (): Promise<PendingDCA | null> => {
-      if (!address) return null;
-      
-      // This would need to be implemented based on the actual contract interface
-      return {
-        tokens: [],
-        amounts: [],
-        targets: []
-      };
-    },
-    enabled: !!address
+  // Get pending DCA from contract
+  const { data: pending, isLoading: isLoadingPending, refetch: refetchPending } = useReadContract({
+    address: contractAddress as `0x${string}`,
+    abi: DCAABI,
+    functionName: 'getPendingDCA',
+    args: address ? [address] : undefined,
+    query: {
+      enabled: !!address && !!contractAddress
+    }
   });
 
-  // Get DCA history
-  const getDCAHistory = useQuery({
-    queryKey: ['dcaHistory', address],
-    queryFn: async (): Promise<DCAExecution[]> => {
-      if (!address) return [];
-      
-      // This would need to be implemented based on the actual contract interface
-      return [];
-    },
-    enabled: !!address
+  // Get DCA history from contract
+  const { data: history, isLoading: isLoadingHistory, refetch: refetchHistory } = useReadContract({
+    address: contractAddress as `0x${string}`,
+    abi: DCAABI,
+    functionName: 'getDCAHistory',
+    args: address ? [address, BigInt(50)] : undefined, // Limit to 50 recent executions
+    query: {
+      enabled: !!address && !!contractAddress
+    }
   });
 
-  // Enable DCA
+  // Biconomy write hook for gasless transactions
+  const { write: writeContract, isPending: isWritePending, hash } = useSmartContractWrite();
+
+  // Enable DCA (gasless)
   const enableDCA = useMutation({
     mutationFn: async (params: {
       targetToken: `0x${string}`;
@@ -70,12 +65,13 @@ export function useDCA() {
       maxSlippage: number;
     }): Promise<`0x${string}`> => {
       if (!address) throw new Error('No wallet connected');
+      if (!contractAddress) throw new Error('Contract not deployed on this network');
       
       const minAmountWei = parseEther(params.minAmount);
       const maxSlippageWei = BigInt(params.maxSlippage);
       
-      const hash = await writeContract({
-        address: CONTRACT_ADDRESSES[84532].DCA as `0x${string}`,
+      return await writeContract({
+        address: contractAddress as `0x${string}`,
         abi: DCAABI,
         functionName: 'enableDCA',
         args: [
@@ -85,24 +81,23 @@ export function useDCA() {
           maxSlippageWei
         ]
       });
-
-      return hash;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dcaConfig', address] });
+      refetchConfig();
     }
   });
 
-  // Set DCA tick strategy
+  // Set DCA tick strategy (gasless)
   const setDCATickStrategy = useMutation({
     mutationFn: async (params: {
       lowerTick: number;
       upperTick: number;
     }): Promise<`0x${string}`> => {
       if (!address) throw new Error('No wallet connected');
+      if (!contractAddress) throw new Error('Contract not deployed on this network');
       
-      const hash = await writeContract({
-        address: CONTRACT_ADDRESSES[84532].DCA as `0x${string}`,
+      return await writeContract({
+        address: contractAddress as `0x${string}`,
         abi: DCAABI,
         functionName: 'setDCATickStrategy',
         args: [
@@ -111,15 +106,13 @@ export function useDCA() {
           params.upperTick
         ]
       });
-
-      return hash;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dcaConfig', address] });
+      refetchConfig();
     }
   });
 
-  // Queue DCA execution
+  // Queue DCA execution (gasless)
   const queueDCAExecution = useMutation({
     mutationFn: async (params: {
       fromToken: `0x${string}`;
@@ -127,11 +120,12 @@ export function useDCA() {
       amount: string;
     }): Promise<`0x${string}`> => {
       if (!address) throw new Error('No wallet connected');
+      if (!contractAddress) throw new Error('Contract not deployed on this network');
       
       const amountWei = parseEther(params.amount);
       
-      const hash = await writeContract({
-        address: CONTRACT_ADDRESSES[84532].DCA as `0x${string}`,
+      return await writeContract({
+        address: contractAddress as `0x${string}`,
         abi: DCAABI,
         functionName: 'queueDCAExecution',
         args: [
@@ -141,120 +135,137 @@ export function useDCA() {
           amountWei
         ]
       });
-
-      return hash;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pendingDCA', address] });
+      refetchPending();
     }
   });
 
-  // Execute DCA
+  // Execute DCA (gasless)
   const executeDCA = useMutation({
-    mutationFn: async (): Promise<`0x${string}`> => {
+    mutationFn: async (): Promise<{ hash: `0x${string}`; executed: boolean; totalAmount: bigint }> => {
       if (!address) throw new Error('No wallet connected');
+      if (!contractAddress) throw new Error('Contract not deployed on this network');
       
       const hash = await writeContract({
-        address: CONTRACT_ADDRESSES[84532].DCA as `0x${string}`,
+        address: contractAddress as `0x${string}`,
         abi: DCAABI,
         functionName: 'executeDCA',
         args: [address]
       });
 
-      return hash;
+      // Note: The contract returns (bool executed, uint256 totalAmount)
+      // We'll need to parse this from the transaction receipt
+      return { hash, executed: true, totalAmount: BigInt(0) };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pendingDCA', address] });
-      queryClient.invalidateQueries({ queryKey: ['dcaHistory', address] });
+      refetchPending();
+      refetchHistory();
     }
   });
 
-  // Disable DCA
+  // Disable DCA (gasless)
   const disableDCA = useMutation({
     mutationFn: async (): Promise<`0x${string}`> => {
       if (!address) throw new Error('No wallet connected');
+      if (!contractAddress) throw new Error('Contract not deployed on this network');
       
-      const hash = await writeContract({
-        address: CONTRACT_ADDRESSES[84532].DCA as `0x${string}`,
+      return await writeContract({
+        address: contractAddress as `0x${string}`,
         abi: DCAABI,
         functionName: 'disableDCA',
         args: [address]
       });
-
-      return hash;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dcaConfig', address] });
+      refetchConfig();
     }
   });
 
-  // Calculate optimal DCA amount
-  const calculateOptimalDCAAmount = useQuery({
-    queryKey: ['optimalDCAAmount', address],
-    queryFn: async (params: {
-      fromToken: `0x${string}`;
-      toToken: `0x${string}`;
-      availableAmount: string;
-    }): Promise<string> => {
-      if (!address) return '0';
-      
-      const availableAmountWei = parseEther(params.availableAmount);
-      
-      // This would need to be implemented based on the actual contract interface
-      // For now, returning a placeholder
-      return '0';
-    },
-    enabled: !!address
-  });
+  // Calculate optimal DCA amount from contract
+  const useCalculateOptimalDCAAmount = (params: {
+    fromToken: `0x${string}`;
+    toToken: `0x${string}`;
+    availableAmount: string;
+  }) => {
+    const availableAmountWei = parseEther(params.availableAmount);
+    
+    return useReadContract({
+      address: contractAddress as `0x${string}`,
+      abi: DCAABI,
+      functionName: 'calculateOptimalDCAAmount',
+      args: address && params.fromToken && params.toToken ? [
+        address,
+        params.fromToken,
+        params.toToken,
+        availableAmountWei
+      ] : undefined,
+      query: {
+        enabled: !!address && !!params.fromToken && !!params.toToken && !!contractAddress
+      }
+    });
+  };
 
-  // Check if DCA should execute
-  const shouldExecuteDCA = useQuery({
-    queryKey: ['shouldExecuteDCA', address],
-    queryFn: async (): Promise<boolean> => {
-      if (!address) return false;
-      
-      // This would need to be implemented based on the actual contract interface
-      return false;
-    },
-    enabled: !!address
-  });
+  // Check if DCA should execute (requires pool key)
+  const useShouldExecuteDCA = (poolKey?: {
+    currency0: `0x${string}`;
+    currency1: `0x${string}`;
+    fee: number;
+    tickSpacing: number;
+    hooks: `0x${string}`;
+  }) => {
+    return useReadContract({
+      address: contractAddress as `0x${string}`,
+      abi: DCAABI,
+      functionName: 'shouldExecuteDCA',
+      args: address && poolKey ? [address, poolKey] : undefined,
+      query: {
+        enabled: !!address && !!poolKey && !!contractAddress
+      }
+    });
+  };
 
   return {
-    // Queries
-    config: getDCAConfig.data,
-    pending: getPendingDCA.data,
-    history: getDCAHistory.data,
-    optimalAmount: calculateOptimalDCAAmount.data,
-    shouldExecute: shouldExecuteDCA.data,
-    
+    // Contract data
+    config: config as DCAConfig | undefined,
+    pending: pending as PendingDCA | undefined,
+    history: history as DCAExecution[] | undefined,
+    contractAddress,
+
     // Loading states
-    isLoadingConfig: getDCAConfig.isLoading,
-    isLoadingPending: getPendingDCA.isLoading,
-    isLoadingHistory: getDCAHistory.isLoading,
-    isLoadingOptimal: calculateOptimalDCAAmount.isLoading,
-    isLoadingShouldExecute: shouldExecuteDCA.isLoading,
-    
-    // Mutations
+    isLoadingConfig,
+    isLoadingPending,
+    isLoadingHistory,
+    isWritePending,
+
+    // Mutations (gasless)
     enableDCA: enableDCA.mutateAsync,
     setDCATickStrategy: setDCATickStrategy.mutateAsync,
     queueDCAExecution: queueDCAExecution.mutateAsync,
     executeDCA: executeDCA.mutateAsync,
     disableDCA: disableDCA.mutateAsync,
-    
+
     // Mutation states
     isEnabling: enableDCA.isPending,
     isSettingStrategy: setDCATickStrategy.isPending,
     isQueueing: queueDCAExecution.isPending,
     isExecuting: executeDCA.isPending,
     isDisabling: disableDCA.isPending,
-    
+
+    // Utility hooks
+    useCalculateOptimalDCAAmount,
+    useShouldExecuteDCA,
+
+    // Refetch functions
+    refetchConfig,
+    refetchPending,
+    refetchHistory,
+
+    // Transaction hash
+    hash,
+
     // Error states
-    configError: getDCAConfig.error,
-    pendingError: getPendingDCA.error,
-    historyError: getDCAHistory.error,
-    optimalError: calculateOptimalDCAAmount.error,
-    shouldExecuteError: shouldExecuteDCA.error,
-    enableError: enableDCA.error,
+    configError: enableDCA.error,
     setStrategyError: setDCATickStrategy.error,
     queueError: queueDCAExecution.error,
     executeError: executeDCA.error,
