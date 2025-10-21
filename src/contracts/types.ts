@@ -98,6 +98,14 @@ export interface PendingDCA {
   targets: `0x${string}`[];
 }
 
+// Yield Strategy Types
+export enum YieldStrategy {
+  NONE = 0,
+  COMPOUND = 1,
+  AAVE = 2,
+  COMPOUND_V3 = 3
+}
+
 // Slippage Control Types
 export enum SlippageAction {
   REVERT = 0,
