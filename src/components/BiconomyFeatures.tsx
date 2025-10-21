@@ -10,18 +10,15 @@ import { BiconomyAnalyticsDashboard } from './BiconomyAnalyticsDashboard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Label } from '@/components/ui/';
+import { Label } from '@/components/ui/Label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/AnimatedTabs';
 import { Badge } from '@/components/ui/Badge';
-import { 
-  Zap, 
-  Layers, 
-  Key, 
-  Shield, 
-  TrendingUp, 
+import {
+  Zap,
+  Layers,
+  Key,
+  Shield,
   Settings,
-  Play,
-  Pause,
   Trash2
 } from 'lucide-react';
 
@@ -169,7 +166,7 @@ export function BiconomyFeatures() {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span>Transaction Status:</span>
-                      <Badge variant={isPending ? 'default' : 'outline'}>
+                      <Badge variant={isPending ? 'warning' : 'success'}>
                         {isPending ? 'Pending' : 'Ready'}
                       </Badge>
                     </div>
@@ -278,7 +275,7 @@ export function BiconomyFeatures() {
                 <div className="space-y-2">
                   <Label>Status</Label>
                   <div className="flex items-center space-x-2">
-                    <Badge variant={checkSessionKeyValidity(sessionKeyType) ? 'default' : 'outline'}>
+                    <Badge variant={checkSessionKeyValidity(sessionKeyType) ? 'success' : 'default'}>
                       {checkSessionKeyValidity(sessionKeyType) ? 'Active' : 'Inactive'}
                     </Badge>
                     {getStoredSessionKey(sessionKeyType) && (
