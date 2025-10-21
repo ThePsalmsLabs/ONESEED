@@ -65,36 +65,6 @@ export default function ConfigurePage() {
     );
   }
 
-  // Show contract deployment status
-  if (!contractAddress || contractAddress === '0x0000000000000000000000000000000000000000') {
-    return (
-      <Layout>
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/50 to-purple-50/30 flex items-center justify-center">
-          <Card className="max-w-md mx-auto p-8 text-center">
-            <div className="text-6xl mb-4">🚧</div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Contracts Not Deployed</h2>
-            <p className="text-gray-600 mb-6">
-              The OneSeed smart contracts haven't been deployed to this network yet.
-            </p>
-            <div className="space-y-4">
-              <Button
-                onClick={() => router.push('/')}
-                variant="secondary"
-                className="w-full"
-              >
-                ← Back to Home
-              </Button>
-              <div className="text-sm text-gray-500">
-                <p>To deploy contracts:</p>
-                <p>1. Run: <code className="bg-gray-100 px-2 py-1 rounded">npx hardhat run scripts/deploy-contracts.js --network baseSepolia</code></p>
-                <p>2. Update contract addresses in <code className="bg-gray-100 px-2 py-1 rounded">src/contracts/addresses.ts</code></p>
-              </div>
-            </div>
-          </Card>
-        </div>
-      </Layout>
-    );
-  }
 
   const steps = [
     {
