@@ -14,7 +14,7 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { formatUnits } from 'viem';
-import { SavingsTokenType } from '@/contracts/types';
+import { SavingsTokenType, TokenBalance } from '@/contracts/types';
 import Link from 'next/link';
 
 export default function DashboardPage() {
@@ -54,12 +54,9 @@ export default function DashboardPage() {
   const hasAutoIncrement = strategy ? Number(strategy.autoIncrement) > 0 : false;
   const maxPercentage = strategy ? Number(strategy.maxPercentage) / 100 : 0;
 
-  // Mock data for now - will be replaced with real contract data
-  const mockTokenBalances = [
-    { token: 'USDC', balance: BigInt('1000000000'), symbol: 'USDC', decimals: 6 },
-    { token: 'ETH', balance: BigInt('500000000000000000'), symbol: 'ETH', decimals: 18 }
-  ];
-  const mockTotalBalance = mockTokenBalances.reduce((sum, token) => sum + token.balance, BigInt(0));
+  // Real data from hooks
+  const tokenBalances: TokenBalance[] = []; // Will be populated from real contract data
+  const totalBalance = tokenBalances.reduce((sum, token) => sum + token.amount, BigInt(0));
   const savingsTokenTypeLabel = strategy 
     ? strategy.savingsTokenType === SavingsTokenType.INPUT 
       ? 'Input Token' 
@@ -155,8 +152,8 @@ export default function DashboardPage() {
           {/* Main Overview */}
           <div className="transform transition-all duration-1000 delay-200">
             <SavingsOverview 
-              totalBalance={mockTotalBalance} 
-              tokenCount={mockTokenBalances.length} 
+              totalBalance={totalBalance} 
+              tokenCount={tokenBalances.length} 
               isLoading={false} 
             />
           </div>
@@ -170,10 +167,10 @@ export default function DashboardPage() {
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-bold text-gray-900">Your Portfolio</h2>
-                  {mockTokenBalances.length > 0 && (
+                  {tokenBalances.length > 0 && (
                     <div className="flex items-center gap-2 text-sm text-gray-500">
                       <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                      {mockTokenBalances.length} Token{mockTokenBalances.length !== 1 ? 's' : ''} Active
+                      {tokenBalances.length} Token{tokenBalances.length !== 1 ? 's' : ''} Active
                     </div>
                   )}
                 </div>
@@ -184,7 +181,7 @@ export default function DashboardPage() {
                       <div key={i} className="h-32 skeleton rounded-xl" />
                     ))}
                   </div>
-                ) : mockTokenBalances.length === 0 ? (
+                ) : tokenBalances.length === 0 ? (
                   <Card className="p-12 text-center glass bg-white/60 backdrop-blur-sm">
                     <div className="text-6xl mb-4 animate-float">🌱</div>
                     <h3 className="text-xl font-bold text-gray-900 mb-2">Ready to Plant Your First Seed?</h3>
@@ -204,7 +201,7 @@ export default function DashboardPage() {
                   </Card>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {mockTokenBalances.map((balance, index) => (
+                    {tokenBalances.map((balance, index) => (
                       <div key={balance.token} className="transform transition-all duration-700" style={{ animationDelay: `${400 + index * 100}ms` }}>
                         <TokenBalanceCard balance={balance} />
                       </div>
@@ -244,14 +241,14 @@ export default function DashboardPage() {
                       <div className="space-y-2">
                         <div className="flex justify-between">
                           <span className="text-gray-600">Total Tokens:</span>
-                          <span className="font-semibold">{mockTokenBalances.length}</span>
+                          <span className="font-semibold">{tokenBalances.length}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">Largest Balance:</span>
                           <span className="font-semibold">
-                            {mockTokenBalances.length > 0 
+                            {tokenBalances.length > 0 
                               ? formatUnits(
-                                  mockTokenBalances.reduce((max, b) => b.balance > max ? b.balance : max, BigInt(0)), 
+                                  tokenBalances.reduce((max, b) => b.amount > max ? b.amount : max, BigInt(0)), 
                                   18
                                 ).substring(0, 8)
                               : '0'
@@ -281,10 +278,10 @@ export default function DashboardPage() {
               </div>
               
               {/* Goal Progress - Only show if user has savings */}
-              {mockTokenBalances.length > 0 && (
+              {tokenBalances.length > 0 && (
                 <div className="transform transition-all duration-1000 delay-600">
                   <GoalProgress
-                    currentAmount={mockTotalBalance}
+                    currentAmount={totalBalance}
                     goalAmount={BigInt(0)} // No hardcoded goals
                     tokenSymbol="tokens"
                   />
