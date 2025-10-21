@@ -7,7 +7,7 @@ import { PAYMASTER_POLICIES, getApplicablePolicy, calculateGasSponsorship } from
 import { useAccount } from 'wagmi';
 import { useReadContract } from 'wagmi';
 import { CONTRACT_ADDRESSES } from '@/contracts/addresses';
-import { savingsABI } from '@/contracts/abis';
+import { SavingsModuleABI as SavingsABI } from '@/contracts/abis/Savings';
 
 interface PaymasterServiceData {
   mode: 'SPONSORED' | 'PARTIAL' | 'NONE';
@@ -26,7 +26,7 @@ export function useSmartPaymaster() {
   // Get user's savings balance for policy determination
   const { data: userBalance } = useReadContract({
     address: CONTRACT_ADDRESSES[84532].Savings as `0x${string}`,
-    abi: savingsABI,
+    abi: SavingsABI,
     functionName: 'getUserBalance',
     args: address ? [address] : undefined,
     query: {

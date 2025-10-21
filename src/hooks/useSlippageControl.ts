@@ -1,7 +1,7 @@
 import { useAccount, useWriteContract } from 'wagmi';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CONTRACT_ADDRESSES } from '@/contracts/addresses';
-import { SlippageControlABI } from '@/contracts/abis';
+import { SlippageControlABI } from '@/contracts/abis/SlippageControl';
 import { 
   SlippageSettings, 
   SlippageAction,

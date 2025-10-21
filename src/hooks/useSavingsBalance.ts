@@ -2,7 +2,7 @@
 
 import { useAccount, useReadContract, useChainId } from 'wagmi';
 import { CONTRACT_ADDRESSES } from '@/contracts/addresses';
-import { TokenABI } from '@/contracts/abis/Token';
+import { TokenModuleABI as TokenABI } from '@/contracts/abis/Token';
 
 export function useSavingsBalance() {
   const { address } = useAccount();

@@ -2,7 +2,7 @@
 
 import { useAccount, useReadContract, useChainId } from 'wagmi';
 import { CONTRACT_ADDRESSES } from '@/contracts/addresses';
-import { SavingStrategyABI } from '@/contracts/abis';
+import { SavingsStrategyABI as SavingStrategyABI } from '@/contracts/abis/SavingStrategy';
 import { SavingsTokenType } from '@/contracts/types';
 import { useSmartContractWrite } from './useSmartContractWrite';
 

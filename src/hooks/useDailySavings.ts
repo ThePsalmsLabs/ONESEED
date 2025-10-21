@@ -1,73 +1,75 @@
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+'use client';
+
+import { useAccount, useReadContract, useChainId } from 'wagmi';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { parseEther, formatEther } from 'viem';
 import { CONTRACT_ADDRESSES } from '@/contracts/addresses';
-import { DailySavingsABI } from '@/contracts/abis';
+import { DailySavingsABI } from '@/contracts/abis/DailySavings';
 import { 
   DailySavingsConfig, 
   DailySavingsStatus, 
   DailyExecutionStatus,
-  TransactionResult 
+  YieldStrategy
 } from '@/contracts/types';
+import { useSmartContractWrite } from './useSmartContractWrite';
 
 export function useDailySavings() {
   const { address } = useAccount();
-  const { writeContract } = useWriteContract();
+  const chainId = useChainId();
   const queryClient = useQueryClient();
 
-  // Get daily savings configuration
-  const getDailySavingsConfig = useQuery({
-    queryKey: ['dailySavingsConfig', address],
-    queryFn: async (): Promise<DailySavingsConfig | null> => {
-      if (!address) return null;
-      
-      // This would need to be implemented based on the actual contract interface
-      // For now, returning a placeholder
-      return {
-        enabled: false,
-        dailyAmount: BigInt(0),
-        goalAmount: BigInt(0),
-        penaltyBps: BigInt(0),
-        endTime: BigInt(0),
-        startTime: BigInt(0),
-        lastExecutionTime: BigInt(0),
-        currentAmount: BigInt(0)
-      };
-    },
-    enabled: !!address
-  });
+  // Get contract address for current chain
+  const contractAddress = CONTRACT_ADDRESSES[chainId as keyof typeof CONTRACT_ADDRESSES]?.DailySavings;
 
-  // Get daily savings status
-  const getDailySavingsStatus = useQuery({
-    queryKey: ['dailySavingsStatus', address],
-    queryFn: async (): Promise<DailySavingsStatus | null> => {
-      if (!address) return null;
-      
-      // This would need to be implemented based on the actual contract interface
-      return {
-        enabled: false,
-        dailyAmount: BigInt(0),
-        goalAmount: BigInt(0),
-        currentAmount: BigInt(0),
-        remainingAmount: BigInt(0),
-        penaltyAmount: BigInt(0),
-        estimatedCompletionDate: BigInt(0)
-      };
-    },
-    enabled: !!address
-  });
+  // Biconomy write hook for gasless transactions
+  const { write: writeContract, isPending: isWritePending, hash } = useSmartContractWrite();
 
   // Check if user has pending daily savings
-  const hasPendingDailySavings = useQuery({
-    queryKey: ['hasPendingDailySavings', address],
-    queryFn: async (): Promise<boolean> => {
-      if (!address) return false;
-      
-      // This would need to be implemented based on the actual contract interface
-      return false;
-    },
-    enabled: !!address
+  const { data: hasPending, isLoading: isLoadingPending, refetch: refetchPending } = useReadContract({
+    address: contractAddress as `0x${string}`,
+    abi: DailySavingsABI,
+    functionName: 'hasPendingDailySavings',
+    args: address ? [address] : undefined,
+    query: {
+      enabled: !!address && !!contractAddress
+    }
   });
+
+  // Get daily savings status for a specific token
+  const useDailySavingsStatus = (token: `0x${string}`) => {
+    return useReadContract({
+      address: contractAddress as `0x${string}`,
+      abi: DailySavingsABI,
+      functionName: 'getDailySavingsStatus',
+      args: address && token ? [address, token] : undefined,
+      query: {
+        enabled: !!address && !!token && !!contractAddress
+      }
+    }) as {
+      data: [boolean, bigint, bigint, bigint, bigint, bigint, bigint] | undefined;
+      isLoading: boolean;
+      error: Error | null;
+      refetch: () => void;
+    };
+  };
+
+  // Get daily execution status for a specific token
+  const useDailyExecutionStatus = (token: `0x${string}`) => {
+    return useReadContract({
+      address: contractAddress as `0x${string}`,
+      abi: DailySavingsABI,
+      functionName: 'getDailyExecutionStatus',
+      args: address && token ? [address, token] : undefined,
+      query: {
+        enabled: !!address && !!token && !!contractAddress
+      }
+    }) as {
+      data: [boolean, bigint, bigint] | undefined;
+      isLoading: boolean;
+      error: Error | null;
+      refetch: () => void;
+    };
+  };
 
   // Configure daily savings
   const configureDailySavings = useMutation({
@@ -76,17 +78,18 @@ export function useDailySavings() {
       dailyAmount: string;
       goalAmount: string;
       penaltyBps: number;
-      endTime?: number;
-    }) => {
+      endTime: number;
+    }): Promise<`0x${string}`> => {
       if (!address) throw new Error('No wallet connected');
+      if (!contractAddress) throw new Error('Contract not deployed on this network');
       
       const dailyAmountWei = parseEther(params.dailyAmount);
       const goalAmountWei = parseEther(params.goalAmount);
       const penaltyBpsWei = BigInt(params.penaltyBps);
-      const endTimeWei = BigInt(params.endTime || Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60);
-
-      const hash = await writeContract({
-        address: CONTRACT_ADDRESSES[84532].DailySavings as `0x${string}`,
+      const endTimeWei = BigInt(params.endTime);
+      
+      return await writeContract({
+        address: contractAddress as `0x${string}`,
         abi: DailySavingsABI,
         functionName: 'configureDailySavings',
         args: [
@@ -98,52 +101,79 @@ export function useDailySavings() {
           endTimeWei
         ]
       });
-
-      return hash;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dailySavingsConfig', address] });
-      queryClient.invalidateQueries({ queryKey: ['dailySavingsStatus', address] });
+      queryClient.invalidateQueries({ queryKey: ['dailySavingsStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['dailyExecutionStatus'] });
+    }
+  });
+
+  // Disable daily savings
+  const disableDailySavings = useMutation({
+    mutationFn: async (params: {
+      token: `0x${string}`;
+    }): Promise<`0x${string}`> => {
+      if (!address) throw new Error('No wallet connected');
+      if (!contractAddress) throw new Error('Contract not deployed on this network');
+      
+      return await writeContract({
+        address: contractAddress as `0x${string}`,
+        abi: DailySavingsABI,
+        functionName: 'disableDailySavings',
+        args: [address, params.token]
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dailySavingsStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['dailyExecutionStatus'] });
     }
   });
 
   // Execute daily savings
   const executeDailySavings = useMutation({
-    mutationFn: async (): Promise<`0x${string}`> => {
+    mutationFn: async (): Promise<{ hash: `0x${string}`; amount: bigint }> => {
       if (!address) throw new Error('No wallet connected');
+      if (!contractAddress) throw new Error('Contract not deployed on this network');
       
       const hash = await writeContract({
-        address: CONTRACT_ADDRESSES[84532].DailySavings as `0x${string}`,
+        address: contractAddress as `0x${string}`,
         abi: DailySavingsABI,
         functionName: 'executeDailySavings',
         args: [address]
       });
 
-      return hash;
+      // Note: The contract returns uint256 amount
+      // We'll need to parse this from the transaction receipt
+      return { hash, amount: BigInt(0) };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dailySavingsStatus', address] });
-      queryClient.invalidateQueries({ queryKey: ['hasPendingDailySavings', address] });
+      queryClient.invalidateQueries({ queryKey: ['dailySavingsStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['dailyExecutionStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['hasPendingDailySavings'] });
     }
   });
 
   // Execute daily savings for specific token
   const executeDailySavingsForToken = useMutation({
-    mutationFn: async (token: `0x${string}`): Promise<`0x${string}`> => {
+    mutationFn: async (params: {
+      token: `0x${string}`;
+    }): Promise<{ hash: `0x${string}`; amount: bigint }> => {
       if (!address) throw new Error('No wallet connected');
+      if (!contractAddress) throw new Error('Contract not deployed on this network');
       
       const hash = await writeContract({
-        address: CONTRACT_ADDRESSES[84532].DailySavings as `0x${string}`,
+        address: contractAddress as `0x${string}`,
         abi: DailySavingsABI,
         functionName: 'executeDailySavingsForToken',
-        args: [address, token]
+        args: [address, params.token]
       });
 
-      return hash;
+      return { hash, amount: BigInt(0) };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dailySavingsStatus', address] });
-      queryClient.invalidateQueries({ queryKey: ['hasPendingDailySavings', address] });
+      queryClient.invalidateQueries({ queryKey: ['dailySavingsStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['dailyExecutionStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['hasPendingDailySavings'] });
     }
   });
 
@@ -152,98 +182,142 @@ export function useDailySavings() {
     mutationFn: async (params: {
       token: `0x${string}`;
       amount: string;
-    }): Promise<`0x${string}`> => {
+    }): Promise<{ hash: `0x${string}`; actualAmount: bigint }> => {
       if (!address) throw new Error('No wallet connected');
+      if (!contractAddress) throw new Error('Contract not deployed on this network');
       
       const amountWei = parseEther(params.amount);
       
       const hash = await writeContract({
-        address: CONTRACT_ADDRESSES[84532].DailySavings as `0x${string}`,
+        address: contractAddress as `0x${string}`,
         abi: DailySavingsABI,
         functionName: 'withdrawDailySavings',
         args: [address, params.token, amountWei]
       });
 
-      return hash;
+      return { hash, actualAmount: BigInt(0) };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dailySavingsStatus', address] });
-      queryClient.invalidateQueries({ queryKey: ['dailySavingsConfig', address] });
+      queryClient.invalidateQueries({ queryKey: ['dailySavingsStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['dailyExecutionStatus'] });
     }
   });
 
-  // Disable daily savings
-  const disableDailySavings = useMutation({
-    mutationFn: async (token: `0x${string}`): Promise<`0x${string}`> => {
+  // Set yield strategy
+  const setYieldStrategy = useMutation({
+    mutationFn: async (params: {
+      token: `0x${string}`;
+      strategy: YieldStrategy;
+    }): Promise<`0x${string}`> => {
       if (!address) throw new Error('No wallet connected');
+      if (!contractAddress) throw new Error('Contract not deployed on this network');
+      
+      return await writeContract({
+        address: contractAddress as `0x${string}`,
+        abi: DailySavingsABI,
+        functionName: 'setDailySavingsYieldStrategy',
+        args: [address, params.token, params.strategy]
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dailySavingsStatus'] });
+    }
+  });
+
+  // Execute token savings
+  const executeTokenSavings = useMutation({
+    mutationFn: async (params: {
+      token: `0x${string}`;
+    }): Promise<{ hash: `0x${string}`; amount: bigint }> => {
+      if (!address) throw new Error('No wallet connected');
+      if (!contractAddress) throw new Error('Contract not deployed on this network');
       
       const hash = await writeContract({
-        address: CONTRACT_ADDRESSES[84532].DailySavings as `0x${string}`,
+        address: contractAddress as `0x${string}`,
         abi: DailySavingsABI,
-        functionName: 'disableDailySavings',
-        args: [address, token]
+        functionName: 'executeTokenSavings',
+        args: [address, params.token]
       });
 
-      return hash;
+      return { hash, amount: BigInt(0) };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dailySavingsConfig', address] });
-      queryClient.invalidateQueries({ queryKey: ['dailySavingsStatus', address] });
+      queryClient.invalidateQueries({ queryKey: ['dailySavingsStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['dailyExecutionStatus'] });
     }
   });
 
-  // Get daily execution status
-  const getDailyExecutionStatus = useQuery({
-    queryKey: ['dailyExecutionStatus', address],
-    queryFn: async (): Promise<DailyExecutionStatus | null> => {
-      if (!address) return null;
-      
-      // This would need to be implemented based on the actual contract interface
-      return {
-        canExecute: false,
-        daysPassed: BigInt(0),
-        amountToSave: BigInt(0)
-      };
-    },
-    enabled: !!address
-  });
+  // Utility functions
+  const formatAmount = (amount: bigint, decimals: number = 18) => {
+    const formatted = formatEther(amount);
+    return parseFloat(formatted).toFixed(4);
+  };
+
+  const calculateProgress = (current: bigint, goal: bigint) => {
+    if (goal === BigInt(0)) return 0;
+    return Math.min(100, (Number(current) / Number(goal)) * 100);
+  };
+
+  const calculateDaysRemaining = (endTime: bigint) => {
+    const now = BigInt(Math.floor(Date.now() / 1000));
+    const remaining = Number(endTime - now);
+    return Math.max(0, Math.ceil(remaining / (24 * 60 * 60)));
+  };
+
+  const calculatePenaltyAmount = (amount: bigint, penaltyBps: bigint) => {
+    return (amount * penaltyBps) / BigInt(10000);
+  };
 
   return {
-    // Queries
-    config: getDailySavingsConfig.data,
-    status: getDailySavingsStatus.data,
-    hasPending: hasPendingDailySavings.data,
-    executionStatus: getDailyExecutionStatus.data,
-    
+    // Contract data
+    hasPending,
+    contractAddress,
+
     // Loading states
-    isLoadingConfig: getDailySavingsConfig.isLoading,
-    isLoadingStatus: getDailySavingsStatus.isLoading,
-    isLoadingPending: hasPendingDailySavings.isLoading,
-    isLoadingExecution: getDailyExecutionStatus.isLoading,
-    
-    // Mutations
+    isLoadingPending,
+    isWritePending,
+
+    // Hooks for specific tokens
+    useDailySavingsStatus,
+    useDailyExecutionStatus,
+
+    // Mutations (gasless)
     configureDailySavings: configureDailySavings.mutateAsync,
+    disableDailySavings: disableDailySavings.mutateAsync,
     executeDailySavings: executeDailySavings.mutateAsync,
     executeDailySavingsForToken: executeDailySavingsForToken.mutateAsync,
     withdrawDailySavings: withdrawDailySavings.mutateAsync,
-    disableDailySavings: disableDailySavings.mutateAsync,
-    
+    setYieldStrategy: setYieldStrategy.mutateAsync,
+    executeTokenSavings: executeTokenSavings.mutateAsync,
+
     // Mutation states
     isConfiguring: configureDailySavings.isPending,
-    isExecuting: executeDailySavings.isPending,
-    isExecutingToken: executeDailySavingsForToken.isPending,
-    isWithdrawing: withdrawDailySavings.isPending,
     isDisabling: disableDailySavings.isPending,
-    
+    isExecuting: executeDailySavings.isPending,
+    isExecutingForToken: executeDailySavingsForToken.isPending,
+    isWithdrawing: withdrawDailySavings.isPending,
+    isSettingYield: setYieldStrategy.isPending,
+    isExecutingToken: executeTokenSavings.isPending,
+
+    // Utility functions
+    formatAmount,
+    calculateProgress,
+    calculateDaysRemaining,
+    calculatePenaltyAmount,
+
+    // Refetch functions
+    refetchPending,
+
+    // Transaction hash
+    hash,
+
     // Error states
-    configError: getDailySavingsConfig.error,
-    statusError: getDailySavingsStatus.error,
-    pendingError: hasPendingDailySavings.error,
-    executionError: getDailyExecutionStatus.error,
     configureError: configureDailySavings.error,
+    disableError: disableDailySavings.error,
     executeError: executeDailySavings.error,
-    executeTokenError: executeDailySavingsForToken.error,
+    executeForTokenError: executeDailySavingsForToken.error,
     withdrawError: withdrawDailySavings.error,
-    disableError: disableDailySavings.error
+    setYieldError: setYieldStrategy.error,
+    executeTokenError: executeTokenSavings.error
   };
 }

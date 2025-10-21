@@ -5,12 +5,10 @@ import { useBiconomy } from '@/components/BiconomyProvider';
 import { useToast } from '@/components/ui/Toast';
 import { encodeFunctionData } from 'viem';
 import { CONTRACT_ADDRESSES } from '@/contracts/addresses';
-import { 
-  SavingStrategyABI, 
-  DCAABI, 
-  DailySavingsABI, 
-  SavingsABI 
-} from '@/contracts/abis';
+import { SavingsStrategyABI as SavingStrategyABI } from '@/contracts/abis/SavingStrategy';
+import { DCA as DCAABI } from '@/contracts/abis/DCA';
+import { DailySavingsABI } from '@/contracts/abis/DailySavings';
+import { SavingsModuleABI as SavingsABI } from '@/contracts/abis/Savings';
 import { SavingsTokenType } from '@/contracts/types';
 
 interface BatchSavingsSetupParams {

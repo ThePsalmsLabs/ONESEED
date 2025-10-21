@@ -4,7 +4,8 @@ import { useState, useCallback } from 'react';
 import { useBiconomy } from '@/components/BiconomyProvider';
 import { useToast } from '@/components/ui/Toast';
 import { CONTRACT_ADDRESSES } from '@/contracts/addresses';
-import { DCAABI, DailySavingsABI } from '@/contracts/abis';
+import { DCA as DCAABI } from '@/contracts/abis/DCA';
+import { DailySavingsABI } from '@/contracts/abis/DailySavings';
 
 interface SessionKeyConfig {
   contractAddress: `0x${string}`;
