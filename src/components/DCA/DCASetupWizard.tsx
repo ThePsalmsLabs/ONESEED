@@ -5,11 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/Select';
-import { Slider } from '../ui/Slider';
+import { Slider } from '@/components/ui/Slider';
 import { Badge } from '../ui/Badge';
 import { useDCA } from '@/hooks/useDCA';
-import { useTokenMetadata } from '@/hooks/useTokenMetadata';
 import { parseEther, formatEther } from 'viem';
 import { ArrowLeft, ArrowRight, Check, Zap, Shield, TrendingUp } from 'lucide-react';
 
@@ -67,7 +65,6 @@ export function DCASetupWizard({ onComplete, onCancel }: DCASetupWizardProps) {
   const [customTokenAddress, setCustomTokenAddress] = useState('');
 
   const { enableDCA, isEnabling, contractAddress } = useDCA();
-  const { getTokenMetadata } = useTokenMetadata();
 
   const totalSteps = 3;
 
@@ -123,7 +120,7 @@ export function DCASetupWizard({ onComplete, onCancel }: DCASetupWizardProps) {
               <h3 className="font-semibold text-gray-900">{token.symbol}</h3>
               <p className="text-sm text-gray-600 mb-2">{token.name}</p>
               {token.reason && (
-                <Badge variant="secondary" className="text-xs">
+                <Badge variant="default">
                   {token.reason}
                 </Badge>
               )}
@@ -189,7 +186,7 @@ export function DCASetupWizard({ onComplete, onCancel }: DCASetupWizardProps) {
             max={500}
             step={5}
             value={[amount]}
-            onValueChange={(value) => setAmount(value[0])}
+            onValueChange={(value: number[]) => setAmount(value[0])}
             className="w-full"
           />
           <div className="flex justify-between text-sm text-gray-500">
@@ -254,7 +251,7 @@ export function DCASetupWizard({ onComplete, onCancel }: DCASetupWizardProps) {
             max={5}
             step={0.1}
             value={[slippage]}
-            onValueChange={(value) => setSlippage(value[0])}
+            onValueChange={(value: number[]) => setSlippage(value[0])}
             className="w-full"
           />
           <div className="flex justify-between text-sm text-gray-500">
