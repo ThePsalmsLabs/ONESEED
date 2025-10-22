@@ -38,9 +38,9 @@ export function useDCAAnalytics() {
     queryFn: async (): Promise<DCAAnalytics> => {
       if (!address || !publicClient) {
         return {
-          totalExecutions: 0n,
-          totalVolume: 0n,
-          averageExecutionPrice: 0n,
+          totalExecutions: BigInt(0) ,
+          totalVolume: BigInt(0),
+          averageExecutionPrice: BigInt(0),
           successRate: 0,
           topPairs: []
         };
@@ -48,8 +48,8 @@ export function useDCAAnalytics() {
 
       try {
         const currentBlock = await publicClient.getBlockNumber();
-        const blocksToSearch = 100000n; // More history for analytics
-        const fromBlock = currentBlock > blocksToSearch ? currentBlock - blocksToSearch : 0n;
+        const blocksToSearch = BigInt(100000); // More history for analytics
+        const fromBlock = currentBlock > blocksToSearch ? currentBlock - blocksToSearch : BigInt(0);
 
         // Fetch all DCA execution events
         const dcaLogs = await publicClient.getLogs({
@@ -63,8 +63,8 @@ export function useDCAAnalytics() {
         });
 
         const totalExecutions = BigInt(dcaLogs.length);
-        const totalVolume = dcaLogs.reduce((sum, log) => sum + (log.args.amount || 0n), 0n);
-        const averageExecutionPrice = totalExecutions > 0n ? totalVolume / totalExecutions : 0n;
+        const totalVolume = dcaLogs.reduce((sum, log) => sum + (log.args.amount || BigInt(0)), BigInt(0));
+        const averageExecutionPrice = totalExecutions > BigInt(0) ? totalVolume / totalExecutions : BigInt(0);
 
         // Calculate token pair statistics
         const pairMap = new Map<string, {
@@ -81,14 +81,14 @@ export function useDCAAnalytics() {
           const existing = pairMap.get(key);
 
           if (existing) {
-            existing.volume += log.args.amount || 0n;
-            existing.executions += 1n;
+            existing.volume += log.args.amount || BigInt(0);
+            existing.executions += BigInt(1);
           } else {
             pairMap.set(key, {
               fromToken: from as `0x${string}`,
               toToken: to as `0x${string}`,
-              volume: log.args.amount || 0n,
-              executions: 1n
+              volume: log.args.amount || BigInt(0),
+              executions: BigInt(1)
             });
           }
         }
@@ -107,9 +107,9 @@ export function useDCAAnalytics() {
       } catch (error) {
         console.error('Error fetching DCA analytics:', error);
         return {
-          totalExecutions: 0n,
-          totalVolume: 0n,
-          averageExecutionPrice: 0n,
+          totalExecutions: BigInt(0),
+          totalVolume: BigInt(0),
+          averageExecutionPrice: BigInt(0),
           successRate: 0,
           topPairs: []
         };
@@ -122,9 +122,9 @@ export function useDCAAnalytics() {
 
   // Calculate formatted metrics
   const metrics: DCAMetrics = {
-    executionCount: Number(getAnalytics.data?.totalExecutions || 0n),
-    totalVolumeFormatted: formatUnits(getAnalytics.data?.totalVolume || 0n, 18),
-    averageAmount: formatUnits(getAnalytics.data?.averageExecutionPrice || 0n, 18),
+    executionCount: Number(getAnalytics.data?.totalExecutions || BigInt(0)),
+    totalVolumeFormatted: formatUnits(getAnalytics.data?.totalVolume || BigInt(0), 18),
+    averageAmount: formatUnits(getAnalytics.data?.averageExecutionPrice || BigInt(0), 18),
     successRate: getAnalytics.data?.successRate || 0
   };
 
