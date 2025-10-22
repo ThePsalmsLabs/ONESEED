@@ -33,7 +33,7 @@ export function useActivityFeed() {
 
         // Get current block for time estimates
         const currentBlock = await publicClient.getBlockNumber();
-        const blocksToSearch = 10000n; // Last ~10k blocks
+        const blocksToSearch = BigInt(10000); // Last ~10k blocks
         const fromBlock = currentBlock - blocksToSearch;
 
         // Fetch savings events
@@ -55,7 +55,7 @@ export function useActivityFeed() {
               type: 'save',
               token: log.args.token || '0x0',
               amount: log.args.amount?.toString() || '0',
-              amountFormatted: formatUnits(log.args.amount || 0n, 18),
+              amountFormatted: formatUnits(log.args.amount || BigInt(0), 18),
               timestamp: Number(block.timestamp),
               hash: log.transactionHash,
               status: 'success',
@@ -80,17 +80,17 @@ export function useActivityFeed() {
 
           for (const log of withdrawalLogs) {
             const block = await publicClient.getBlock({ blockNumber: log.blockNumber });
-            const penalty = log.args.penalty || 0n;
+            const penalty = log.args.penalty || BigInt(0);
             activities.push({
               id: `${log.transactionHash}-${log.logIndex}`,
               type: 'withdraw',
               token: log.args.token || '0x0',
               amount: log.args.amount?.toString() || '0',
-              amountFormatted: formatUnits(log.args.amount || 0n, 18),
+              amountFormatted: formatUnits(log.args.amount || BigInt(0), 18),
               timestamp: Number(block.timestamp),
               hash: log.transactionHash,
               status: 'success',
-              description: penalty > 0n
+              description: penalty > BigInt(0)
                 ? `Withdrew with ${formatUnits(penalty, 18)} penalty`
                 : 'Withdrew savings'
             });
@@ -113,7 +113,7 @@ export function useActivityFeed() {
 
           for (const log of strategyLogs) {
             const block = await publicClient.getBlock({ blockNumber: log.blockNumber });
-            const percentage = Number(log.args.percentage || 0n) / 100;
+            const percentage = Number(log.args.percentage || BigInt(0)) / 100;
             activities.push({
               id: `${log.transactionHash}-${log.logIndex}`,
               type: 'strategy',
@@ -149,7 +149,7 @@ export function useActivityFeed() {
               type: 'dca',
               token: log.args.toToken || '0x0',
               amount: log.args.amount?.toString() || '0',
-              amountFormatted: formatUnits(log.args.amount || 0n, 18),
+              amountFormatted: formatUnits(log.args.amount || BigInt(0), 18),
               timestamp: Number(block.timestamp),
               hash: log.transactionHash,
               status: 'success',
