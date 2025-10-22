@@ -1,33 +1,40 @@
 import { base, baseSepolia } from 'viem/chains';
+import { 
+  getActiveNetwork, 
+  getActiveChainId, 
+  getActiveChain,
+  getActiveNetworkConfig,
+  isSupportedChainId as isSupportedChainIdFromConfig,
+  getNetworkFromChainId,
+  CHAIN_IDS as CONFIG_CHAIN_IDS
+} from '@/config/network';
 
+// Re-export from centralized config for backward compatibility
 export const SUPPORTED_CHAINS = {
   base: base,
   baseSepolia: baseSepolia
 } as const;
 
-export const CHAIN_IDS = {
-  BASE_MAINNET: 8453,
-  BASE_SEPOLIA: 84532
-} as const;
+export const CHAIN_IDS = CONFIG_CHAIN_IDS;
 
 export type SupportedChain = keyof typeof SUPPORTED_CHAINS;
 export type SupportedChainId = typeof CHAIN_IDS[keyof typeof CHAIN_IDS];
 
-export const DEFAULT_CHAIN_ID = CHAIN_IDS.BASE_SEPOLIA; // Default to testnet
-export const PRODUCTION_CHAIN_ID = CHAIN_IDS.BASE_MAINNET;
-
-// Environment-based chain selection
+// Deprecated: Use getActiveChainId() from network config instead
 export function getDefaultChainId(): SupportedChainId {
-  const isProduction = process.env.NODE_ENV === 'production';
-  return isProduction ? PRODUCTION_CHAIN_ID : DEFAULT_CHAIN_ID;
+  console.warn('getDefaultChainId() is deprecated. Use getActiveChainId() from @/config/network instead.');
+  return getActiveChainId();
 }
 
 // Chain ID to chain name mapping
 export function getChainName(chainId: number): SupportedChain | null {
-  switch (chainId) {
-    case CHAIN_IDS.BASE_MAINNET:
+  const network = getNetworkFromChainId(chainId);
+  if (!network) return null;
+  
+  switch (network) {
+    case 'base':
       return 'base';
-    case CHAIN_IDS.BASE_SEPOLIA:
+    case 'base-sepolia':
       return 'baseSepolia';
     default:
       return null;
@@ -42,13 +49,13 @@ export function getChainId(chainName: SupportedChain): SupportedChainId {
     case 'baseSepolia':
       return CHAIN_IDS.BASE_SEPOLIA;
     default:
-      return DEFAULT_CHAIN_ID;
+      return getActiveChainId();
   }
 }
 
 // Check if chain is supported
 export function isSupportedChain(chainId: number): chainId is SupportedChainId {
-  return Object.values(CHAIN_IDS).includes(chainId as SupportedChainId);
+  return isSupportedChainIdFromConfig(chainId);
 }
 
 // Get chain info
@@ -102,10 +109,7 @@ export const NETWORK_CONFIG = {
 
 // Get current network configuration
 export function getCurrentNetworkConfig() {
-  const defaultChainId = getDefaultChainId();
-  return defaultChainId === CHAIN_IDS.BASE_MAINNET 
-    ? NETWORK_CONFIG.baseMainnet 
-    : NETWORK_CONFIG.baseSepolia;
+  return getActiveNetworkConfig();
 }
 
 // Network validation
