@@ -2,7 +2,7 @@
 
 import { useAccount, useReadContract, useChainId } from 'wagmi';
 import { CONTRACT_ADDRESSES } from '@/contracts/addresses';
-import { SavingsStrategyABI as SavingStrategyABI } from '@/contracts/abis/SavingStrategy';
+import { SavingsStrategyABI } from '@/contracts/abis/SavingStrategy';
 import { SavingsTokenType } from '@/contracts/types';
 import { useSmartContractWrite } from './useSmartContractWrite';
 
@@ -16,7 +16,7 @@ export function useSavingsStrategy() {
   // Read user strategy
   const { data: strategy, isLoading, refetch } = useReadContract({
     address: contractAddress as `0x${string}`,
-    abi: SavingStrategyABI,
+    abi: SavingsStrategyABI,
     functionName: 'getUserStrategy',
     args: address ? [address] : undefined,
     query: {
@@ -27,7 +27,7 @@ export function useSavingsStrategy() {
   // Check if user has active strategy
   const { data: hasStrategy } = useReadContract({
     address: contractAddress as `0x${string}`,
-    abi: SavingStrategyABI,
+    abi: SavingsStrategyABI,
     functionName: 'hasActiveStrategy',
     args: address ? [address] : undefined,
     query: {
@@ -39,7 +39,7 @@ export function useSavingsStrategy() {
   const usePreviewSavings = (swapAmount: bigint) => {
     return useReadContract({
       address: contractAddress as `0x${string}`,
-      abi: SavingStrategyABI,
+      abi: SavingsStrategyABI,
       functionName: 'previewSavings',
       args: address && swapAmount ? [address, swapAmount] : undefined,
       query: {
@@ -49,7 +49,7 @@ export function useSavingsStrategy() {
   };
 
   // Write: Set saving strategy (gasless via Biconomy)
-  const { write, isPending, hash, isSuccess } = useSmartContractWrite();
+  const { write, isPending, hash } = useSmartContractWrite();
 
   const setSavingStrategy = async (params: {
     percentage: bigint;
@@ -64,7 +64,7 @@ export function useSavingsStrategy() {
 
     return write({
       address: contractAddress as `0x${string}`,
-      abi: SavingStrategyABI,
+      abi: SavingsStrategyABI,
       functionName: 'setSavingStrategy',
       args: [
         address,
@@ -91,7 +91,6 @@ export function useSavingsStrategy() {
     refetch,
     setSavingStrategy,
     isPending,
-    isSuccess,
     usePreviewSavings,
     contractAddress
   };
