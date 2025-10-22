@@ -120,7 +120,7 @@ export function WalletConnect() {
         </span>
       </Button>
       
-      <p className="text-sm text-gray-400 mt-4 max-w-sm mx-auto">
+      <p className="text-sm text-gray-300 mt-4 max-w-sm mx-auto">
         Connect your wallet to start saving automatically with every transaction
       </p>
     </div>
