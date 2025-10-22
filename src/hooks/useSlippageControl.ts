@@ -1,79 +1,43 @@
-import { useAccount, useWriteContract } from 'wagmi';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+'use client';
+
+import { useState, useCallback, useEffect } from 'react';
+import { useAccount, useReadContract, useChainId } from 'wagmi';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { parseEther, formatEther } from 'viem';
 import { CONTRACT_ADDRESSES } from '@/contracts/addresses';
-import { SlippageControlABI } from '@/contracts/abis/SlippageControl';
-import { 
-  SlippageSettings, 
-  SlippageAction,
-  TransactionResult 
-} from '@/contracts/types';
+import { SlippageControlABI, SlippageAction, SLIPPAGE_PRESETS, bpsToPercent, percentToBps, calculateSlippage } from '@/contracts/abis/SlippageControl';
+import { useSmartContractWrite } from './useSmartContractWrite';
 
 export function useSlippageControl() {
   const { address } = useAccount();
-  const { writeContract } = useWriteContract();
+  const chainId = useChainId();
   const queryClient = useQueryClient();
 
-  // Get slippage settings
-  const getSlippageSettings = useQuery({
-    queryKey: ['slippageSettings', address],
-    queryFn: async (): Promise<SlippageSettings | null> => {
-      if (!address) return null;
-      
-      // This would need to be implemented based on the actual contract interface
-      return {
-        tolerance: 300n, // 3% default
-        action: SlippageAction.CONTINUE,
-        tokenTolerance: {}
-      };
-    },
-    enabled: !!address
-  });
+  // Get contract address for current chain
+  const contractAddress = CONTRACT_ADDRESSES[chainId as keyof typeof CONTRACT_ADDRESSES]?.SlippageControl;
 
-  // Get effective slippage tolerance for a specific token
-  const getEffectiveSlippageTolerance = useQuery({
-    queryKey: ['effectiveSlippageTolerance', address],
-    queryFn: async (token: `0x${string}`): Promise<bigint | null> => {
-      if (!address) return BigInt(300); // 3% default
-      
-      // This would need to be implemented based on the actual contract interface
-      return BigInt(300);
-    },
-    enabled: !!address
-  });
+  // Biconomy write hook for gasless transactions
+  const { write: writeContract, isPending: isWritePending, hash } = useSmartContractWrite();
 
-  // Get minimum amount out for a swap
-  const getMinimumAmountOut = useQuery({
-    queryKey: ['minimumAmountOut', address],
-    queryFn: async (params: {
-      expectedAmount: string;
-      token: `0x${string}`;
-    }): Promise<string> => {
-      if (!address) return '0';
-      
-      // This would need to be implemented based on the actual contract interface
-      return '0';
-    },
-    enabled: !!address
-  });
-
-  // Set slippage tolerance
+  // Set user slippage tolerance
   const setSlippageTolerance = useMutation({
-    mutationFn: async (basisPoints: number): Promise<`0x${string}`> => {
+    mutationFn: async (params: {
+      tolerance: number; // basis points
+    }): Promise<`0x${string}`> => {
       if (!address) throw new Error('No wallet connected');
+      if (!contractAddress) throw new Error('Contract not deployed on this network');
       
-      const basisPointsWei = BigInt(basisPoints);
+      const toleranceBps = BigInt(params.tolerance);
       
-      const hash = await writeContract({
-        address: CONTRACT_ADDRESSES[84532].SlippageControl as `0x${string}`,
+      return await writeContract({
+        address: contractAddress as `0x${string}`,
         abi: SlippageControlABI,
         functionName: 'setSlippageTolerance',
-        args: [address, basisPointsWei]
+        args: [address, toleranceBps]
       });
-
-      return hash;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['slippageSettings', address] });
+      queryClient.invalidateQueries({ queryKey: ['slippageSettings'] });
     }
   });
 
@@ -81,139 +45,262 @@ export function useSlippageControl() {
   const setTokenSlippageTolerance = useMutation({
     mutationFn: async (params: {
       token: `0x${string}`;
-      basisPoints: number;
+      tolerance: number; // basis points
     }): Promise<`0x${string}`> => {
       if (!address) throw new Error('No wallet connected');
+      if (!contractAddress) throw new Error('Contract not deployed on this network');
       
-      const basisPointsWei = BigInt(params.basisPoints);
+      const toleranceBps = BigInt(params.tolerance);
       
-      const hash = await writeContract({
-        address: CONTRACT_ADDRESSES[84532].SlippageControl as `0x${string}`,
+      return await writeContract({
+        address: contractAddress as `0x${string}`,
         abi: SlippageControlABI,
         functionName: 'setTokenSlippageTolerance',
-        args: [address, params.token, basisPointsWei]
+        args: [address, params.token, toleranceBps]
       });
-
-      return hash;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['slippageSettings', address] });
+      queryClient.invalidateQueries({ queryKey: ['slippageSettings'] });
+      queryClient.invalidateQueries({ queryKey: ['tokenSlippageSettings'] });
     }
   });
 
   // Set slippage action
   const setSlippageAction = useMutation({
-    mutationFn: async (action: SlippageAction): Promise<`0x${string}`> => {
+    mutationFn: async (params: {
+      action: SlippageAction;
+    }): Promise<`0x${string}`> => {
       if (!address) throw new Error('No wallet connected');
+      if (!contractAddress) throw new Error('Contract not deployed on this network');
       
-      const hash = await writeContract({
-        address: CONTRACT_ADDRESSES[84532].SlippageControl as `0x${string}`,
+      return await writeContract({
+        address: contractAddress as `0x${string}`,
         abi: SlippageControlABI,
         functionName: 'setSlippageAction',
-        args: [address, action]
+        args: [address, params.action]
       });
-
-      return hash;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['slippageSettings', address] });
+      queryClient.invalidateQueries({ queryKey: ['slippageSettings'] });
     }
   });
+
+  // Set default slippage tolerance (admin only)
+  const setDefaultSlippageTolerance = useMutation({
+    mutationFn: async (params: {
+      tolerance: number; // basis points
+    }): Promise<`0x${string}`> => {
+      if (!address) throw new Error('No wallet connected');
+      if (!contractAddress) throw new Error('Contract not deployed on this network');
+      
+      const toleranceBps = BigInt(params.tolerance);
+      
+      return await writeContract({
+        address: contractAddress as `0x${string}`,
+        abi: SlippageControlABI,
+        functionName: 'setDefaultSlippageTolerance',
+        args: [toleranceBps]
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['defaultSlippageSettings'] });
+    }
+  });
+
+  // Local state management for user slippage preferences
+  // Since the contract doesn't have read functions for user settings
+  const [userSlippageTolerance, setUserSlippageTolerance] = useState<number>(SLIPPAGE_PRESETS.MEDIUM);
+  const [userSlippageAction, setUserSlippageAction] = useState<SlippageAction>(SlippageAction.REVERT);
+  const [tokenSlippageSettings, setTokenSlippageSettings] = useState<Record<string, number>>({});
+
+  // Load user preferences from localStorage on mount
+  useEffect(() => {
+    if (address) {
+      const savedTolerance = localStorage.getItem(`slippage_tolerance_${address}`);
+      const savedAction = localStorage.getItem(`slippage_action_${address}`);
+      const savedTokenSettings = localStorage.getItem(`token_slippage_${address}`);
+      
+      if (savedTolerance) {
+        setUserSlippageTolerance(parseInt(savedTolerance));
+      }
+      if (savedAction) {
+        setUserSlippageAction(parseInt(savedAction) as SlippageAction);
+      }
+      if (savedTokenSettings) {
+        setTokenSlippageSettings(JSON.parse(savedTokenSettings));
+      }
+    }
+  }, [address]);
+
+  // Save user preferences to localStorage
+  const saveUserPreferences = useCallback((tolerance?: number, action?: SlippageAction, tokenSettings?: Record<string, number>) => {
+    if (address) {
+      if (tolerance !== undefined) {
+        localStorage.setItem(`slippage_tolerance_${address}`, tolerance.toString());
+        setUserSlippageTolerance(tolerance);
+      }
+      if (action !== undefined) {
+        localStorage.setItem(`slippage_action_${address}`, action.toString());
+        setUserSlippageAction(action);
+      }
+      if (tokenSettings !== undefined) {
+        localStorage.setItem(`token_slippage_${address}`, JSON.stringify(tokenSettings));
+        setTokenSlippageSettings(tokenSettings);
+      }
+    }
+  }, [address]);
+
+  // Get minimum amount out (view function)
+  const useGetMinimumAmountOut = (params: {
+    fromToken: `0x${string}`;
+    toToken: `0x${string}`;
+    amountIn: bigint;
+    customTolerance?: number;
+  }) => {
+    const customToleranceBps = params.customTolerance ? BigInt(params.customTolerance) : BigInt(0);
+    
+    return useReadContract({
+      address: contractAddress as `0x${string}`,
+      abi: SlippageControlABI,
+      functionName: 'getMinimumAmountOut',
+      args: address && params.fromToken && params.toToken ? [
+        address, 
+        params.fromToken, 
+        params.toToken, 
+        params.amountIn, 
+        customToleranceBps
+      ] : undefined,
+      query: {
+        enabled: !!address && !!params.fromToken && !!params.toToken && !!contractAddress
+      }
+    });
+  };
 
   // Handle slippage exceeded
   const handleSlippageExceeded = useMutation({
     mutationFn: async (params: {
-      expectedAmount: string;
-      actualAmount: string;
-      token: `0x${string}`;
-    }): Promise<`0x${string}`> => {
+      fromToken: `0x${string}`;
+      toToken: `0x${string}`;
+      fromAmount: bigint;
+      receivedAmount: bigint;
+      expectedMinimum: bigint;
+    }): Promise<{ hash: `0x${string}`; shouldContinue: boolean }> => {
       if (!address) throw new Error('No wallet connected');
-      
-      const expectedAmountWei = BigInt(params.expectedAmount);
-      const actualAmountWei = BigInt(params.actualAmount);
+      if (!contractAddress) throw new Error('Contract not deployed on this network');
       
       const hash = await writeContract({
-        address: CONTRACT_ADDRESSES[84532].SlippageControl as `0x${string}`,
+        address: contractAddress as `0x${string}`,
         abi: SlippageControlABI,
         functionName: 'handleSlippageExceeded',
-        args: [address, expectedAmountWei, actualAmountWei, params.token]
+        args: [
+          address,
+          params.fromToken,
+          params.toToken,
+          params.fromAmount,
+          params.receivedAmount,
+          params.expectedMinimum
+        ]
       });
 
-      return hash;
+      return { hash, shouldContinue: true }; // Placeholder - actual implementation would parse the result
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['slippageSettings', address] });
+      queryClient.invalidateQueries({ queryKey: ['slippageEvents'] });
     }
   });
 
-  // Calculate slippage percentage
-  const calculateSlippagePercentage = (expected: bigint, actual: bigint): number => {
-    if (expected === 0n) return 0;
-    const slippage = Number(expected - actual) / Number(expected) * 100;
-    return Math.abs(slippage);
+  // Utility functions
+  const formatSlippage = (toleranceBps: number) => {
+    return `${bpsToPercent(toleranceBps).toFixed(2)}%`;
   };
 
-  // Check if slippage is within tolerance
+  const parseSlippageInput = (input: string): number => {
+    const percent = parseFloat(input);
+    return percentToBps(percent);
+  };
+
+  const getSlippagePreset = (toleranceBps: number) => {
+    if (toleranceBps <= SLIPPAGE_PRESETS.VERY_LOW) return 'Very Low';
+    if (toleranceBps <= SLIPPAGE_PRESETS.LOW) return 'Low';
+    if (toleranceBps <= SLIPPAGE_PRESETS.MEDIUM) return 'Medium';
+    if (toleranceBps <= SLIPPAGE_PRESETS.HIGH) return 'High';
+    return 'Very High';
+  };
+
+  const getSlippageActionDescription = (action: SlippageAction): string => {
+    const descriptions: Record<SlippageAction, string> = {
+      [SlippageAction.REVERT]: "Revert transaction if slippage is exceeded",
+      [SlippageAction.SKIP_SWAP]: "Skip swap but continue transaction",
+      [SlippageAction.CONTINUE_ANYWAY]: "Continue swap regardless of slippage",
+      [SlippageAction.RETRY_WITH_HIGHER_TOLERANCE]: "Retry with higher tolerance",
+    };
+    return descriptions[action];
+  };
+
+  const calculateSlippagePercent = (expected: bigint, actual: bigint): number => {
+    return calculateSlippage(expected, actual);
+  };
+
   const isSlippageWithinTolerance = (
-    expected: bigint, 
-    actual: bigint, 
-    tolerance: bigint
+    expected: bigint,
+    actual: bigint,
+    toleranceBps: number
   ): boolean => {
-    const slippagePercentage = calculateSlippagePercentage(expected, actual);
-    const tolerancePercentage = Number(tolerance) / 100;
-    return slippagePercentage <= tolerancePercentage;
-  };
-
-  // Get slippage warning level
-  const getSlippageWarningLevel = (
-    expected: bigint, 
-    actual: bigint, 
-    tolerance: bigint
-  ): 'low' | 'medium' | 'high' | 'critical' => {
-    const slippagePercentage = calculateSlippagePercentage(expected, actual);
-    const tolerancePercentage = Number(tolerance) / 100;
-    
-    if (slippagePercentage <= tolerancePercentage * 0.5) return 'low';
-    if (slippagePercentage <= tolerancePercentage * 0.8) return 'medium';
-    if (slippagePercentage <= tolerancePercentage) return 'high';
-    return 'critical';
+    const slippagePercent = calculateSlippage(expected, actual);
+    const tolerancePercent = bpsToPercent(toleranceBps);
+    return slippagePercent <= tolerancePercent;
   };
 
   return {
-    // Queries
-    settings: getSlippageSettings.data,
-    effectiveTolerance: getEffectiveSlippageTolerance.data,
-    minimumAmountOut: getMinimumAmountOut.data,
-    
+    // Contract data
+    contractAddress,
+
     // Loading states
-    isLoadingSettings: getSlippageSettings.isLoading,
-    isLoadingEffective: getEffectiveSlippageTolerance.isLoading,
-    isLoadingMinimum: getMinimumAmountOut.isLoading,
-    
-    // Mutations
+    isWritePending,
+
+    // Mutations (gasless)
     setSlippageTolerance: setSlippageTolerance.mutateAsync,
     setTokenSlippageTolerance: setTokenSlippageTolerance.mutateAsync,
     setSlippageAction: setSlippageAction.mutateAsync,
+    setDefaultSlippageTolerance: setDefaultSlippageTolerance.mutateAsync,
     handleSlippageExceeded: handleSlippageExceeded.mutateAsync,
-    
+
+    // Read functions
+    useGetMinimumAmountOut,
+
+    // Local state management
+    userSlippageTolerance,
+    userSlippageAction,
+    tokenSlippageSettings,
+    saveUserPreferences,
+
     // Mutation states
     isSettingTolerance: setSlippageTolerance.isPending,
     isSettingTokenTolerance: setTokenSlippageTolerance.isPending,
     isSettingAction: setSlippageAction.isPending,
-    isHandlingExceeded: handleSlippageExceeded.isPending,
-    
+    isSettingDefault: setDefaultSlippageTolerance.isPending,
+    isHandlingSlippage: handleSlippageExceeded.isPending,
+
+    // Utility functions
+    formatSlippage,
+    parseSlippageInput,
+    getSlippagePreset,
+    getSlippageActionDescription,
+    calculateSlippagePercent,
+    isSlippageWithinTolerance,
+
+    // Constants
+    SLIPPAGE_PRESETS,
+    SlippageAction,
+
+    // Transaction hash
+    hash,
+
     // Error states
-    settingsError: getSlippageSettings.error,
-    effectiveError: getEffectiveSlippageTolerance.error,
-    minimumError: getMinimumAmountOut.error,
     setToleranceError: setSlippageTolerance.error,
     setTokenToleranceError: setTokenSlippageTolerance.error,
     setActionError: setSlippageAction.error,
-    handleExceededError: handleSlippageExceeded.error,
-    
-    // Utility functions
-    calculateSlippagePercentage,
-    isSlippageWithinTolerance,
-    getSlippageWarningLevel
+    setDefaultError: setDefaultSlippageTolerance.error,
+    handleSlippageError: handleSlippageExceeded.error
   };
 }
