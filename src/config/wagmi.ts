@@ -4,6 +4,17 @@ import { base, baseSepolia } from '@reown/appkit/networks'
 import { QueryClient } from '@tanstack/react-query'
 import { createConfig, http } from 'wagmi'
 import { injected, metaMask, walletConnect } from 'wagmi/connectors'
+import { 
+  getActiveNetwork, 
+  getActiveChain, 
+  getActiveRPCUrl, 
+  getRPCUrl,
+  validateNetworkConfig,
+  CHAIN_IDS 
+} from './network'
+
+// Validate network configuration on startup
+validateNetworkConfig()
 
 // Get projectId from https://cloud.reown.com
 const projectId = process.env.NEXT_PUBLIC_REOWN_PROJECT_ID!
@@ -11,6 +22,11 @@ const projectId = process.env.NEXT_PUBLIC_REOWN_PROJECT_ID!
 if (!projectId) {
   throw new Error('NEXT_PUBLIC_REOWN_PROJECT_ID is not set')
 }
+
+// Get active network configuration
+const activeNetwork = getActiveNetwork()
+const activeChain = getActiveChain()
+const activeRPCUrl = getActiveRPCUrl()
 
 // Create query client
 const queryClient = new QueryClient()
@@ -39,8 +55,8 @@ const wagmiConfig = createConfig({
     }),
   ],
   transports: {
-    [base.id]: http(),
-    [baseSepolia.id]: http(),
+    [base.id]: http(getRPCUrl('base')),
+    [baseSepolia.id]: http(getRPCUrl('base-sepolia')),
   },
 })
 
@@ -75,7 +91,7 @@ function initializeAppKit() {
       adapters: [wagmiAdapter],
       projectId,
       networks: [base, baseSepolia],
-      defaultNetwork: baseSepolia,
+      defaultNetwork: activeChain, // Use active network from env config
       metadata,
       features: {
         analytics: true,
