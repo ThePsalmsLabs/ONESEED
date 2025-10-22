@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react';
 import { useBiconomy } from '@/components/BiconomyProvider';
 import { useToast } from '@/components/ui/Toast';
 import { CONTRACT_ADDRESSES } from '@/contracts/addresses';
-import { DCA as DCAABI } from '@/contracts/abis/DCA';
+import { DCAABI } from '@/contracts/abis/DCA';
 import { DailySavingsABI } from '@/contracts/abis/DailySavings';
 
 interface SessionKeyConfig {
@@ -27,20 +27,31 @@ export function useSessionKeys() {
 
     setIsCreating(true);
     try {
-      // Create session key that can ONLY execute DCA
-      // Note: This is a mock implementation - actual Biconomy session keys would use different API
+      // NOTE: This is a placeholder implementation for Biconomy v2 session keys
+      // The actual Biconomy v2 session key API is not yet available in production
+      // This implementation uses localStorage as a fallback for development
+      
+      // TODO: Replace with real Biconomy v2 session key API when available
+      // const sessionKey = await biconomySessionKeyModule.createSessionKey({
+      //   contractAddress: CONTRACT_ADDRESSES[84532].DCA,
+      //   allowedFunctions: ['executeDCA'],
+      //   maxValue: BigInt(0),
+      //   validUntil: Math.floor(Date.now() / 1000) + (86400 * 30)
+      // });
+      
       const sessionKey = JSON.stringify({
         contractAddress: CONTRACT_ADDRESSES[84532].DCA as `0x${string}`,
         allowedFunctions: ['executeDCA'],
         maxValue: BigInt(0),
         validUntil: Math.floor(Date.now() / 1000) + (86400 * 30),
-        type: 'dca'
+        type: 'dca',
+        note: 'Mock implementation - Biconomy v2 session keys not yet available'
       });
 
       // Store session key in localStorage
       localStorage.setItem('dca_session_key', sessionKey);
       
-      showToast('DCA session key created successfully!', 'success');
+      showToast('DCA session key created (mock implementation)', 'success');
       return sessionKey;
     } catch (error) {
       console.error('Error creating DCA session key:', error);
