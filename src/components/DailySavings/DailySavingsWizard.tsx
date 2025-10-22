@@ -9,10 +9,10 @@ import { Button } from '@/components/ui/Button';
 import { 
   CalendarIcon,
   CurrencyDollarIcon,
-  TargetIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
-  ClockIcon
+  ClockIcon,
+  AdjustmentsHorizontalIcon
 } from '@heroicons/react/24/outline';
 import { formatEther, parseEther } from 'viem';
 
@@ -39,13 +39,13 @@ const steps: WizardStep[] = [
     id: 'amount',
     title: 'Daily Amount',
     description: 'Set how much you want to save each day',
-    icon: TargetIcon
+    icon: AdjustmentsHorizontalIcon
   },
   {
     id: 'goal',
     title: 'Savings Goal',
     description: 'Define your target savings amount',
-    icon: TargetIcon
+    icon: AdjustmentsHorizontalIcon
   },
   {
     id: 'penalty',
@@ -397,7 +397,7 @@ export function DailySavingsWizard({ onComplete, onCancel }: DailySavingsWizardP
 
         <div className="flex justify-between mt-8">
           <Button
-            variant="outline"
+            variant="secondary"
             onClick={isFirstStep ? onCancel : handlePrevious}
             disabled={isConfiguring}
           >
