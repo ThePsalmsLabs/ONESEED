@@ -5,8 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Label } from '@/components/ui/Label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/Select';
-import { Slider } from '@/components/ui/Slider';
+import { Slider } from '../ui/Slider';
 import { Badge } from '@/components/ui/Badge';
 import { useDailySavings } from '@/hooks/useDailySavings';
 import { parseEther, formatEther } from 'viem';
@@ -141,7 +140,7 @@ export function DailySavingsSetup({ onComplete, onCancel }: DailySavingsSetupPro
                     <h3 className="font-semibold text-gray-900">{token.symbol}</h3>
                     <p className="text-sm text-gray-600 mb-2">{token.name}</p>
                     {token.reason && (
-                      <Badge className="text-xs">
+                      <Badge variant="default">
                         {token.reason}
                       </Badge>
                     )}
@@ -190,7 +189,7 @@ export function DailySavingsSetup({ onComplete, onCancel }: DailySavingsSetupPro
                   max={100}
                   step={1}
                   value={[dailyAmount]}
-                  onValueChange={(value) => setDailyAmount(value[0])}
+                  onValueChange={(value: number[]) => setDailyAmount(value[0])}
                   className="w-full"
                 />
                 <div className="flex justify-between text-sm text-gray-500">
@@ -248,7 +247,7 @@ export function DailySavingsSetup({ onComplete, onCancel }: DailySavingsSetupPro
                 max={2000}
                 step={100}
                 value={[penaltyBps]}
-                onValueChange={(value) => setPenaltyBps(value[0])}
+                onValueChange={(value: number[]) => setPenaltyBps(value[0])}
                 className="w-full"
               />
               <div className="flex justify-between text-sm text-gray-500">
