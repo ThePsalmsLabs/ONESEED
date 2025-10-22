@@ -14,7 +14,7 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon,
-  TargetIcon,
+  AdjustmentsHorizontalIcon,
   CurrencyDollarIcon,
   ClockIcon,
   ShieldCheckIcon
@@ -218,7 +218,7 @@ export function ComparisonTools({ className = '', onComparisonComplete }: Compar
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'savings': return TargetIcon;
+      case 'savings': return AdjustmentsHorizontalIcon;
       case 'dca': return ChartBarIcon;
       case 'withdrawal': return CurrencyDollarIcon;
       case 'trading': return ArrowTrendingUpIcon;
@@ -435,7 +435,7 @@ export function ComparisonTools({ className = '', onComparisonComplete }: Compar
                       key={tab.id}
                       variant={analysisType === tab.id ? 'default' : 'outline'}
                       size="sm"
-                      onClick={() => setAnalysisType(tab.id as any)}
+                      onClick={() => setAnalysisType(tab.id as 'performance' | 'costs' | 'risk' | 'timeline')}
                       className="flex items-center gap-2"
                     >
                       <Icon className="w-4 h-4" />
