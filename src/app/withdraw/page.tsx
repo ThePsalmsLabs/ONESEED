@@ -26,7 +26,7 @@ export default function WithdrawPage() {
   const [amount, setAmount] = useState('');
   const [forceWithdraw, setForceWithdraw] = useState(false);
 
-  const selectedBalance = tokenBalances.find(b => b.token === selectedToken);
+  const selectedBalance = tokenBalances?.find(b => b.token === selectedToken);
   const amountBigInt = amount ? parseUnits(amount, selectedBalance?.decimals || 18) : BigInt(0);
 
   const { preview, isLoading: isCalculating } = useCalculateWithdrawal(
@@ -39,7 +39,7 @@ export default function WithdrawPage() {
     setIsVisible(true);
     // Pre-select token from URL params if available
     const tokenParam = searchParams.get('token');
-    if (tokenParam && tokenBalances.some(b => b.token === tokenParam)) {
+    if (tokenParam && tokenBalances?.some(b => b.token === tokenParam)) {
       setSelectedToken(tokenParam as `0x${string}`);
       setCurrentStep(1); // Skip to amount selection
     }
@@ -91,7 +91,7 @@ export default function WithdrawPage() {
     );
   }
 
-  if (tokenBalances.length === 0) {
+  if (!tokenBalances || tokenBalances.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/50 to-purple-50/30">
         <Layout>
