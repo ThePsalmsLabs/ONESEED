@@ -5,10 +5,10 @@ import { useBiconomy } from '@/components/BiconomyProvider';
 import { useToast } from '@/components/ui/Toast';
 import { encodeFunctionData } from 'viem';
 import { CONTRACT_ADDRESSES } from '@/contracts/addresses';
-import { SavingsStrategyABI as SavingStrategyABI } from '@/contracts/abis/SavingStrategy';
-import { DCA as DCAABI } from '@/contracts/abis/DCA';
+import { SavingsStrategyABI } from '@/contracts/abis/SavingStrategy';
+import { DCAABI } from '@/contracts/abis/DCA';
 import { DailySavingsABI } from '@/contracts/abis/DailySavings';
-import { SavingsModuleABI as SavingsABI } from '@/contracts/abis/Savings';
+import { SavingsModuleABI } from '@/contracts/abis/Savings';
 import { SavingsTokenType } from '@/contracts/types';
 
 interface BatchSavingsSetupParams {
@@ -56,7 +56,7 @@ export function useBatchTransactions() {
       transactions.push({
         to: CONTRACT_ADDRESSES[84532].SavingStrategy as `0x${string}`,
         data: encodeFunctionData({
-          abi: SavingStrategyABI,
+          abi: SavingsStrategyABI,
           functionName: 'setSavingStrategy',
           args: [
             await smartAccount.getAccountAddress() as `0x${string}`,
@@ -145,7 +145,7 @@ export function useBatchTransactions() {
       const transactions = params.tokens.map((token, i) => ({
         to: CONTRACT_ADDRESSES[84532].Savings as `0x${string}`,
         data: encodeFunctionData({
-          abi: SavingsABI,
+          abi: SavingsModuleABI,
           functionName: 'withdraw',
           args: [
             accountAddress,
