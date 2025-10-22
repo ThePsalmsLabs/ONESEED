@@ -48,58 +48,58 @@ export function useBiconomyAnalytics() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Mock function to fetch user operations from Biconomy API
+  // Fetch user operations from Biconomy API
   const fetchUserOps = useCallback(async (userAddress: string): Promise<UserOpHistory[]> => {
-    // In a real implementation, this would call Biconomy's API
-    // For now, we'll use localStorage to simulate data
+    try {
+      // Try to fetch from Biconomy's UserOp API
+      const response = await fetch(
+        `https://bundler.biconomy.io/api/v2/84532/userOps?address=${userAddress}&limit=50`
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        return data.userOps?.map((op: any) => ({
+          hash: op.hash,
+          timestamp: op.timestamp,
+          operation: op.operation || 'unknown',
+          gasUsed: BigInt(op.gasUsed || 0),
+          gasPrice: BigInt(op.gasPrice || 0),
+          sponsoredGas: BigInt(op.sponsoredGas || 0),
+          userPaid: BigInt(op.userPaid || 0),
+          savings: BigInt(op.savings || 0),
+          status: op.status || 'success'
+        })) || [];
+      }
+    } catch (error) {
+      console.warn('Biconomy API not available, falling back to localStorage:', error);
+    }
+
+    // Fallback to localStorage for development
     const storedOps = localStorage.getItem(`userOps_${userAddress}`);
     if (storedOps) {
       return JSON.parse(storedOps);
     }
     
-    // Return mock data for demonstration
-    return [
-      {
-        hash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as `0x${string}`,
-        timestamp: Date.now() - 86400000, // 1 day ago
-        operation: 'setSavingStrategy',
-        gasUsed: BigInt('21000'),
-        gasPrice: BigInt('20000000000'), // 20 gwei
-        sponsoredGas: BigInt('21000'),
-        userPaid: BigInt('0'),
-        savings: BigInt('420000000000000'), // 0.00042 ETH
-        status: 'success'
-      },
-      {
-        hash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890' as `0x${string}`,
-        timestamp: Date.now() - 172800000, // 2 days ago
-        operation: 'executeDCA',
-        gasUsed: BigInt('150000'),
-        gasPrice: BigInt('20000000000'),
-        sponsoredGas: BigInt('150000'),
-        userPaid: BigInt('0'),
-        savings: BigInt('3000000000000000'), // 0.003 ETH
-        status: 'success'
-      },
-      {
-        hash: '0x9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba' as `0x${string}`,
-        timestamp: Date.now() - 259200000, // 3 days ago
-        operation: 'withdraw',
-        gasUsed: BigInt('100000'),
-        gasPrice: BigInt('20000000000'),
-        sponsoredGas: BigInt('50000'),
-        userPaid: BigInt('1000000000000000'), // 0.001 ETH
-        savings: BigInt('1000000000000000'), // 0.001 ETH
-        status: 'success'
-      }
-    ];
+    // Return empty array if no data available
+    return [];
   }, []);
 
   const convertToUSD = useCallback(async (ethAmount: bigint): Promise<number> => {
-    // In a real implementation, this would fetch current ETH price
-    const ethPrice = 2000; // Mock ETH price
-    const ethValue = Number(ethAmount) / 1e18;
-    return ethValue * ethPrice;
+    try {
+      // Fetch real ETH price from CoinGecko
+      const response = await fetch(
+        'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd'
+      );
+      const data = await response.json();
+      const ethPrice = data.ethereum?.usd || 2000; // Fallback to $2000
+      const ethValue = Number(ethAmount) / 1e18;
+      return ethValue * ethPrice;
+    } catch (error) {
+      console.warn('Failed to fetch ETH price, using fallback:', error);
+      const ethPrice = 2000; // Fallback price
+      const ethValue = Number(ethAmount) / 1e18;
+      return ethValue * ethPrice;
+    }
   }, []);
 
   const getGasSavings = useCallback(async (): Promise<GasSavings> => {
