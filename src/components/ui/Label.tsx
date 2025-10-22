@@ -18,3 +18,4 @@ export function Label({ children, htmlFor, className }: LabelProps) {
     </label>
   );
 }
+
