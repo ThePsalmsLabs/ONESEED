@@ -16,6 +16,7 @@ export const TOKEN_DECIMALS: Record<string, number> = {
   DAI: 18,
 };
 
+// Deprecated: Use centralized network config from @/config/network
 // Network configurations
 export const SUPPORTED_CHAINS = {
   BASE_SEPOLIA: 84532,
@@ -28,4 +29,10 @@ export const CHAIN_NAMES: Record<number, string> = {
   8453: 'Base',
   31337: 'Localhost',
 };
+
+// Deprecation notice
+console.warn(
+  'SUPPORTED_CHAINS and CHAIN_NAMES from @/utils/constants are deprecated. ' +
+  'Use the centralized network configuration from @/config/network instead.'
+);
 
