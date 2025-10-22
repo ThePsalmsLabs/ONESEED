@@ -37,21 +37,11 @@ export function DCASessionManager({ onSessionCreated, onSessionRevoked }: DCASes
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
-  const { createSession, renewSession, revokeSession, sessions } = useSessionKeys();
+  const { createDCASession, revokeSessionKey, getStoredSessionKey, checkSessionKeyValidity } = useSessionKeys();
   const { config, isEnabling } = useDCA();
 
-  // Use real session data from the hook
-  const dcaSessions: DCASession[] = sessions?.filter(session => 
-    session.type === 'DCA Auto-Invest'
-  ).map(session => ({
-    id: session.id,
-    type: 'DCA Auto-Invest',
-    expires: new Date(session.expires),
-    status: session.status as 'Active' | 'Expired' | 'Revoked',
-    executions: session.executions || 0,
-    lastUsed: new Date(session.lastUsed),
-    canRenew: session.canRenew
-  })) || [];
+  // Mock session data for now - replace with real data when available
+  const dcaSessions: DCASession[] = [];
 
   const handleCreateSession = async () => {
     if (!config?.enabled) {
@@ -62,18 +52,12 @@ export function DCASessionManager({ onSessionCreated, onSessionRevoked }: DCASes
     setIsCreating(true);
     try {
       // Create session key for DCA automation
-      await createSession({
-        permissions: {
-          executeDCA: true,
-          checkBalances: true,
-          monitorQueue: true
-        },
-        duration: 7 * 24 * 60 * 60 * 1000, // 7 days
-        description: 'DCA Auto-Invest Session'
-      });
+      const sessionKey = await createDCASession();
       
-      setShowCreateModal(false);
-      onSessionCreated?.();
+      if (sessionKey) {
+        setShowCreateModal(false);
+        onSessionCreated?.();
+      }
     } catch (error) {
       console.error('Failed to create session:', error);
     } finally {
@@ -83,7 +67,8 @@ export function DCASessionManager({ onSessionCreated, onSessionRevoked }: DCASes
 
   const handleRenewSession = async (sessionId: string) => {
     try {
-      await renewSession(sessionId, 7 * 24 * 60 * 60 * 1000); // 7 days
+      // For now, create a new session since renewSession doesn't exist
+      await createDCASession();
     } catch (error) {
       console.error('Failed to renew session:', error);
     }
@@ -91,7 +76,7 @@ export function DCASessionManager({ onSessionCreated, onSessionRevoked }: DCASes
 
   const handleRevokeSession = async (sessionId: string) => {
     try {
-      await revokeSession(sessionId);
+      await revokeSessionKey('dca');
       onSessionRevoked?.();
     } catch (error) {
       console.error('Failed to revoke session:', error);
@@ -121,6 +106,19 @@ export function DCASessionManager({ onSessionCreated, onSessionRevoked }: DCASes
         return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusVariant = (status: string): 'success' | 'warning' | 'error' | 'default' => {
+    switch (status) {
+      case 'Active':
+        return 'success';
+      case 'Expired':
+        return 'warning';
+      case 'Revoked':
+        return 'error';
+      default:
+        return 'default';
     }
   };
 
@@ -192,7 +190,7 @@ export function DCASessionManager({ onSessionCreated, onSessionRevoked }: DCASes
                     <div>
                       <h3 className="font-semibold text-gray-900">{session.type}</h3>
                       <div className="flex items-center space-x-2 mt-1">
-                        <Badge className={getStatusColor(session.status)}>
+                        <Badge variant={getStatusVariant(session.status)}>
                           {session.status}
                         </Badge>
                         <span className="text-sm text-gray-500">
@@ -223,7 +221,7 @@ export function DCASessionManager({ onSessionCreated, onSessionRevoked }: DCASes
                 <div className="flex items-center space-x-2">
                   {session.status === 'Active' && session.canRenew && (
                     <Button
-                      variant="outline"
+                      variant="secondary"
                       size="sm"
                       onClick={() => handleRenewSession(session.id)}
                     >
@@ -234,7 +232,7 @@ export function DCASessionManager({ onSessionCreated, onSessionRevoked }: DCASes
                   
                   {session.status === 'Expired' && session.canRenew && (
                     <Button
-                      variant="outline"
+                      variant="secondary"
                       size="sm"
                       onClick={() => handleRenewSession(session.id)}
                     >
@@ -245,7 +243,7 @@ export function DCASessionManager({ onSessionCreated, onSessionRevoked }: DCASes
 
                   {session.status === 'Active' && (
                     <Button
-                      variant="outline"
+                      variant="secondary"
                       size="sm"
                       onClick={() => handleRevokeSession(session.id)}
                       className="text-red-600 hover:text-red-700 hover:bg-red-50"
@@ -331,7 +329,7 @@ export function DCASessionManager({ onSessionCreated, onSessionRevoked }: DCASes
 
               <div className="flex space-x-3">
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   onClick={() => setShowCreateModal(false)}
                   className="flex-1"
                 >
