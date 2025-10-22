@@ -7,7 +7,7 @@ import { PAYMASTER_POLICIES, getApplicablePolicy, calculateGasSponsorship } from
 import { useAccount } from 'wagmi';
 import { useReadContract } from 'wagmi';
 import { CONTRACT_ADDRESSES } from '@/contracts/addresses';
-import { SavingsModuleABI as SavingsABI } from '@/contracts/abis/Savings';
+import { SavingsModuleABI } from '@/contracts/abis/Savings';
 
 interface PaymasterServiceData {
   mode: 'SPONSORED' | 'PARTIAL' | 'NONE';
@@ -26,8 +26,8 @@ export function useSmartPaymaster() {
   // Get user's savings balance for policy determination
   const { data: userBalance } = useReadContract({
     address: CONTRACT_ADDRESSES[84532].Savings as `0x${string}`,
-    abi: SavingsABI,
-    functionName: 'getUserBalance',
+    abi: SavingsModuleABI,
+    functionName: 'getUserSavings',
     args: address ? [address] : undefined,
     query: {
       enabled: !!address
@@ -45,7 +45,7 @@ export function useSmartPaymaster() {
     setIsCalculating(true);
     try {
       // Get user's balance and activity data
-      const balance = userBalance || BigInt(0);
+      const balance = typeof userBalance === 'bigint' ? userBalance : BigInt(0);
       const stakingAmount = BigInt(0); // Would need to fetch from staking contract
       const daysActive = 1; // Would need to track user registration date
 
@@ -117,7 +117,7 @@ export function useSmartPaymaster() {
   }, [getPaymasterServiceData]);
 
   const getPolicyInfo = useCallback((operation: string) => {
-    const balance = userBalance || BigInt(0);
+    const balance = typeof userBalance === 'bigint' ? userBalance : BigInt(0);
     const stakingAmount = BigInt(0);
     const daysActive = 1;
     
