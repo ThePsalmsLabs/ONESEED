@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
-import { useWalletClient } from 'wagmi'
+import { useWalletClient, useChainId } from 'wagmi'
 import { createBiconomySmartAccount } from '@/config/biconomy'
 import { BiconomySmartAccountV2 } from '@biconomy/account'
 
@@ -25,6 +25,7 @@ export function BiconomyProvider({ children }: BiconomyProviderProps) {
   const [smartAccountAddress, setSmartAccountAddress] = useState<string | null>(null)
   
   const { data: walletClient } = useWalletClient()
+  const chainId = useChainId()
 
   useEffect(() => {
     const initSmartAccount = async () => {
@@ -38,13 +39,14 @@ export function BiconomyProvider({ children }: BiconomyProviderProps) {
       setError(null)
 
       try {
-        const account = await createBiconomySmartAccount(walletClient)
+        // Pass current chainId to createBiconomySmartAccount
+        const account = await createBiconomySmartAccount(walletClient, chainId)
         setSmartAccount(account)
         
         const address = await account.getAccountAddress()
         setSmartAccountAddress(address)
         
-        console.log('Smart Account Address:', address)
+        console.log(`Smart Account Address on chain ${chainId}:`, address)
       } catch (err) {
         console.error('Failed to create smart account:', err)
         setError((err as Error).message || 'Failed to create smart account')
@@ -54,7 +56,7 @@ export function BiconomyProvider({ children }: BiconomyProviderProps) {
     }
 
     initSmartAccount()
-  }, [walletClient])
+  }, [walletClient, chainId])
 
   const value: BiconomyContextType = {
     smartAccount,
