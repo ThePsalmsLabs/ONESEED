@@ -1,19 +1,28 @@
 'use client';
 
-import { useAccount, useReadContract, useChainId } from 'wagmi';
+import { useAccount, useReadContract } from 'wagmi';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { parseEther, formatEther } from 'viem';
-import { CONTRACT_ADDRESSES } from '@/contracts/addresses';
+import { getContractAddress } from '@/contracts/addresses';
 import { DCAABI } from '@/contracts/abis/DCA';
 import { useSmartContractWrite } from './useSmartContractWrite';
+import { useActiveChainId } from './useActiveChainId';
+
+interface DCAExecution {
+  user: `0x${string}`;
+  fromToken: `0x${string}`;
+  toToken: `0x${string}`;
+  amount: bigint;
+  timestamp: number;
+}
 
 export function useAdvancedDCA() {
   const { address } = useAccount();
-  const chainId = useChainId();
+  const chainId = useActiveChainId();
   const queryClient = useQueryClient();
 
   // Get contract address for current chain
-  const contractAddress = CONTRACT_ADDRESSES[chainId as keyof typeof CONTRACT_ADDRESSES]?.DCA;
+  const contractAddress = getContractAddress(chainId, 'DCA');
 
   // Biconomy write hook for gasless transactions
   const { write: writeContract, isPending: isWritePending, hash } = useSmartContractWrite();
@@ -167,9 +176,9 @@ export function useAdvancedDCA() {
   const batchExecuteDCA = useMutation({
     mutationFn: async (params: {
       users: `0x${string}`[];
-    }): Promise<{ hash: `0x${string}`; executions: any[] }> => {
+    }): Promise<{ hash: `0x${string}`; executions: DCAExecution[] }> => {
       if (!contractAddress) throw new Error('Contract not deployed on this network');
-      
+
       const hash = await writeContract({
         address: contractAddress as `0x${string}`,
         abi: DCAABI,
