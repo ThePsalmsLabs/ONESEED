@@ -1,134 +1,258 @@
 @import "tailwindcss";
 
-:root {
-  --background: #0a0a0a;
-  --background-light: #fafafa;
-  --foreground: #ededed;
-  --foreground-dark: #171717;
-  
-  /* Aceternity UI CSS Variables */
-  --card: 0 0% 100%;
-  --card-foreground: 222.2 84% 4.9%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 222.2 84% 4.9%;
-  --muted: 210 40% 98%;
-  --muted-foreground: 215.4 16.3% 46.9%;
-  --accent: 210 40% 98%;
-  --accent-foreground: 222.2 84% 4.9%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 214.3 31.8% 91.4%;
-  --input: 214.3 31.8% 91.4%;
-  --ring: 222.2 84% 4.9%;
-  --radius: 0.5rem;
-  
-  /* Enhanced color palette for modern feel */
-  --color-primary-50: 240 253 244;
-  --color-primary-100: 220 252 231;
-  --color-primary-200: 187 247 208;
-  --color-primary-300: 134 239 172;
-  --color-primary-400: 74 222 128;
-  --color-primary-500: 34 197 94;
-  --color-primary-600: 22 163 74;
-  --color-primary-700: 21 128 61;
-  --color-primary-800: 22 101 52;
-  --color-primary-900: 20 83 45;
-  
-  /* Accent colors for depth */
-  --color-accent-purple: 139 92 246;
-  --color-accent-blue: 59 130 246;
-  --color-accent-orange: 249 115 22;
-  
-  /* Glass morphism variables */
-  --glass-bg: rgba(255, 255, 255, 0.1);
-  --glass-border: rgba(255, 255, 255, 0.2);
-  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-  
-  /* Gradient variables */
-  --gradient-primary: linear-gradient(135deg, rgb(34, 197, 94) 0%, rgb(59, 130, 246) 100%);
-  --gradient-secondary: linear-gradient(135deg, rgb(139, 92, 246) 0%, rgb(249, 115, 22) 100%);
-  --gradient-hero: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 25%, #16213e  50%, #0f3460  75%, #e94560 100%);
-}
+/* ============================================
+   DARK-FIRST COLOR SYSTEM (Default)
+   ============================================ */
 
-@theme inline {
-  --color-background: var(--background-light);
-  --color-foreground: var(--foreground-dark);
+:root {
+  /* Dark Mode Colors (Primary/Default) */
+  --bg-primary: 10 10 15;           /* #0a0a0f - Deep space black */
+  --bg-secondary: 17 20 28;         /* #11141c - Card backgrounds */
+  --bg-tertiary: 25 28 38;          /* #191c26 - Elevated surfaces */
+  
+  --text-primary: 248 248 252;      /* #f8f8fc - Crisp white */
+  --text-secondary: 203 213 225;    /* #cbd5e1 - Slate-300 */
+  --text-muted: 148 163 184;        /* #94a3b8 - Slate-400 */
+  
+  --border: 51 65 85;               /* Subtle borders */
+  --border-bright: 100 116 139;     /* Brighter borders */
+  
+  /* Primary Colors - Emerald/Green for Savings Theme */
+  --primary-50: 236 253 245;        /* Emerald-50 */
+  --primary-100: 209 250 229;       /* Emerald-100 */
+  --primary-200: 167 243 208;       /* Emerald-200 */
+  --primary-300: 110 231 183;       /* Emerald-300 */
+  --primary-400: 52 211 153;        /* Emerald-400 - Brighter for dark mode */
+  --primary-500: 16 185 129;        /* Emerald-500 */
+  --primary-600: 5 150 105;         /* Emerald-600 */
+  --primary-700: 4 120 87;          /* Emerald-700 */
+  --primary-800: 6 95 70;           /* Emerald-800 */
+  --primary-900: 6 78 59;           /* Emerald-900 */
+  
+  /* Accent Colors - Enhanced for Dark Mode Visibility */
+  --accent-purple: 168 85 247;      /* Purple-500 - Brighter */
+  --accent-blue: 96 165 250;        /* Blue-400 - Brighter */
+  --accent-cyan: 34 211 238;        /* Cyan-400 - Brighter */
+  --accent-amber: 251 146 60;       /* Amber-400 - Brighter */
+  
+  /* Neon Colors for Special Effects */
+  --neon-green: 52 211 153;
+  --neon-purple: 168 85 247;
+  --neon-blue: 96 165 250;
+  --neon-cyan: 34 211 238;
+  
+  /* Semantic Colors */
+  --success: 34 197 94;
+  --warning: 251 146 60;
+  --error: 239 68 68;
+  --info: 59 130 246;
+  
+  /* Glass Morphism Variables - Dark Mode */
+  --glass-bg: 255 255 255 / 0.03;   /* Very subtle glass */
+  --glass-border: 255 255 255 / 0.08;
+  --glass-blur: 24px;
+  
+  /* Shadow System */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.7);
+  
+  /* Gradients */
+  --gradient-primary: linear-gradient(135deg, rgb(var(--primary-400)) 0%, rgb(var(--accent-cyan)) 100%);
+  --gradient-secondary: linear-gradient(135deg, rgb(var(--accent-purple)) 0%, rgb(var(--accent-amber)) 100%);
+  --gradient-hero: linear-gradient(135deg, rgb(var(--bg-primary)) 0%, rgb(var(--bg-tertiary)) 100%);
+  
+  /* Misc */
+  --radius: 0.5rem;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  
-  /* Custom primary colors */
-  --color-primary-*: initial;
-  --color-primary-50: rgb(var(--color-primary-50));
-  --color-primary-100: rgb(var(--color-primary-100));
-  --color-primary-200: rgb(var(--color-primary-200));
-  --color-primary-300: rgb(var(--color-primary-300));
-  --color-primary-400: rgb(var(--color-primary-400));
-  --color-primary-500: rgb(var(--color-primary-500));
-  --color-primary-600: rgb(var(--color-primary-600));
-  --color-primary-700: rgb(var(--color-primary-700));
-  --color-primary-800: rgb(var(--color-primary-800));
-  --color-primary-900: rgb(var(--color-primary-900));
-  
-  /* Accent colors */
-  --color-purple-500: rgb(var(--color-accent-purple));
-  --color-blue-500: rgb(var(--color-accent-blue));
-  --color-orange-500: rgb(var(--color-accent-orange));
 }
 
-/* Dark mode */
-[data-theme="dark"] {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+/* ============================================
+   LIGHT MODE (Secondary)
+   ============================================ */
+
+.light {
+  --bg-primary: 255 255 255;        /* White */
+  --bg-secondary: 248 250 252;      /* Slate-50 */
+  --bg-tertiary: 241 245 249;       /* Slate-100 */
+  
+  /* Updated text colors - darker for better contrast */
+  --text-primary: 15 23 42;         /* Slate-900 - WCAG AAA compliant */
+  --text-secondary: 71 85 105;      /* Slate-600 - UPDATED for better visibility */
+  --text-muted: 100 116 139;        /* Slate-500 - minimum readable contrast */
+  
+  --border: 226 232 240;            /* Slate-200 */
+  --border-bright: 203 213 225;     /* Slate-300 */
+  
+  /* Primary colors adjusted for light mode - darker for visibility */
+  --primary-400: 22 163 74;         /* Emerald-600 - darker for better contrast */
+  --primary-500: 21 128 61;         /* Emerald-700 */
+  --primary-600: 20 83 45;          /* Emerald-800 */
+  
+  /* Accent colors - darker for light backgrounds */
+  --accent-purple: 124 58 237;      /* Purple-600 - better visibility */
+  --accent-blue: 37 99 235;         /* Blue-600 - better visibility */
+  --accent-cyan: 8 145 178;         /* Cyan-600 - better visibility */
+  --accent-amber: 217 119 6;        /* Amber-600 - better visibility */
+  
+  /* Glass morphism - Light mode */
+  --glass-bg: 255 255 255 / 0.6;
+  --glass-border: 255 255 255 / 0.8;
+  --glass-blur: 16px;
+  
+  /* Shadows - lighter for light mode */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.15);
 }
+
+/* ============================================
+   BASE STYLES
+   ============================================ */
 
 html {
   scroll-behavior: smooth;
 }
 
 body {
-  background: var(--color-background);
-  color: var(--color-foreground);
-  font-family: var(--font-geist-sans), sans-serif;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  background: rgb(var(--bg-primary));
+  color: rgb(var(--text-primary));
+  font-family: var(--font-sans), sans-serif;
 }
 
-/* Glass morphism utility classes */
+/* ============================================
+   THEME TRANSITIONS
+   ============================================ */
+
+* {
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Prevent transition on initial load */
+.no-transitions * {
+  transition: none !important;
+}
+
+/* ============================================
+   GLASSMORPHISM HYBRID SYSTEM
+   ============================================ */
+
+/* Solid dark cards - primary content containers */
+.glass-solid-dark {
+  background: linear-gradient(135deg, 
+    rgb(var(--bg-secondary)) 0%, 
+    rgb(var(--bg-tertiary)) 100%);
+  border: 1px solid rgb(var(--border) / 0.2);
+  box-shadow: var(--shadow-lg);
+}
+
+.light .glass-solid-dark {
+  background: linear-gradient(135deg, 
+    rgb(var(--bg-primary)) 0%, 
+    rgb(var(--bg-secondary)) 100%);
+  border: 1px solid rgb(var(--border));
+  box-shadow: var(--shadow-md);
+}
+
+/* Glass effect - modals and floating elements */
+.glass-effect-dark {
+  background: rgba(var(--bg-secondary), 0.6);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  border: 1px solid rgb(var(--border-bright) / 0.3);
+  box-shadow: var(--shadow-xl),
+              inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.light .glass-effect-dark {
+  background: rgba(var(--bg-primary), 0.8);
+  backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+  border: 1px solid rgb(var(--border));
+  box-shadow: var(--shadow-lg);
+}
+
+/* Elevated glass - navigation and headers */
+.glass-elevated-dark {
+  background: rgba(var(--bg-secondary), 0.85);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgb(var(--border) / 0.2);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.3);
+}
+
+.light .glass-elevated-dark {
+  background: rgba(var(--bg-primary), 0.95);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgb(var(--border));
+  box-shadow: var(--shadow-sm);
+}
+
+/* Legacy glass classes for backward compatibility */
 .glass {
-  background: var(--glass-bg);
+  background: rgba(var(--glass-bg));
   backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow);
+  border: 1px solid rgba(var(--glass-border));
+  box-shadow: var(--shadow-md);
 }
 
 .glass-subtle {
   background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-sm);
+}
+
+.light .glass-subtle {
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .glass-medium {
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-md);
+}
+
+.light .glass-medium {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .glass-strong {
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-lg);
+}
+
+.light .glass-strong {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .glass-neon {
   background: rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(16px);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 0 20px rgba(16, 185, 129, 0.2);
+  border: 1px solid rgb(var(--primary-400) / 0.3);
+  box-shadow: var(--shadow-md), 
+              0 0 20px rgb(var(--primary-400) / 0.2);
 }
 
-/* Gradient utilities */
+.light .glass-neon {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgb(var(--primary-400) / 0.5);
+  box-shadow: var(--shadow-md), 
+              0 0 20px rgb(var(--primary-400) / 0.15);
+}
+
+/* ============================================
+   GRADIENT UTILITIES
+   ============================================ */
+
 .gradient-primary {
   background: var(--gradient-primary);
 }
@@ -148,7 +272,10 @@ body {
   background-clip: text;
 }
 
-/* Enhanced animations */
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+
 @keyframes float {
   0%, 100% {
     transform: translateY(0px);
@@ -160,10 +287,10 @@ body {
 
 @keyframes pulse-glow {
   0%, 100% {
-    box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+    box-shadow: 0 0 20px rgb(var(--primary-400) / 0.3);
   }
   50% {
-    box-shadow: 0 0 30px rgba(34, 197, 94, 0.6);
+    box-shadow: 0 0 30px rgb(var(--primary-400) / 0.6);
   }
 }
 
@@ -173,17 +300,6 @@ body {
   }
   100% {
     background-position: 1000px 0;
-  }
-}
-
-@keyframes slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -245,14 +361,14 @@ body {
 
 @keyframes neon-pulse {
   0%, 100% {
-    box-shadow: 0 0 10px rgba(16, 185, 129, 0.4),
-                0 0 20px rgba(16, 185, 129, 0.3),
-                0 0 30px rgba(16, 185, 129, 0.2);
+    box-shadow: 0 0 10px rgb(var(--primary-400) / 0.4),
+                0 0 20px rgb(var(--primary-400) / 0.3),
+                0 0 30px rgb(var(--primary-400) / 0.2);
   }
   50% {
-    box-shadow: 0 0 20px rgba(16, 185, 129, 0.6),
-                0 0 30px rgba(16, 185, 129, 0.5),
-                0 0 40px rgba(16, 185, 129, 0.4);
+    box-shadow: 0 0 20px rgb(var(--primary-400) / 0.6),
+                0 0 30px rgb(var(--primary-400) / 0.5),
+                0 0 40px rgb(var(--primary-400) / 0.4);
   }
 }
 
@@ -286,10 +402,6 @@ body {
   animation: shimmer 2s infinite;
 }
 
-.animate-slide-up {
-  animation: slide-up 0.6s ease-out;
-}
-
 .animate-fade-in-up {
   animation: fade-in-up 0.8s ease-out;
 }
@@ -311,7 +423,10 @@ body {
   animation: rotate-gradient 3s ease infinite;
 }
 
-/* Scroll-triggered animations */
+/* ============================================
+   SCROLL ANIMATIONS
+   ============================================ */
+
 .scroll-fade-in {
   opacity: 0;
   transform: translateY(40px);
@@ -337,14 +452,17 @@ body {
 .stagger-children > *:nth-child(5) { animation-delay: 0.5s; }
 .stagger-children > *:nth-child(6) { animation-delay: 0.6s; }
 
-/* Hover effects */
+/* ============================================
+   HOVER & INTERACTION EFFECTS
+   ============================================ */
+
 .hover-lift {
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .hover-lift:hover {
   transform: translateY(-8px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-xl);
 }
 
 .hover-glow {
@@ -352,30 +470,88 @@ body {
 }
 
 .hover-glow:hover {
-  box-shadow: 0 0 25px rgba(34, 197, 94, 0.4);
+  box-shadow: 0 0 25px rgb(var(--primary-400) / 0.4);
 }
 
-/* Custom scrollbar */
+.hover-scale {
+  transition: transform 0.2s ease;
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+}
+
+/* ============================================
+   SCROLLBAR
+   ============================================ */
+
 ::-webkit-scrollbar {
   width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgb(var(--bg-secondary));
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(34, 197, 94, 0.6);
+  background: rgb(var(--primary-400) / 0.6);
   border-radius: 4px;
   transition: background 0.3s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(34, 197, 94, 0.8);
+  background: rgb(var(--primary-400) / 0.8);
 }
 
-/* Responsive utilities */
+.light ::-webkit-scrollbar-track {
+  background: rgb(var(--bg-tertiary));
+}
+
+/* ============================================
+   ACCESSIBILITY
+   ============================================ */
+
+/* Focus states */
+.focus-ring {
+  transition: box-shadow 0.2s ease;
+}
+
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(var(--primary-400) / 0.3);
+}
+
+*:focus-visible {
+  outline: 2px solid rgb(var(--primary-400));
+  outline-offset: 2px;
+}
+
+/* Text selection */
+::selection {
+  background: rgb(var(--primary-400) / 0.2);
+  color: inherit;
+}
+
+/* ============================================
+   LOADING STATES
+   ============================================ */
+
+.skeleton {
+  background: linear-gradient(90deg, 
+    rgb(var(--bg-secondary)) 25%, 
+    rgb(var(--bg-tertiary)) 50%, 
+    rgb(var(--bg-secondary)) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius);
+}
+
+/* ============================================
+   RESPONSIVE UTILITIES
+   ============================================ */
+
 @media (max-width: 768px) {
   .mobile-hidden {
     display: none;
@@ -387,23 +563,10 @@ body {
   }
 }
 
-/* Focus states for accessibility */
-.focus-ring {
-  transition: box-shadow 0.2s ease;
-}
+/* ============================================
+   REDUCED MOTION SUPPORT
+   ============================================ */
 
-.focus-ring:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.3);
-}
-
-/* Text selection */
-::selection {
-  background: rgba(34, 197, 94, 0.2);
-  color: inherit;
-}
-
-/* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -421,18 +584,8 @@ body {
   .animate-rotate-gradient {
     animation: none;
   }
-}
-
-/* Loading states */
-.skeleton {
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: 8px;
-}
-
-.skeleton-dark {
-  background: linear-gradient(90deg, #2a2a2a 25%, #1a1a1a 50%, #2a2a2a 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+  
+  html {
+    scroll-behavior: auto;
+  }
 }
