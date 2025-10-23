@@ -1,4 +1,5 @@
 import { type Hash } from 'viem';
+import { getBlockExplorerUrl, getNetworkFromChainId } from '@/config/network';
 
 export interface TransactionState {
   status: 'idle' | 'pending' | 'confirming' | 'success' | 'error';
@@ -7,14 +8,8 @@ export interface TransactionState {
 }
 
 export function getExplorerUrl(chainId: number, hash: Hash): string {
-  const explorers: Record<number, string> = {
-    84532: 'https://sepolia.basescan.org', // Base Sepolia
-    8453: 'https://basescan.org', // Base Mainnet
-    1: 'https://etherscan.io', // Ethereum Mainnet
-    31337: 'http://localhost:8545', // Localhost
-  };
-
-  const baseUrl = explorers[chainId] || explorers[1];
+  const network = getNetworkFromChainId(chainId);
+  const baseUrl = network ? getBlockExplorerUrl(network) : 'https://basescan.org';
   return `${baseUrl}/tx/${hash}`;
 }
 
