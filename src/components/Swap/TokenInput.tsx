@@ -60,10 +60,10 @@ export function TokenInput({
           {token && (
             <div className="flex items-center gap-2">
               {isLoadingBalance ? (
-                <span className="text-xs text-gray-500">Loading...</span>
+                <span className="text-xs text-gray-300">Loading...</span>
               ) : (
                 <>
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-gray-300">
                     Balance: {parseFloat(balance).toFixed(token.decimals === 6 ? 2 : 4)}
                   </span>
                   {parseFloat(balance) > 0 && (
@@ -113,7 +113,7 @@ export function TokenInput({
 
         {/* USD Value */}
         {amount && parseFloat(amount) > 0 && (
-          <div className="text-right text-sm text-gray-500 mt-2">
+          <div className="text-right text-sm text-gray-300 mt-2">
             {isLoadingPrice ? (
               <span>Loading price...</span>
             ) : (
