@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Address } from 'viem';
-import { useChainId } from 'wagmi';
+import { useActiveChainId } from '@/hooks/useActiveChainId';
 
 // Mock prices for testnet and initial development
 const MOCK_PRICES: Record<string, number> = {
@@ -22,12 +22,12 @@ interface UseTokenPriceProps {
 }
 
 export function useTokenPrice({ tokenAddress, enabled = true }: UseTokenPriceProps) {
-  const chainId = useChainId();
+  const chainId = useActiveChainId();
   const [priceUSD, setPriceUSD] = useState<number>(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  const isTestnet = chainId === 84532; // Base Sepolia
+  const isTestnet = chainId === 84532; // Base Sepolia - this is correct as it's checking current chain
   
   useEffect(() => {
     if (!enabled || !tokenAddress) {
