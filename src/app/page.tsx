@@ -10,7 +10,6 @@ import {
   InteractiveFeatures,
   HowItWorks,
   FAQ,
-  CTASection,
   LandingNav,
 } from "@/components/Landing";
 
@@ -61,11 +60,8 @@ export default function Home() {
           <FAQ />
         </div>
 
-        {/* Final CTA */}
-        <CTASection />
-
         {/* Footer */}
-        <footer className="py-12 px-4 border-t border-white/10 relative">
+        <footer className="py-12 px-4 border-t border-white/10 relative mt-20">
           <div className="max-w-6xl mx-auto">
             <div className="flex flex-col md:flex-row justify-between items-center gap-8">
               {/* Brand */}
