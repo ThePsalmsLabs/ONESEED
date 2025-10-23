@@ -1,17 +1,18 @@
 'use client';
 
-import { useAccount, useReadContract, useChainId } from 'wagmi';
-import { CONTRACT_ADDRESSES } from '@/contracts/addresses';
+import { useAccount, useReadContract } from 'wagmi';
+import { getContractAddress } from '@/contracts/addresses';
 import { SavingsStrategyABI } from '@/contracts/abis/SavingStrategy';
 import { SavingsTokenType } from '@/contracts/types';
 import { useSmartContractWrite } from './useSmartContractWrite';
+import { useActiveChainId } from './useActiveChainId';
 
 export function useSavingsStrategy() {
   const { address } = useAccount();
-  const chainId = useChainId();
+  const chainId = useActiveChainId();
 
   // Get contract address for current chain
-  const contractAddress = CONTRACT_ADDRESSES[chainId as keyof typeof CONTRACT_ADDRESSES]?.SavingStrategy;
+  const contractAddress = getContractAddress(chainId, 'SavingStrategy');
 
   // Read user strategy
   const { data: strategy, isLoading, refetch } = useReadContract({
@@ -49,7 +50,7 @@ export function useSavingsStrategy() {
   };
 
   // Write: Set saving strategy (gasless via Biconomy)
-  const { write, isPending, hash } = useSmartContractWrite();
+  const { write, isPending } = useSmartContractWrite();
 
   const setSavingStrategy = async (params: {
     percentage: bigint;
