@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Address } from 'viem';
-import { usePublicClient, useChainId } from 'wagmi';
+import { usePublicClient } from 'wagmi';
+import { useActiveChainId } from '@/hooks/useActiveChainId';
 import { Token } from './useTokenList';
 import { useTokenPrice } from './useTokenPrice';
 import { 
@@ -56,7 +57,7 @@ export function useSwapQuote({
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
   
   const publicClient = usePublicClient();
-  const chainId = useChainId();
+  const chainId = useActiveChainId();
   
   // Get token prices for price impact calculation
   const { priceUSD: inputPrice } = useTokenPrice({
