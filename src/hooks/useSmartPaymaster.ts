@@ -6,7 +6,8 @@ import { useToast } from '@/components/ui/Toast';
 import { PAYMASTER_POLICIES, getApplicablePolicy, calculateGasSponsorship } from '@/config/paymasterPolicies';
 import { useAccount } from 'wagmi';
 import { useReadContract } from 'wagmi';
-import { CONTRACT_ADDRESSES } from '@/contracts/addresses';
+import { useActiveChainId } from './useActiveChainId';
+import { getContractAddress } from '@/contracts/addresses';
 import { SavingsModuleABI } from '@/contracts/abis/Savings';
 
 interface PaymasterServiceData {
@@ -20,12 +21,12 @@ interface PaymasterServiceData {
 export function useSmartPaymaster() {
   const { smartAccount } = useBiconomy();
   const { address } = useAccount();
-  const { showToast } = useToast();
+  const chainId = useActiveChainId();
   const [isCalculating, setIsCalculating] = useState(false);
 
   // Get user's savings balance for policy determination
   const { data: userBalance } = useReadContract({
-    address: CONTRACT_ADDRESSES[84532].Savings as `0x${string}`,
+    address: getContractAddress(chainId, 'Savings'),
     abi: SavingsModuleABI,
     functionName: 'getUserSavings',
     args: address ? [address] : undefined,
