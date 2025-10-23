@@ -228,7 +228,7 @@ export function SavingsConfigModal({ isOpen, onClose, onSkip }: SavingsConfigMod
               </div>
 
               {/* Info Note */}
-              <div className="mt-6 text-xs text-gray-500 text-center">
+              <div className="mt-6 text-xs text-gray-300 text-center">
                 You can change your savings settings anytime in the dashboard
               </div>
             </motion.div>
