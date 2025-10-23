@@ -3,8 +3,9 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { XMarkIcon, CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
 import { SwapStatus } from '@/hooks/swap/useSwapExecution';
-import { useChainId } from 'wagmi';
+import { useActiveChainId } from '@/hooks/useActiveChainId';
 import { Button } from '@/components/ui/Button';
+import { getBlockExplorerUrl, getNetworkFromChainId } from '@/config/network';
 
 interface SwapStatusModalProps {
   isOpen: boolean;
@@ -71,20 +72,16 @@ export function SwapStatusModal({
   tokenSymbol,
   onClose,
 }: SwapStatusModalProps) {
-  const chainId = useChainId();
+  const chainId = useActiveChainId();
   
   const currentStepIndex = STATUS_STEPS.findIndex((step) => step.key === status);
   
   // Get explorer URL based on chainId
   const getExplorerUrl = (chainId?: number) => {
-    switch (chainId) {
-      case 8453: // Base Mainnet
-        return 'https://basescan.org';
-      case 84532: // Base Sepolia
-        return 'https://sepolia.basescan.org';
-      default:
-        return 'https://basescan.org';
-    }
+    if (!chainId) return 'https://basescan.org';
+    
+    const network = getNetworkFromChainId(chainId);
+    return network ? getBlockExplorerUrl(network) : 'https://basescan.org';
   };
   
   const explorerUrl = txHash ? `${getExplorerUrl(chainId)}/tx/${txHash}` : null;
@@ -152,7 +149,7 @@ export function SwapStatusModal({
                     <div className="text-3xl font-bold text-primary-400">
                       {(Number(savingsAmount) / 1e18).toFixed(4)} {tokenSymbol || 'tokens'}
                     </div>
-                    <div className="text-xs text-gray-500 mt-2">
+                    <div className="text-xs text-gray-300 mt-2">
                       Automatically deposited to your savings vault
                     </div>
                   </div>
@@ -228,7 +225,7 @@ export function SwapStatusModal({
 
               {/* Processing Note */}
               {!isComplete && !hasError && (
-                <div className="text-center text-sm text-gray-500">
+                <div className="text-center text-sm text-gray-300">
                   Please don't close this window while the transaction is processing
                 </div>
               )}
