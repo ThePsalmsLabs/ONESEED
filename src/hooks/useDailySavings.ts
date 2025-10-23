@@ -1,25 +1,26 @@
 'use client';
 
-import { useAccount, useReadContract, useChainId } from 'wagmi';
+import { useAccount, useReadContract } from 'wagmi';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { parseEther, formatEther } from 'viem';
-import { CONTRACT_ADDRESSES } from '@/contracts/addresses';
+import { getContractAddress } from '@/contracts/addresses';
 import { DailySavingsABI } from '@/contracts/abis/DailySavings';
-import { 
-  DailySavingsConfig, 
-  DailySavingsStatus, 
+import {
+  DailySavingsConfig,
+  DailySavingsStatus,
   DailyExecutionStatus,
   YieldStrategy
 } from '@/contracts/types';
 import { useSmartContractWrite } from './useSmartContractWrite';
+import { useActiveChainId } from './useActiveChainId';
 
 export function useDailySavings() {
   const { address } = useAccount();
-  const chainId = useChainId();
+  const chainId = useActiveChainId();
   const queryClient = useQueryClient();
 
   // Get contract address for current chain
-  const contractAddress = CONTRACT_ADDRESSES[chainId as keyof typeof CONTRACT_ADDRESSES]?.DailySavings;
+  const contractAddress = getContractAddress(chainId, 'DailySavings');
 
   // Biconomy write hook for gasless transactions
   const { write: writeContract, isPending: isWritePending, hash } = useSmartContractWrite();
