@@ -41,7 +41,7 @@ export function SavingsControl({ percentage, onChange, tradeValueUSD }: SavingsC
             background: `linear-gradient(to right, rgb(16, 185, 129) 0%, rgb(16, 185, 129) ${percentage * 5}%, rgb(55, 65, 81) ${percentage * 5}%, rgb(55, 65, 81) 100%)`
           }}
         />
-        <div className="flex justify-between text-xs text-gray-500 mt-2">
+        <div className="flex justify-between text-xs text-gray-300 mt-2">
           <span>1%</span>
           <span>20%</span>
         </div>

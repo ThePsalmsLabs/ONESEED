@@ -72,7 +72,7 @@ export function TokenSelector({ onSelect, onClose, selectedToken }: TokenSelecto
               autoFocus
             />
             <svg
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500"
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-300"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"

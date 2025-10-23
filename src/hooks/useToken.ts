@@ -1,214 +1,27 @@
-import { useAccount, useWriteContract, usePublicClient } from 'wagmi';
+import { useAccount, usePublicClient } from 'wagmi';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { parseEther, formatEther } from 'viem';
-import { CONTRACT_ADDRESSES } from '@/contracts/addresses';
+import { parseEther } from 'viem';
+import { getContractAddress } from '@/contracts/addresses';
 import { TokenModuleABI } from '@/contracts/abis/Token';
 import { useSmartContractWrite } from './useSmartContractWrite';
-import { 
-  TokenInfo, 
-  TokenTransfer,
-  TransactionResult 
+import { useActiveChainId } from './useActiveChainId';
+import {
+  TokenInfo
 } from '@/contracts/types';
 
 export function useToken() {
   const { address } = useAccount();
-  const { writeContract } = useWriteContract();
+  const chainId = useActiveChainId();
   const queryClient = useQueryClient();
-  const publicClient = usePublicClient();
   const { write: writeSmartContract } = useSmartContractWrite();
-
-  // Get token info by address
-  const getTokenInfo = (tokenAddress: `0x${string}`) => {
-    return useQuery({
-      queryKey: ['tokenInfo', tokenAddress],
-      queryFn: async (): Promise<TokenInfo | null> => {
-        if (!address || !publicClient) return null;
-        
-        try {
-          // Get token ID from Token contract
-          const tokenId = await publicClient.readContract({
-            address: CONTRACT_ADDRESSES[84532].Token as `0x${string}`,
-            abi: TokenModuleABI,
-            functionName: 'getTokenId',
-            args: [tokenAddress]
-          });
-
-          // Get token metadata
-          const [name, symbol, decimals, totalSupply] = await Promise.all([
-            publicClient.readContract({
-              address: CONTRACT_ADDRESSES[84532].Token as `0x${string}`,
-              abi: TokenModuleABI,
-              functionName: 'name',
-              args: [tokenId]
-            }).catch(() => 'Unknown Token'),
-            publicClient.readContract({
-              address: CONTRACT_ADDRESSES[84532].Token as `0x${string}`,
-              abi: TokenModuleABI,
-              functionName: 'symbol',
-              args: [tokenId]
-            }).catch(() => 'UNK'),
-            publicClient.readContract({
-              address: CONTRACT_ADDRESSES[84532].Token as `0x${string}`,
-              abi: TokenModuleABI,
-              functionName: 'decimals',
-              args: [tokenId]
-            }).catch(() => 18),
-            publicClient.readContract({
-              address: CONTRACT_ADDRESSES[84532].Token as `0x${string}`,
-              abi: TokenModuleABI,
-              functionName: 'totalSupply',
-              args: [tokenId]
-            }).catch(() => BigInt(0))
-          ]);
-
-          return {
-            id: tokenId,
-            address: tokenAddress,
-            name: name as string,
-            symbol: symbol as string,
-            decimals: Number(decimals),
-            totalSupply: totalSupply as bigint
-          };
-        } catch (error) {
-          console.error('Error fetching token info:', error);
-          return null;
-        }
-      },
-      enabled: !!address && !!tokenAddress
-    });
-  };
-
-  // Get token balance for user
-  const getTokenBalance = (tokenId: bigint) => {
-    return useQuery({
-      queryKey: ['tokenBalance', address, tokenId],
-      queryFn: async (): Promise<bigint> => {
-        if (!address || !publicClient) return BigInt(0);
-        
-        try {
-          const balance = await publicClient.readContract({
-            address: CONTRACT_ADDRESSES[84532].Token as `0x${string}`,
-            abi: TokenModuleABI,
-            functionName: 'balanceOf',
-            args: [address, tokenId]
-          });
-          return balance as bigint;
-        } catch (error) {
-          console.error('Error fetching token balance:', error);
-          return BigInt(0);
-        }
-      },
-      enabled: !!address && !!tokenId
-    });
-  };
-
-  // Get batch token balances
-  const getBatchTokenBalances = (tokenIds: bigint[]) => {
-    return useQuery({
-      queryKey: ['batchTokenBalances', address, tokenIds],
-      queryFn: async (): Promise<bigint[]> => {
-        if (!address || !publicClient) return [];
-        
-        try {
-          const balances = await publicClient.readContract({
-            address: CONTRACT_ADDRESSES[84532].Token as `0x${string}`,
-            abi: TokenModuleABI,
-            functionName: 'balanceOfBatch',
-            args: [address, tokenIds]
-          });
-          return balances as bigint[];
-        } catch (error) {
-          console.error('Error fetching batch token balances:', error);
-          return tokenIds.map(() => BigInt(0));
-        }
-      },
-      enabled: !!address && tokenIds.length > 0
-    });
-  };
-
-  // Get total supply for token
-  const getTotalSupply = (tokenId: bigint) => {
-    return useQuery({
-      queryKey: ['totalSupply', tokenId],
-      queryFn: async (): Promise<bigint> => {
-        if (!publicClient) return BigInt(0);
-        
-        try {
-          const totalSupply = await publicClient.readContract({
-            address: CONTRACT_ADDRESSES[84532].Token as `0x${string}`,
-            abi: TokenModuleABI,
-            functionName: 'totalSupply',
-            args: [tokenId]
-          });
-          return totalSupply as bigint;
-        } catch (error) {
-          console.error('Error fetching total supply:', error);
-          return BigInt(0);
-        }
-      },
-      enabled: !!tokenId
-    });
-  };
-
-  // Get allowance for token
-  const getAllowance = (params: {
-    owner: `0x${string}`;
-    spender: `0x${string}`;
-    tokenId: bigint;
-  }) => {
-    return useQuery({
-      queryKey: ['allowance', params.owner, params.spender, params.tokenId],
-      queryFn: async (): Promise<bigint> => {
-        if (!publicClient) return BigInt(0);
-        
-        try {
-          const allowance = await publicClient.readContract({
-            address: CONTRACT_ADDRESSES[84532].Token as `0x${string}`,
-            abi: TokenModuleABI,
-            functionName: 'allowance',
-            args: [params.owner, params.spender, params.tokenId]
-          });
-          return allowance as bigint;
-        } catch (error) {
-          console.error('Error fetching allowance:', error);
-          return BigInt(0);
-        }
-      },
-      enabled: !!params.owner && !!params.spender && !!params.tokenId
-    });
-  };
-
-  // Check if token is registered
-  const isTokenRegistered = (tokenAddress: `0x${string}`) => {
-    return useQuery({
-      queryKey: ['isTokenRegistered', tokenAddress],
-      queryFn: async (): Promise<boolean> => {
-        if (!publicClient) return false;
-        
-        try {
-          const isRegistered = await publicClient.readContract({
-            address: CONTRACT_ADDRESSES[84532].Token as `0x${string}`,
-            abi: TokenModuleABI,
-            functionName: 'isTokenRegistered',
-            args: [tokenAddress]
-          });
-          return isRegistered as boolean;
-        } catch (error) {
-          console.error('Error checking token registration:', error);
-          return false;
-        }
-      },
-      enabled: !!tokenAddress
-    });
-  };
 
   // Register token
   const registerToken = useMutation({
     mutationFn: async (tokenAddress: `0x${string}`): Promise<`0x${string}`> => {
       if (!address) throw new Error('No wallet connected');
-      
+
       const hash = await writeSmartContract({
-        address: CONTRACT_ADDRESSES[84532].Token as `0x${string}`,
+        address: getContractAddress(chainId, 'Token'),
         abi: TokenModuleABI,
         functionName: 'registerToken',
         args: [tokenAddress]
@@ -225,9 +38,9 @@ export function useToken() {
   const batchRegisterTokens = useMutation({
     mutationFn: async (tokenAddresses: `0x${string}`[]): Promise<`0x${string}`> => {
       if (!address) throw new Error('No wallet connected');
-      
+
       const hash = await writeSmartContract({
-        address: CONTRACT_ADDRESSES[84532].Token as `0x${string}`,
+        address: getContractAddress(chainId, 'Token'),
         abi: TokenModuleABI,
         functionName: 'batchRegisterTokens',
         args: [tokenAddresses]
@@ -247,11 +60,11 @@ export function useToken() {
       amount: string;
     }): Promise<`0x${string}`> => {
       if (!address) throw new Error('No wallet connected');
-      
+
       const amountWei = parseEther(params.amount);
-      
+
       const hash = await writeSmartContract({
-        address: CONTRACT_ADDRESSES[84532].Token as `0x${string}`,
+        address: getContractAddress(chainId, 'Token'),
         abi: TokenModuleABI,
         functionName: 'mintSavingsToken',
         args: [address, params.tokenId, amountWei]
@@ -272,11 +85,11 @@ export function useToken() {
       amounts: string[];
     }): Promise<`0x${string}`> => {
       if (!address) throw new Error('No wallet connected');
-      
+
       const amountsWei = params.amounts.map(amount => parseEther(amount));
-      
+
       const hash = await writeSmartContract({
-        address: CONTRACT_ADDRESSES[84532].Token as `0x${string}`,
+        address: getContractAddress(chainId, 'Token'),
         abi: TokenModuleABI,
         functionName: 'batchMintSavingsTokens',
         args: [address, params.tokenIds, amountsWei]
@@ -297,11 +110,11 @@ export function useToken() {
       amount: string;
     }): Promise<`0x${string}`> => {
       if (!address) throw new Error('No wallet connected');
-      
+
       const amountWei = parseEther(params.amount);
-      
+
       const hash = await writeSmartContract({
-        address: CONTRACT_ADDRESSES[84532].Token as `0x${string}`,
+        address: getContractAddress(chainId, 'Token'),
         abi: TokenModuleABI,
         functionName: 'burnSavingsToken',
         args: [address, params.tokenId, amountWei]
@@ -322,11 +135,11 @@ export function useToken() {
       amounts: string[];
     }): Promise<`0x${string}`> => {
       if (!address) throw new Error('No wallet connected');
-      
+
       const amountsWei = params.amounts.map(amount => parseEther(amount));
-      
+
       const hash = await writeSmartContract({
-        address: CONTRACT_ADDRESSES[84532].Token as `0x${string}`,
+        address: getContractAddress(chainId, 'Token'),
         abi: TokenModuleABI,
         functionName: 'batchBurnSavingsTokens',
         args: [address, params.tokenIds, amountsWei]
@@ -348,11 +161,11 @@ export function useToken() {
       amount: string;
     }): Promise<`0x${string}`> => {
       if (!address) throw new Error('No wallet connected');
-      
+
       const amountWei = parseEther(params.amount);
-      
+
       const hash = await writeSmartContract({
-        address: CONTRACT_ADDRESSES[84532].Token as `0x${string}`,
+        address: getContractAddress(chainId, 'Token'),
         abi: TokenModuleABI,
         functionName: 'transfer',
         args: [address, params.receiver, params.tokenId, amountWei]
@@ -374,11 +187,11 @@ export function useToken() {
       amounts: string[];
     }): Promise<`0x${string}`> => {
       if (!address) throw new Error('No wallet connected');
-      
+
       const amountsWei = params.amounts.map(amount => parseEther(amount));
-      
+
       const hash = await writeSmartContract({
-        address: CONTRACT_ADDRESSES[84532].Token as `0x${string}`,
+        address: getContractAddress(chainId, 'Token'),
         abi: TokenModuleABI,
         functionName: 'batchTransfer',
         args: [params.from, params.to, params.tokenIds, amountsWei]
@@ -399,11 +212,11 @@ export function useToken() {
       amount: string;
     }): Promise<`0x${string}`> => {
       if (!address) throw new Error('No wallet connected');
-      
+
       const amountWei = parseEther(params.amount);
-      
+
       const hash = await writeSmartContract({
-        address: CONTRACT_ADDRESSES[84532].Token as `0x${string}`,
+        address: getContractAddress(chainId, 'Token'),
         abi: TokenModuleABI,
         functionName: 'approve',
         args: [params.spender, params.tokenId, amountWei]
@@ -423,9 +236,9 @@ export function useToken() {
       approved: boolean;
     }): Promise<`0x${string}`> => {
       if (!address) throw new Error('No wallet connected');
-      
+
       const hash = await writeSmartContract({
-        address: CONTRACT_ADDRESSES[84532].Token as `0x${string}`,
+        address: getContractAddress(chainId, 'Token'),
         abi: TokenModuleABI,
         functionName: 'setOperator',
         args: [params.operator, params.approved]
@@ -439,14 +252,6 @@ export function useToken() {
   });
 
   return {
-    // Query functions
-    getTokenInfo,
-    getTokenBalance,
-    getBatchTokenBalances,
-    getTotalSupply,
-    getAllowance,
-    isTokenRegistered,
-    
     // Mutations
     registerToken: registerToken.mutateAsync,
     batchRegisterTokens: batchRegisterTokens.mutateAsync,
@@ -458,7 +263,7 @@ export function useToken() {
     batchTransferTokens: batchTransferTokens.mutateAsync,
     approveToken: approveToken.mutateAsync,
     setOperator: setOperator.mutateAsync,
-    
+
     // Mutation states
     isRegistering: registerToken.isPending,
     isBatchRegistering: batchRegisterTokens.isPending,
@@ -470,7 +275,7 @@ export function useToken() {
     isBatchTransferring: batchTransferTokens.isPending,
     isApproving: approveToken.isPending,
     isSettingOperator: setOperator.isPending,
-    
+
     // Error states
     registerError: registerToken.error,
     batchRegisterError: batchRegisterTokens.error,
@@ -483,4 +288,199 @@ export function useToken() {
     approveError: approveToken.error,
     setOperatorError: setOperator.error
   };
+}
+
+// Separate hooks for queries that can be used independently
+export function useTokenInfo(tokenAddress: `0x${string}` | undefined) {
+  const { address } = useAccount();
+  const publicClient = usePublicClient();
+
+  return useQuery({
+    queryKey: ['tokenInfo', tokenAddress],
+    queryFn: async (): Promise<TokenInfo | null> => {
+      if (!address || !publicClient || !tokenAddress) return null;
+
+      try {
+        // Get token ID from Token contract
+        const tokenId = await publicClient.readContract({
+          address: getContractAddress(chainId, 'Token'),
+          abi: TokenModuleABI,
+          functionName: 'getTokenId',
+          args: [tokenAddress]
+        });
+
+        // Get token metadata
+        const [name, symbol, decimals, totalSupply] = await Promise.all([
+          publicClient.readContract({
+            address: getContractAddress(chainId, 'Token'),
+            abi: TokenModuleABI,
+            functionName: 'name',
+            args: [tokenId]
+          }).catch(() => 'Unknown Token'),
+          publicClient.readContract({
+            address: getContractAddress(chainId, 'Token'),
+            abi: TokenModuleABI,
+            functionName: 'symbol',
+            args: [tokenId]
+          }).catch(() => 'UNK'),
+          publicClient.readContract({
+            address: getContractAddress(chainId, 'Token'),
+            abi: TokenModuleABI,
+            functionName: 'decimals',
+            args: [tokenId]
+          }).catch(() => 18),
+          publicClient.readContract({
+            address: getContractAddress(chainId, 'Token'),
+            abi: TokenModuleABI,
+            functionName: 'totalSupply',
+            args: [tokenId]
+          }).catch(() => BigInt(0))
+        ]);
+
+        return {
+          id: tokenId,
+          address: tokenAddress,
+          name: name as string,
+          symbol: symbol as string,
+          decimals: Number(decimals),
+          totalSupply: totalSupply as bigint
+        };
+      } catch (error) {
+        console.error('Error fetching token info:', error);
+        return null;
+      }
+    },
+    enabled: !!address && !!tokenAddress
+  });
+}
+
+export function useTokenBalance(tokenId: bigint | undefined) {
+  const { address } = useAccount();
+  const publicClient = usePublicClient();
+
+  return useQuery({
+    queryKey: ['tokenBalance', address, tokenId],
+    queryFn: async (): Promise<bigint> => {
+      if (!address || !publicClient || !tokenId) return BigInt(0);
+
+      try {
+        const balance = await publicClient.readContract({
+          address: getContractAddress(chainId, 'Token'),
+          abi: TokenModuleABI,
+          functionName: 'balanceOf',
+          args: [address, tokenId]
+        });
+        return balance as bigint;
+      } catch (error) {
+        console.error('Error fetching token balance:', error);
+        return BigInt(0);
+      }
+    },
+    enabled: !!address && !!tokenId
+  });
+}
+
+export function useBatchTokenBalances(tokenIds: bigint[]) {
+  const { address } = useAccount();
+  const publicClient = usePublicClient();
+
+  return useQuery({
+    queryKey: ['batchTokenBalances', address, tokenIds],
+    queryFn: async (): Promise<bigint[]> => {
+      if (!address || !publicClient) return [];
+
+      try {
+        const balances = await publicClient.readContract({
+          address: getContractAddress(chainId, 'Token'),
+          abi: TokenModuleABI,
+          functionName: 'balanceOfBatch',
+          args: [address, tokenIds]
+        });
+        return balances as bigint[];
+      } catch (error) {
+        console.error('Error fetching batch token balances:', error);
+        return tokenIds.map(() => BigInt(0));
+      }
+    },
+    enabled: !!address && tokenIds.length > 0
+  });
+}
+
+export function useTotalSupply(tokenId: bigint | undefined) {
+  const publicClient = usePublicClient();
+
+  return useQuery({
+    queryKey: ['totalSupply', tokenId],
+    queryFn: async (): Promise<bigint> => {
+      if (!publicClient || !tokenId) return BigInt(0);
+
+      try {
+        const totalSupply = await publicClient.readContract({
+          address: getContractAddress(chainId, 'Token'),
+          abi: TokenModuleABI,
+          functionName: 'totalSupply',
+          args: [tokenId]
+        });
+        return totalSupply as bigint;
+      } catch (error) {
+        console.error('Error fetching total supply:', error);
+        return BigInt(0);
+      }
+    },
+    enabled: !!tokenId
+  });
+}
+
+export function useAllowance(params: {
+  owner?: `0x${string}`;
+  spender?: `0x${string}`;
+  tokenId?: bigint;
+}) {
+  const publicClient = usePublicClient();
+
+  return useQuery({
+    queryKey: ['allowance', params.owner, params.spender, params.tokenId],
+    queryFn: async (): Promise<bigint> => {
+      if (!publicClient || !params.owner || !params.spender || !params.tokenId) return BigInt(0);
+
+      try {
+        const allowance = await publicClient.readContract({
+          address: getContractAddress(chainId, 'Token'),
+          abi: TokenModuleABI,
+          functionName: 'allowance',
+          args: [params.owner, params.spender, params.tokenId]
+        });
+        return allowance as bigint;
+      } catch (error) {
+        console.error('Error fetching allowance:', error);
+        return BigInt(0);
+      }
+    },
+    enabled: !!params.owner && !!params.spender && !!params.tokenId
+  });
+}
+
+export function useIsTokenRegistered(tokenAddress: `0x${string}` | undefined) {
+  const publicClient = usePublicClient();
+
+  return useQuery({
+    queryKey: ['isTokenRegistered', tokenAddress],
+    queryFn: async (): Promise<boolean> => {
+      if (!publicClient || !tokenAddress) return false;
+
+      try {
+        const isRegistered = await publicClient.readContract({
+          address: getContractAddress(chainId, 'Token'),
+          abi: TokenModuleABI,
+          functionName: 'isTokenRegistered',
+          args: [tokenAddress]
+        });
+        return isRegistered as boolean;
+      } catch (error) {
+        console.error('Error checking token registration:', error);
+        return false;
+      }
+    },
+    enabled: !!tokenAddress
+  });
 }

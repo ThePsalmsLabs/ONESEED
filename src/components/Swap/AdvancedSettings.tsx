@@ -109,7 +109,7 @@ export function AdvancedSettings({ settings, onUpdate }: AdvancedSettingsProps) 
           }}
         />
         
-        <div className="flex justify-between text-xs text-gray-500 mt-2">
+        <div className="flex justify-between text-xs text-gray-300 mt-2">
           <span>2 min</span>
           <span>30 min</span>
         </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useBiconomy } from '@/components/BiconomyProvider';
 import { useAccount } from 'wagmi';
+import { useActiveChainId } from './useActiveChainId';
 
 interface GasSavings {
   totalGasSaved: bigint;
@@ -25,6 +26,18 @@ interface UserOpHistory {
   status: 'success' | 'failed' | 'pending';
 }
 
+interface RawUserOp {
+  hash: string;
+  timestamp: number;
+  operation?: string;
+  gasUsed?: string | number;
+  gasPrice?: string | number;
+  sponsoredGas?: string | number;
+  userPaid?: string | number;
+  savings?: string | number;
+  status?: string;
+}
+
 interface AnalyticsData {
   gasSavings: GasSavings;
   userOpHistory: UserOpHistory[];
@@ -44,6 +57,7 @@ interface AnalyticsData {
 export function useBiconomyAnalytics() {
   const { smartAccountAddress } = useBiconomy();
   const { address } = useAccount();
+  const chainId = useActiveChainId();
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,13 +67,13 @@ export function useBiconomyAnalytics() {
     try {
       // Try to fetch from Biconomy's UserOp API
       const response = await fetch(
-        `https://bundler.biconomy.io/api/v2/84532/userOps?address=${userAddress}&limit=50`
+        `https://bundler.biconomy.io/api/v2/${chainId}/userOps?address=${userAddress}&limit=50`
       );
       
       if (response.ok) {
         const data = await response.json();
-        return data.userOps?.map((op: any) => ({
-          hash: op.hash,
+        return data.userOps?.map((op: RawUserOp) => ({
+          hash: op.hash as `0x${string}`,
           timestamp: op.timestamp,
           operation: op.operation || 'unknown',
           gasUsed: BigInt(op.gasUsed || 0),

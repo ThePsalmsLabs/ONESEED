@@ -4,6 +4,8 @@ import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useActivityFeed } from '@/hooks/useActivityFeed';
 import { useTokenMetadataBatch } from '@/hooks/useTokenMetadata';
+import { getExplorerUrl } from '@/utils/transactions';
+import { useActiveChainId } from '@/hooks/useActiveChainId';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import {
@@ -23,6 +25,7 @@ interface ActivityFeedProps {
 
 export function ActivityFeed({ className = '', limit }: ActivityFeedProps) {
   const { activities, isLoading, refetch } = useActivityFeed();
+  const chainId = useActiveChainId();
   const [filter, setFilter] = useState<'all' | 'save' | 'withdraw' | 'dca' | 'strategy'>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -234,7 +237,7 @@ export function ActivityFeed({ className = '', limit }: ActivityFeedProps) {
                     <>
                       <span className="text-gray-300">•</span>
                       <a
-                        href={`https://basescan.org/tx/${activity.hash}`}
+                        href={`${getExplorerUrl(chainId, activity.hash)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-xs text-blue-600 hover:underline"

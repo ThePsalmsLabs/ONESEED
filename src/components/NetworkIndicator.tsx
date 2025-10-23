@@ -1,12 +1,13 @@
 'use client';
 
-import { useAccount, useChainId } from 'wagmi';
+import { useAccount } from 'wagmi';
+import { useActiveChainId } from '@/hooks/useActiveChainId';
 import { CHAIN_NAMES } from '@/utils/constants';
 import { Badge } from './ui/Badge';
 
 export function NetworkIndicator() {
   const { isConnected } = useAccount();
-  const chainId = useChainId();
+  const chainId = useActiveChainId();
 
   if (!isConnected) return null;
 

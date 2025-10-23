@@ -30,12 +30,10 @@ export function BiconomyFeatures() {
 
   // Hooks
   const { write, isPending, hash } = useSmartContractWrite();
-  const { 
-    batchSavingsSetup, 
-    batchWithdraw, 
-    batchDCASetup, 
-    batchDailySavingsSetup,
-    isPending: isBatchPending 
+  const {
+    batchSavingsSetup,
+    batchWithdraw,
+    isPending: isBatchPending
   } = useBatchTransactions();
   const { 
     createDCASession, 
@@ -46,18 +44,13 @@ export function BiconomyFeatures() {
     checkSessionKeyValidity,
     isCreating 
   } = useSessionKeys();
-  const { 
-    setupRecovery, 
-    initiateRecovery, 
-    approveRecovery,
+  const {
+    setupRecovery,
     guardians,
-    recoveryRequests,
-    isSettingUp 
+    isSettingUp
   } = useSocialRecovery();
-  const { 
-    getGasSavings, 
-    getPolicyInfo, 
-    isCalculating 
+  const {
+    getPolicyInfo
   } = useSmartPaymaster();
 
   // Example gasless transaction

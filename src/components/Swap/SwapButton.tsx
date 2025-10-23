@@ -178,7 +178,7 @@ export function SwapButton({
             ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white cursor-not-allowed'
             : buttonState.variant === 'error'
             ? 'bg-red-500/20 text-red-400 cursor-not-allowed border border-red-500/50'
-            : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+            : 'bg-gray-800 text-gray-300 cursor-not-allowed'
         }`}
       >
         {buttonState.variant === 'loading' && (

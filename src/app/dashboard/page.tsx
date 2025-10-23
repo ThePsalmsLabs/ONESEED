@@ -1,33 +1,23 @@
 'use client';
 
 import { Layout } from '@/components/Layout';
-import { SavingsOverview } from '@/components/Dashboard/SavingsOverview';
-import { TokenBalanceCard } from '@/components/Dashboard/TokenBalanceCard';
-import { GoalProgress } from '@/components/Dashboard/GoalProgress';
-import { RecentActivity } from '@/components/Dashboard/RecentActivity';
-import { GasSavingsCounter } from '@/components/Dashboard/GasSavingsCounter';
+import { StatsCard } from '@/components/Dashboard/StatsCard';
+import { QuickActions } from '@/components/Dashboard/QuickActions';
+import { SavingsRadialProgress } from '@/components/Dashboard/SavingsRadialProgress';
+import { ActivityTimeline } from '@/components/Dashboard/ActivityTimeline';
 import { useSavingsBalance } from '@/hooks/useSavingsBalance';
 import { useSavingsStrategy } from '@/hooks/useSavingsStrategy';
 import { useAccount } from 'wagmi';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { formatUnits } from 'viem';
-import { SavingsTokenType, TokenBalance } from '@/contracts/types';
-import Link from 'next/link';
 
 export default function DashboardPage() {
   const router = useRouter();
   const { isConnected } = useAccount();
   const savingsBalance = useSavingsBalance();
-  const { hasStrategy, strategy, isLoading: isLoadingStrategy, contractAddress } = useSavingsStrategy();
-  const [isVisible, setIsVisible] = useState(false);
-
-  // Trigger animations on mount
-  useEffect(() => {
-    setIsVisible(true);
-  }, []);
+  const { hasStrategy, strategy, isLoading: isLoadingStrategy } = useSavingsStrategy();
 
   // Redirect to home if not connected
   useEffect(() => {
@@ -36,327 +26,308 @@ export default function DashboardPage() {
     }
   }, [isConnected, router]);
 
-  // Optional: Allow viewing dashboard without strategy
-  // Users can explore the interface before configuring
-  // useEffect(() => {
-  //   if (!isLoadingStrategy && !hasStrategy) {
-  //     router.push('/configure');
-  //   }
-  // }, [hasStrategy, isLoadingStrategy, router]);
-
   if (!isConnected || isLoadingStrategy) {
     return null;
   }
 
-
-  // Calculate strategy-based metrics
+  // Calculate metrics
   const strategyPercentage = strategy ? Number(strategy.percentage) / 100 : 0;
-  const hasAutoIncrement = strategy ? Number(strategy.autoIncrement) > 0 : false;
-  const maxPercentage = strategy ? Number(strategy.maxPercentage) / 100 : 0;
+  const totalSaved = savingsBalance.totalBalance 
+    ? parseFloat(formatUnits(savingsBalance.totalBalance, 18))
+    : 0;
+  const savingsGoal = 10000; // Example goal, can be made configurable
+  
+  // Mock activity data (replace with real data from blockchain)
+  const recentActivities = [
+    {
+      id: '1',
+      type: 'swap' as const,
+      description: 'Swapped ETH for USDC',
+      amount: '+$12.50',
+      timestamp: new Date(Date.now() - 1000 * 60 * 30),
+      status: 'success' as const,
+      txHash: '0x...',
+    },
+    {
+      id: '2',
+      type: 'save' as const,
+      description: 'Auto-saved from transaction',
+      amount: '+$5.25',
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
+      status: 'success' as const,
+    },
+    {
+      id: '3',
+      type: 'config' as const,
+      description: 'Updated savings strategy',
+      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24),
+      status: 'success' as const,
+    },
+  ];
 
-  // Real data from hooks
-  const tokenBalances: TokenBalance[] = []; // Will be populated from real contract data
-  const totalBalance = tokenBalances.reduce((sum, token) => sum + token.amount, BigInt(0));
-  const savingsTokenTypeLabel = strategy 
-    ? strategy.savingsTokenType === SavingsTokenType.INPUT 
-      ? 'Input Token' 
-      : strategy.savingsTokenType === SavingsTokenType.OUTPUT 
-        ? 'Output Token'
-        : 'Specific Token'
-    : 'Not Set';
+  // Trend data for sparklines
+  const savingsTrend = [30, 45, 35, 55, 40, 65, 50, 75, 60, 80, 70, 85];
+  const swapsTrend = [10, 15, 12, 18, 22, 19, 25, 28, 23, 30, 27, 32];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/50 to-purple-50/30">
-      {/* Background Elements */}
-      <div className="fixed inset-0 -z-10">
-        <div className="absolute top-20 right-20 w-96 h-96 bg-primary-500/10 rounded-full blur-3xl animate-float"></div>
-        <div className="absolute bottom-20 left-20 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '-1s' }}></div>
+    <div className="min-h-screen bg-bg-primary relative">
+      {/* Animated Background Orbs */}
+      <div className="fixed inset-0 -z-10 overflow-hidden">
+        <motion.div
+          className="absolute top-20 right-20 w-96 h-96 bg-primary-400/10 rounded-full blur-3xl"
+          animate={{
+            y: [0, -30, 0],
+            scale: [1, 1.1, 1],
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+        />
+        <motion.div
+          className="absolute bottom-20 left-20 w-80 h-80 bg-accent-purple/10 rounded-full blur-3xl"
+          animate={{
+            y: [0, 30, 0],
+            scale: [1, 1.2, 1],
+          }}
+          transition={{
+            duration: 10,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+        />
+        <motion.div
+          className="absolute top-1/2 left-1/2 w-64 h-64 bg-accent-cyan/10 rounded-full blur-3xl"
+          animate={{
+            x: [-30, 30, -30],
+            y: [-30, 30, -30],
+          }}
+          transition={{
+            duration: 12,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+        />
       </div>
 
       <Layout>
-        <div className={`space-y-8 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}>
-          {/* Page Header */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-black text-gray-900 mb-2">
-                Your <span className="gradient-text">Savings</span> Dashboard
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="space-y-8"
+        >
+          {/* Hero Section */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+            >
+              <h1 className="text-4xl md:text-5xl font-black text-text-primary mb-2">
+                Your <span className="gradient-text">Savings</span> Hub
               </h1>
-              <p className="text-gray-600 text-lg">
+              <p className="text-text-secondary text-lg">
                 {strategyPercentage > 0 
-                  ? `Saving ${strategyPercentage}% of every transaction`
-                  : 'Your automated savings overview'
+                  ? `Saving ${strategyPercentage}% of every swap • Growing automatically`
+                  : 'Configure your strategy to start saving'
                 }
               </p>
-            </div>
-            <div className="flex gap-3">
-              <Link href="/withdraw">
-                <Button variant="ghost" size="sm" className="hover-lift">
-                  💰 Withdraw
-                </Button>
-              </Link>
-              <Link href="/configure">
-                <Button variant="secondary" size="sm" className="hover-lift">
-                  ⚙️ Settings
-                </Button>
-              </Link>
-            </div>
+            </motion.div>
+
+            {/* Strategy Status Badge */}
+            {hasStrategy && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.4, delay: 0.3 }}
+                className="glass-solid-dark rounded-full px-6 py-3 border border-primary-400/30 flex items-center gap-3"
+              >
+                <motion.div
+                  className="w-3 h-3 bg-primary-400 rounded-full"
+                  animate={{
+                    scale: [1, 1.2, 1],
+                    opacity: [1, 0.7, 1],
+                  }}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                />
+                <span className="text-sm font-medium text-primary-400">
+                  Strategy Active
+                </span>
+              </motion.div>
+            )}
           </div>
 
-          {/* Strategy Overview Cards */}
-          {strategy && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Card className="p-4 hover-lift glass bg-white/80 backdrop-blur-sm">
-                <div className="flex items-center gap-3">
-                  <div className="text-2xl">📊</div>
-                  <div>
-                    <div className="text-xl font-bold text-primary-600">{strategyPercentage}%</div>
-                    <div className="text-xs text-gray-500 font-medium">Savings Rate</div>
-                  </div>
-                </div>
-              </Card>
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <StatsCard
+              title="Total Saved"
+              value={`$${totalSaved.toFixed(2)}`}
+              change={{ value: '+12.5%', positive: true }}
+              icon={
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              }
+              trend={savingsTrend}
+              isLoading={isLoadingStrategy}
+            />
 
-              <Card className="p-4 hover-lift glass bg-white/80 backdrop-blur-sm">
-                <div className="flex items-center gap-3">
-                  <div className="text-2xl">{hasAutoIncrement ? '📈' : '📌'}</div>
-                  <div>
-                    <div className="text-xl font-bold text-blue-600">
-                      {hasAutoIncrement ? `+${Number(strategy.autoIncrement) / 100}%` : 'Fixed'}
-                    </div>
-                    <div className="text-xs text-gray-500 font-medium">Auto Increment</div>
-                  </div>
-                </div>
-              </Card>
+            <StatsCard
+              title="This Month"
+              value="$287.50"
+              change={{ value: '+8.2%', positive: true }}
+              icon={
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              }
+              isLoading={isLoadingStrategy}
+            />
 
-              <Card className="p-4 hover-lift glass bg-white/80 backdrop-blur-sm">
-                <div className="flex items-center gap-3">
-                  <div className="text-2xl">🎯</div>
-                  <div>
-                    <div className="text-xl font-bold text-purple-600">{maxPercentage}%</div>
-                    <div className="text-xs text-gray-500 font-medium">Max Rate</div>
-                  </div>
-                </div>
-              </Card>
+            <StatsCard
+              title="Total Swaps"
+              value="127"
+              change={{ value: '+5', positive: true }}
+              icon={
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+              }
+              trend={swapsTrend}
+              isLoading={isLoadingStrategy}
+            />
 
-              <Card className="p-4 hover-lift glass bg-white/80 backdrop-blur-sm">
-                <div className="flex items-center gap-3">
-                  <div className="text-2xl">🪙</div>
-                  <div>
-                    <div className="text-sm font-bold text-orange-600">{savingsTokenTypeLabel}</div>
-                    <div className="text-xs text-gray-500 font-medium">Save As</div>
-                  </div>
-                </div>
-              </Card>
-            </div>
-          )}
-
-          {/* Main Overview */}
-          <div className="transform transition-all duration-1000 delay-200">
-            <SavingsOverview 
-              totalBalance={totalBalance} 
-              tokenCount={tokenBalances.length} 
-              isLoading={false} 
+            <StatsCard
+              title="Gas Saved"
+              value="$45.32"
+              change={{ value: '+$12.10', positive: true }}
+              icon={
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              }
+              isLoading={isLoadingStrategy}
             />
           </div>
 
+          {/* Quick Actions */}
+          <QuickActions />
+
           {/* Main Content Grid */}
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-            {/* Left Column - Savings Portfolio */}
-            <div className="xl:col-span-2 space-y-8">
-              
-              {/* Token Balances */}
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-gray-900">Your Portfolio</h2>
-                  {tokenBalances.length > 0 && (
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                      {tokenBalances.length} Token{tokenBalances.length !== 1 ? 's' : ''} Active
-                    </div>
-                  )}
-                </div>
-                
-                {false ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {[1, 2, 3, 4].map(i => (
-                      <div key={i} className="h-32 skeleton rounded-xl" />
-                    ))}
-                  </div>
-                ) : tokenBalances.length === 0 ? (
-                  <Card className="p-12 text-center glass bg-white/60 backdrop-blur-sm">
-                    <div className="text-6xl mb-4 animate-float">🌱</div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">Ready to Plant Your First Seed?</h3>
-                    <p className="text-gray-600 mb-6">
-                      Make your first swap to begin growing your savings automatically with your {strategyPercentage}% strategy
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                      <Button variant="primary" className="bg-gradient-to-r from-primary-500 to-blue-600 hover-lift">
-                        Start Trading →
-                      </Button>
-                      <Link href="/configure">
-                        <Button variant="ghost" className="hover-lift">
-                          Adjust Strategy
-                        </Button>
-                      </Link>
-                    </div>
-                  </Card>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {tokenBalances.map((balance, index) => (
-                      <div key={balance.token} className="transform transition-all duration-700" style={{ animationDelay: `${400 + index * 100}ms` }}>
-                        <TokenBalanceCard balance={balance} />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Savings Strategy Details */}
-              {strategy && tokenBalances.length > 0 && (
-                <Card className="p-8 glass bg-white/60 backdrop-blur-sm">
-                  <h3 className="text-xl font-bold text-gray-900 mb-6">Strategy Performance</h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <h4 className="font-semibold text-gray-700 mb-3">Current Settings</h4>
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Savings Rate:</span>
-                          <span className="font-semibold">{strategyPercentage}%</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Round Up:</span>
-                          <span className="font-semibold">{strategy.roundUpSavings ? 'Yes' : 'No'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Auto Increment:</span>
-                          <span className="font-semibold">
-                            {hasAutoIncrement ? `+${Number(strategy.autoIncrement) / 100}%` : 'Disabled'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 className="font-semibold text-gray-700 mb-3">Portfolio Stats</h4>
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Total Tokens:</span>
-                          <span className="font-semibold">{tokenBalances.length}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Largest Balance:</span>
-                          <span className="font-semibold">
-                            {tokenBalances.length > 0 
-                              ? formatUnits(
-                                  tokenBalances.reduce((max, b) => b.amount > max ? b.amount : max, BigInt(0)), 
-                                  18
-                                ).substring(0, 8)
-                              : '0'
-                            }
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Save Token Type:</span>
-                          <span className="font-semibold text-sm">{savingsTokenTypeLabel}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              )}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Savings Progress - Spans 1 column */}
+            <div className="lg:col-span-1">
+              <SavingsRadialProgress
+                current={totalSaved}
+                goal={savingsGoal}
+                currency="$"
+                isLoading={isLoadingStrategy}
+              />
             </div>
 
-            {/* Right Column - Goals & Actions */}
-            <div className="space-y-6">
-              
-              {/* Gas Savings Counter */}
-              <div className="transform transition-all duration-1000 delay-500">
-                <GasSavingsCounter 
-                  transactionCount={5} // Mock data - will be real in production
-                  averageGasPrice={0.001}
-                />
-              </div>
-              
-              {/* Goal Progress - Only show if user has savings */}
-              {tokenBalances.length > 0 && (
-                <div className="transform transition-all duration-1000 delay-600">
-                  <GoalProgress
-                    currentAmount={totalBalance}
-                    goalAmount={BigInt(0)} // No hardcoded goals
-                    tokenSymbol="tokens"
-                  />
-                </div>
-              )}
-
-              {/* Strategy Preview Tool */}
-              <Card className="p-6 glass bg-white/60 backdrop-blur-sm transform transition-all duration-1000 delay-700">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">💡 Strategy Preview</h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Preview Swap Amount
-                    </label>
-                    <input
-                      type="number"
-                      placeholder="1000"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                    />
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">You'll save:</span>
-                      <span className="font-semibold text-primary-600">
-                        {strategyPercentage > 0 ? `${strategyPercentage}%` : 'Configure strategy first'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Recent Activity */}
-              <div className="transform transition-all duration-1000 delay-800">
-                <RecentActivity activities={[]} />
-              </div>
-
-              {/* Quick Actions */}
-              <Card className="p-6 glass bg-white/60 backdrop-blur-sm transform transition-all duration-1000 delay-900">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">⚡ Quick Actions</h3>
-                <div className="space-y-3">
-                  <Link href="/configure" className="block">
-                    <Button variant="ghost" size="sm" className="w-full hover-lift text-left justify-start">
-                      <div>
-                        <div className="font-medium">⚙️ Adjust Strategy</div>
-                        <div className="text-xs text-gray-500">
-                          Current: {strategyPercentage}% savings rate
-                        </div>
-                      </div>
-                    </Button>
-                  </Link>
-                  
-                  {tokenBalances.length > 0 && (
-                    <Link href="/withdraw" className="block">
-                      <Button variant="ghost" size="sm" className="w-full hover-lift text-left justify-start">
-                        <div>
-                          <div className="font-medium">💰 Withdraw Funds</div>
-                          <div className="text-xs text-gray-500">
-                            {tokenBalances.length} token{tokenBalances.length !== 1 ? 's' : ''} available
-                          </div>
-                        </div>
-                      </Button>
-                    </Link>
-                  )}
-
-                  <Button variant="ghost" size="sm" className="w-full hover-lift text-left justify-start">
-                    <div>
-                      <div className="font-medium">📊 Export Data</div>
-                      <div className="text-xs text-gray-500">Download savings history</div>
-                    </div>
-                  </Button>
-                </div>
-              </Card>
+            {/* Activity Timeline - Spans 2 columns */}
+            <div className="lg:col-span-2">
+              <ActivityTimeline
+                activities={recentActivities}
+                isLoading={isLoadingStrategy}
+              />
             </div>
           </div>
-        </div>
+
+          {/* Additional Info Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Strategy Details */}
+            <motion.div
+              className="glass-solid-dark rounded-2xl p-6 border border-border"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.4 }}
+            >
+              <h3 className="text-lg font-semibold text-text-primary mb-4">
+                Strategy Details
+              </h3>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-text-muted">Savings Rate</span>
+                  <span className="text-sm font-semibold text-text-primary">
+                    {strategyPercentage}%
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-text-muted">Auto Increment</span>
+                  <span className="text-sm font-semibold text-text-primary">
+                    {strategy?.autoIncrement ? `${Number(strategy.autoIncrement) / 100}%` : 'Disabled'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-text-muted">Max Rate</span>
+                  <span className="text-sm font-semibold text-text-primary">
+                    {strategy?.maxPercentage ? `${Number(strategy.maxPercentage) / 100}%` : 'N/A'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-text-muted">Round Up</span>
+                  <span className="text-sm font-semibold text-text-primary">
+                    {strategy?.roundUpSavings ? 'Enabled' : 'Disabled'}
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Achievements / Milestones */}
+            <motion.div
+              className="glass-solid-dark rounded-2xl p-6 border border-border"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.5 }}
+            >
+              <h3 className="text-lg font-semibold text-text-primary mb-4">
+                Milestones
+              </h3>
+              <div className="space-y-3">
+                {[
+                  { label: 'First Swap', unlocked: true, icon: '🎉' },
+                  { label: 'Save $100', unlocked: totalSaved >= 100, icon: '💯' },
+                  { label: 'Save $500', unlocked: totalSaved >= 500, icon: '🚀' },
+                  { label: 'Save $1000', unlocked: totalSaved >= 1000, icon: '🏆' },
+                ].map((milestone) => (
+                  <div
+                    key={milestone.label}
+                    className={`flex items-center gap-3 p-3 rounded-lg ${
+                      milestone.unlocked
+                        ? 'bg-primary-400/10 border border-primary-400/20'
+                        : 'bg-bg-tertiary/30 border border-border opacity-50'
+                    }`}
+                  >
+                    <span className="text-2xl">{milestone.icon}</span>
+                    <span className="text-sm font-medium text-text-primary">
+                      {milestone.label}
+                    </span>
+                    {milestone.unlocked && (
+                      <svg
+                        className="w-5 h-5 text-primary-400 ml-auto"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        </motion.div>
       </Layout>
     </div>
   );

@@ -9,7 +9,7 @@ import { Token } from './useTokenList';
 import { SwapQuote } from '@/utils/quoteHelpers';
 import { UniswapV4PoolManagerABI } from '@/contracts/abis/UniswapV4PoolManager';
 import { getContractAddress } from '@/contracts/addresses';
-import { useChainId } from 'wagmi';
+import { useActiveChainId } from '@/hooks/useActiveChainId';
 import { toast } from 'sonner';
 
 export type SwapStatus =
@@ -60,7 +60,7 @@ const NATIVE_ETH = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE' as Address;
 export function useSwapExecution(params?: SwapParams) {
   const { smartAccountAddress, smartAccount } = useBiconomy();
   const { sendTransaction } = useBiconomyTransaction();
-  const chainId = useChainId();
+  const chainId = useActiveChainId();
   const [status, setStatus] = useState<SwapStatus>('idle');
   const [txHash, setTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

@@ -6,6 +6,7 @@ import { useSavingsStrategy } from '@/hooks/useSavingsStrategy';
 import Link from 'next/link';
 import { WalletButton } from './WalletButton';
 import { MobileMenu } from './MobileMenu';
+import { ThemeSwitcherCompact } from '@/components/ThemeSwitcher';
 
 export function LandingNav() {
   const { isConnected } = useAccount();
@@ -25,9 +26,9 @@ export function LandingNav() {
 
   // Navigation links based on connection state
   const landingLinks = [
-    { href: '#features', label: 'Features' },
-    { href: '#how-it-works', label: 'How It Works' },
-    { href: '#faq', label: 'FAQ' },
+    { href: '#features', label: 'Features', icon: undefined },
+    { href: '#how-it-works', label: 'How It Works', icon: undefined },
+    { href: '#faq', label: 'FAQ', icon: undefined },
   ];
 
   const appLinks = [
@@ -44,7 +45,7 @@ export function LandingNav() {
       <nav
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           isScrolled
-            ? 'glass-strong backdrop-blur-xl border-b border-white/20 shadow-2xl'
+            ? 'glass-elevated-dark backdrop-blur-xl'
             : 'bg-transparent'
         }`}
       >
@@ -59,10 +60,10 @@ export function LandingNav() {
                 <span className="text-xl md:text-2xl">🌱</span>
               </div>
               <div className="hidden sm:block">
-                <span className="text-xl md:text-2xl font-black text-white group-hover:gradient-text transition-all duration-300">
+                <span className="text-xl md:text-2xl font-black text-text-primary group-hover:gradient-text transition-all duration-300">
                   OneSeed
                 </span>
-                <div className="text-xs text-gray-400 -mt-1 hidden md:block">
+                <div className="text-xs text-text-muted -mt-1 hidden md:block">
                   Grow your wealth
                 </div>
               </div>
@@ -74,7 +75,7 @@ export function LandingNav() {
                 <a
                   key={link.href}
                   href={link.href}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/10 transition-all duration-200"
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-all duration-200"
                 >
                   {link.icon && <span className="text-lg">{link.icon}</span>}
                   {link.label}
@@ -82,15 +83,20 @@ export function LandingNav() {
               ))}
             </div>
 
-            {/* Right Side - Wallet Button + Mobile Menu */}
+            {/* Right Side - Theme Switcher + Wallet Button + Mobile Menu */}
             <div className="flex items-center gap-3">
+              {/* Theme Switcher - Desktop */}
+              <div className="hidden md:block">
+                <ThemeSwitcherCompact />
+              </div>
+
               {/* Wallet Button */}
               <WalletButton />
 
               {/* Mobile Menu Button */}
               <button
                 onClick={() => setIsMobileMenuOpen(true)}
-                className="md:hidden p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                className="md:hidden p-2 text-text-secondary hover:text-text-primary hover:bg-bg-tertiary rounded-lg transition-colors"
                 aria-label="Open menu"
               >
                 <svg

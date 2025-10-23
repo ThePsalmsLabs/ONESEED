@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 
 export function ProductDemo() {
-  const [savingsAmount, setSavingsAmount] = useState(0);
+  const [savingsAmount, setSavingsAmount] = useState(5954.83);
   const [isAnimating, setIsAnimating] = useState(false);
 
   useEffect(() => {

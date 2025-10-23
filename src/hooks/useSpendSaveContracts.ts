@@ -1,6 +1,6 @@
 'use client';
 
-import { useChainId } from 'wagmi';
+import { useActiveChainId } from './useActiveChainId';
 import { getContractAddress } from '@/contracts/addresses';
 import { SavingsStrategyABI } from '@/contracts/abis/SavingStrategy';
 import { SavingsModuleABI } from '@/contracts/abis/Savings';
@@ -11,7 +11,7 @@ import { SlippageControlABI } from '@/contracts/abis/SlippageControl';
 import { SpendSaveHookABI } from '@/contracts/abis/SpendSaveHook';
 
 export function useSpendSaveContracts() {
-  const chainId = useChainId();
+  const chainId = useActiveChainId();
 
   return {
     savingStrategy: {

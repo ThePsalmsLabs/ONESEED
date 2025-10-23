@@ -7,20 +7,15 @@ import { Badge } from '../ui/Badge';
 import { Progress } from '../ui/Progress';
 import { useDailySavings } from '@/hooks/useDailySavings';
 import { formatEther } from 'viem';
-import { 
-  Target, 
-  Calendar, 
-  DollarSign, 
-  TrendingUp, 
-  Clock, 
-  Play, 
-  Pause, 
-  Settings, 
+import {
+  Target,
+  Clock,
+  Play,
+  Pause,
+  Settings,
   History,
-  AlertCircle,
   CheckCircle,
   Zap,
-  Shield,
   BarChart3
 } from 'lucide-react';
 
@@ -33,13 +28,26 @@ interface TokenSavingsData {
   token: `0x${string}`;
   symbol: string;
   icon: string;
-  status: any;
-  executionStatus: any;
+  status: {
+    enabled: boolean;
+    dailyAmount: bigint;
+    goalAmount: bigint;
+    currentAmount: bigint;
+    remainingAmount: bigint;
+    penaltyAmount: bigint;
+    estimatedCompletionDate: bigint;
+  } | null;
+  executionStatus: {
+    lastExecutionTime: bigint;
+    canExecute: boolean;
+    nextExecutionTime: bigint;
+    amountToSave?: bigint;
+  } | null;
   isLoading: boolean;
 }
 
 export function DailySavingsDashboard({ onConfigure, onViewHistory }: DailySavingsDashboardProps) {
-  const { 
+  const {
     hasPending,
     useDailySavingsStatus,
     useDailyExecutionStatus,
@@ -48,8 +56,6 @@ export function DailySavingsDashboard({ onConfigure, onViewHistory }: DailySavin
     disableDailySavings,
     isExecuting,
     isDisabling,
-    contractAddress,
-    formatAmount,
     calculateProgress,
     calculateDaysRemaining
   } = useDailySavings();
@@ -68,11 +74,17 @@ export function DailySavingsDashboard({ onConfigure, onViewHistory }: DailySavin
     }
   ]);
 
-  // Get status for each token
-  const tokenStatuses = activeTokens.map(tokenData => {
-    const status = useDailySavingsStatus(tokenData.token);
-    const executionStatus = useDailyExecutionStatus(tokenData.token);
-    
+  // Call hooks for each token at the top level (hooks cannot be called in loops/conditionals)
+  const usdcStatus = useDailySavingsStatus(activeTokens[0]?.token);
+  const usdcExecutionStatus = useDailyExecutionStatus(activeTokens[0]?.token);
+  const wethStatus = useDailySavingsStatus(activeTokens[1]?.token);
+  const wethExecutionStatus = useDailyExecutionStatus(activeTokens[1]?.token);
+
+  // Map statuses to tokens
+  const tokenStatuses: TokenSavingsData[] = activeTokens.map((tokenData, index) => {
+    const status = index === 0 ? usdcStatus : wethStatus;
+    const executionStatus = index === 0 ? usdcExecutionStatus : wethExecutionStatus;
+
     // Transform tuple data to object
     const statusData = status.data ? {
       enabled: status.data[0],
@@ -83,13 +95,14 @@ export function DailySavingsDashboard({ onConfigure, onViewHistory }: DailySavin
       penaltyAmount: status.data[5],
       estimatedCompletionDate: status.data[6]
     } : null;
-    
+
     const executionData = executionStatus.data ? {
       canExecute: executionStatus.data[0],
-      daysPassed: executionStatus.data[1],
+      lastExecutionTime: executionStatus.data[1],
+      nextExecutionTime: BigInt(0),
       amountToSave: executionStatus.data[2]
     } : null;
-    
+
     return {
       ...tokenData,
       status: statusData,
@@ -292,7 +305,7 @@ export function DailySavingsDashboard({ onConfigure, onViewHistory }: DailySavin
             <div className="space-y-4">
               {tokenStatuses.map((tokenData, index) => {
                 const { token, symbol, icon, status, executionStatus, isLoading } = tokenData;
-                
+
                 if (isLoading) {
                   return (
                     <div key={index} className="border rounded-lg p-4">
@@ -403,7 +416,7 @@ export function DailySavingsDashboard({ onConfigure, onViewHistory }: DailySavin
                             <div className="flex items-center space-x-2">
                               <Clock className="w-4 h-4 text-yellow-600" />
                               <span className="text-sm font-medium text-yellow-800">
-                                Ready to execute {executionStatus ? formatTokenAmount(executionStatus.amountToSave, symbol) : '0'}
+                                Ready to execute {executionStatus?.amountToSave ? formatTokenAmount(executionStatus.amountToSave, symbol) : '0'}
                               </span>
                             </div>
                             <Button

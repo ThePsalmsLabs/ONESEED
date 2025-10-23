@@ -1,19 +1,20 @@
 'use client';
 
-import { useAccount, useReadContract, useChainId } from 'wagmi';
+import { useAccount, useReadContract } from 'wagmi';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { parseEther, formatEther } from 'viem';
-import { CONTRACT_ADDRESSES } from '@/contracts/addresses';
+import { getContractAddress } from '@/contracts/addresses';
 import { SavingsModuleABI, SavingsTokenType } from '@/contracts/abis/Savings';
 import { useSmartContractWrite } from './useSmartContractWrite';
+import { useActiveChainId } from './useActiveChainId';
 
 export function useEnhancedSavings() {
   const { address } = useAccount();
-  const chainId = useChainId();
+  const chainId = useActiveChainId();
   const queryClient = useQueryClient();
 
   // Get contract address for current chain
-  const contractAddress = CONTRACT_ADDRESSES[chainId as keyof typeof CONTRACT_ADDRESSES]?.Savings;
+  const contractAddress = getContractAddress(chainId, 'Savings');
 
   // Biconomy write hook for gasless transactions
   const { write: writeContract, isPending: isWritePending, hash } = useSmartContractWrite();

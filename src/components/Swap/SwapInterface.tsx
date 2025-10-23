@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { useAccount, useChainId } from 'wagmi';
+import { useAccount } from 'wagmi';
+import { useActiveChainId } from '@/hooks/useActiveChainId';
 import { formatUnits } from 'viem';
 import { useTokenList, Token } from '@/hooks/swap/useTokenList';
 import { useSavingsCalculation } from '@/hooks/swap/useSavingsCalculation';
@@ -9,6 +10,7 @@ import { useSwapSettings } from '@/hooks/swap/useSwapSettings';
 import { useSwapQuote } from '@/hooks/swap/useSwapQuote';
 import { useTokenPrice } from '@/hooks/swap/useTokenPrice';
 import { useSavingsStrategy } from '@/hooks/swap/useSavingsStrategy';
+import { getActiveChainId, getActiveNetwork } from '@/config/network';
 import { SwapHeader } from '@/components/Swap/SwapHeader';
 import { TokenInput } from '@/components/Swap/TokenInput';
 import { SwapDirection } from '@/components/Swap/SwapDirection';
@@ -23,7 +25,7 @@ import { toast } from 'sonner';
 
 export function SwapInterface() {
   const { isConnected } = useAccount();
-  const chainId = useChainId();
+  const chainId = useActiveChainId();
   const { commonTokens, getTokenBySymbol } = useTokenList();
   const { settings, updateSettings } = useSwapSettings();
   const { hasStrategy, isLoading: isLoadingStrategy } = useSavingsStrategy();
@@ -106,7 +108,7 @@ export function SwapInterface() {
   };
   
   // Check for unsupported network
-  const isUnsupportedNetwork = chainId !== 8453 && chainId !== 84532 && chainId !== 31337;
+  const isUnsupportedNetwork = chainId !== 8453 && chainId !== 84532;
 
   return (
     <div className="w-full">
@@ -134,9 +136,10 @@ export function SwapInterface() {
                 <button
                   onClick={() => {
                     if (window.ethereum) {
+                      const baseMainnetChainId = `0x${(8453).toString(16)}`;
                       window.ethereum.request({
                         method: 'wallet_switchEthereumChain',
-                        params: [{ chainId: '0x2105' }], // Base Mainnet
+                        params: [{ chainId: baseMainnetChainId }], // Base Mainnet
                       }).catch((error) => {
                         console.error('Failed to switch network:', error);
                       });
@@ -149,9 +152,10 @@ export function SwapInterface() {
                 <button
                   onClick={() => {
                     if (window.ethereum) {
+                      const baseSepoliaChainId = `0x${(84532).toString(16)}`;
                       window.ethereum.request({
                         method: 'wallet_switchEthereumChain',
-                        params: [{ chainId: '0x14a34' }], // Base Sepolia
+                        params: [{ chainId: baseSepoliaChainId }], // Base Sepolia
                       }).catch((error) => {
                         console.error('Failed to switch network:', error);
                       });

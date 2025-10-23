@@ -4,12 +4,13 @@ import { useState, useCallback } from 'react';
 import { useBiconomy } from '@/components/BiconomyProvider';
 import { useToast } from '@/components/ui/Toast';
 import { encodeFunctionData } from 'viem';
-import { CONTRACT_ADDRESSES } from '@/contracts/addresses';
+import { getContractAddress } from '@/contracts/addresses';
 import { SavingsStrategyABI } from '@/contracts/abis/SavingStrategy';
 import { DCAABI } from '@/contracts/abis/DCA';
 import { DailySavingsABI } from '@/contracts/abis/DailySavings';
 import { SavingsModuleABI } from '@/contracts/abis/Savings';
 import { SavingsTokenType } from '@/contracts/types';
+import { useActiveChainId } from './useActiveChainId';
 
 interface BatchSavingsSetupParams {
   percentage: bigint;
@@ -38,6 +39,7 @@ interface BatchWithdrawParams {
 export function useBatchTransactions() {
   const { smartAccount } = useBiconomy();
   const { showToast } = useToast();
+  const chainId = useActiveChainId();
   const [isPending, setIsPending] = useState(false);
   const [hash, setHash] = useState<`0x${string}` | undefined>();
 
@@ -54,7 +56,7 @@ export function useBatchTransactions() {
 
       // 1. Set savings strategy
       transactions.push({
-        to: CONTRACT_ADDRESSES[84532].SavingStrategy as `0x${string}`,
+        to: getContractAddress(chainId, 'SavingStrategy'),
         data: encodeFunctionData({
           abi: SavingsStrategyABI,
           functionName: 'setSavingStrategy',
@@ -76,7 +78,7 @@ export function useBatchTransactions() {
         const maxSlippageWei = BigInt(params.dcaMaxSlippage || 0);
         
         transactions.push({
-          to: CONTRACT_ADDRESSES[84532].DCA as `0x${string}`,
+          to: getContractAddress(chainId, 'DCA'),
           data: encodeFunctionData({
             abi: DCAABI,
             functionName: 'enableDCA',
@@ -98,7 +100,7 @@ export function useBatchTransactions() {
         const endTimeWei = BigInt(Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60);
 
         transactions.push({
-          to: CONTRACT_ADDRESSES[84532].DailySavings as `0x${string}`,
+          to: getContractAddress(chainId, 'DailySavings'),
           data: encodeFunctionData({
             abi: DailySavingsABI,
             functionName: 'configureDailySavings',
@@ -143,7 +145,7 @@ export function useBatchTransactions() {
     try {
       const accountAddress = await smartAccount.getAccountAddress();
       const transactions = params.tokens.map((token, i) => ({
-        to: CONTRACT_ADDRESSES[84532].Savings as `0x${string}`,
+        to: getContractAddress(chainId, 'Savings'),
         data: encodeFunctionData({
           abi: SavingsModuleABI,
           functionName: 'withdraw',
@@ -196,7 +198,7 @@ export function useBatchTransactions() {
       const maxSlippageWei = BigInt(params.maxSlippage);
       
       transactions.push({
-        to: CONTRACT_ADDRESSES[84532].DCA as `0x${string}`,
+        to: getContractAddress(chainId, 'DCA'),
         data: encodeFunctionData({
           abi: DCAABI,
           functionName: 'enableDCA',
@@ -211,7 +213,7 @@ export function useBatchTransactions() {
 
       // 2. Set DCA tick strategy
       transactions.push({
-        to: CONTRACT_ADDRESSES[84532].DCA as `0x${string}`,
+        to: getContractAddress(chainId, 'DCA'),
         data: encodeFunctionData({
           abi: DCAABI,
           functionName: 'setDCATickStrategy',
@@ -265,7 +267,7 @@ export function useBatchTransactions() {
       const endTimeWei = BigInt(params.endTime || Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60);
 
       transactions.push({
-        to: CONTRACT_ADDRESSES[84532].DailySavings as `0x${string}`,
+        to: getContractAddress(chainId, 'DailySavings'),
         data: encodeFunctionData({
           abi: DailySavingsABI,
           functionName: 'configureDailySavings',

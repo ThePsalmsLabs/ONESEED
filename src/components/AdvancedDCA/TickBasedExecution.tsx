@@ -8,20 +8,17 @@ import { Label } from '@/components/ui/Label';
 import { Badge } from '@/components/ui/Badge';
 import { Progress } from '@/components/ui/Progress';
 import { useAdvancedDCA } from '@/hooks/useAdvancedDCA';
-import { parseEther, formatEther } from 'viem';
-import { 
-  Target, 
-  TrendingUp, 
-  TrendingDown, 
-  Clock, 
-  Zap, 
-  BarChart3,
+import {
+  Target,
+  TrendingUp,
+  TrendingDown,
+  Clock,
+  Zap,
   Info,
   AlertTriangle,
   CheckCircle,
   Activity,
   Play,
-  Pause,
   Settings
 } from 'lucide-react';
 
@@ -99,7 +96,6 @@ export function TickBasedExecution({ onBack }: TickBasedExecutionProps) {
     useDCAExecutionCriteria,
     executeDCAAtIndex,
     isSettingAdvancedStrategy,
-    contractAddress,
     getTickPrice,
     calculateTickMovement,
     isTickWithinRange
@@ -120,8 +116,8 @@ export function TickBasedExecution({ onBack }: TickBasedExecutionProps) {
   // Check if DCA should execute
   const { data: shouldExecuteData, refetch: refetchShouldExecute } = useShouldExecuteDCAAtTickPublic(poolKey);
 
-  // Get DCA configuration
-  const { data: dcaConfig } = useDCAExecutionCriteria('0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913');
+  // Get DCA configuration - for future use
+  useDCAExecutionCriteria('0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913');
 
   // Process real tick data
   useEffect(() => {

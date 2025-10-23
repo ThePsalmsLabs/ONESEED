@@ -53,7 +53,7 @@ export function SavingsSplitVisual({
           <div className="text-2xl font-bold text-white">
             {parseFloat(inputAmount).toFixed(4)} {inputToken.symbol}
           </div>
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-gray-300">
             ≈ ${(savingsSplit.swapUSD + savingsSplit.savingsUSD).toFixed(2)}
           </div>
         </div>
@@ -85,7 +85,7 @@ export function SavingsSplitVisual({
             </div>
           </div>
           
-          <div className="text-xs text-gray-500 text-right">
+          <div className="text-xs text-gray-300 text-right">
             ≈ ${savingsSplit.swapUSD.toFixed(2)}
           </div>
         </div>
@@ -115,7 +115,7 @@ export function SavingsSplitVisual({
             </div>
           </div>
           
-          <div className="text-xs text-gray-500 text-right">
+          <div className="text-xs text-gray-300 text-right">
             ≈ ${savingsSplit.savingsUSD.toFixed(2)}
           </div>
         </div>

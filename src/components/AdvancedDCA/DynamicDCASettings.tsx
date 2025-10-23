@@ -80,7 +80,6 @@ export function DynamicDCASettings({ onBack }: DynamicDCASettingsProps) {
   const {
     setDynamicDCASizing,
     isSettingDynamicSizing,
-    contractAddress,
     formatAmount,
     calculateDynamicAmount,
     getVolatilityLevel

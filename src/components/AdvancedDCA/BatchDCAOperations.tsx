@@ -6,17 +6,14 @@ import { Button } from '../ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Progress } from '@/components/ui/Progress';
 import { useAdvancedDCA } from '@/hooks/useAdvancedDCA';
-import { formatEther } from 'viem';
-import { 
-  Layers, 
-  Users, 
-  Zap, 
-  CheckCircle, 
-  AlertTriangle, 
-  Clock, 
+import {
+  Layers,
+  Users,
+  Zap,
+  CheckCircle,
+  AlertTriangle,
+  Clock,
   Activity,
-  Play,
-  Pause,
   RefreshCw,
   BarChart3,
   Info,
@@ -97,7 +94,6 @@ export function BatchDCAOperations({ onBack }: BatchDCAOperationsProps) {
   const {
     batchExecuteDCA,
     isBatchExecuting,
-    contractAddress,
     formatAmount
   } = useAdvancedDCA();
 
@@ -180,8 +176,8 @@ export function BatchDCAOperations({ onBack }: BatchDCAOperationsProps) {
     try {
       // Mock batch execution
       const mockUsers = Array.from({ length: batchSize }, (_, i) => `0x${i.toString().padStart(40, '0')}` as `0x${string}`);
-      
-      const result = await batchExecuteDCA({
+
+      await batchExecuteDCA({
         users: mockUsers
       });
 
@@ -220,16 +216,6 @@ export function BatchDCAOperations({ onBack }: BatchDCAOperationsProps) {
     setSelectedPreset(preset.name);
     if (preset.name !== 'Custom Batch') {
       setBatchSize(preset.maxUsers);
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'text-yellow-600';
-      case 'executing': return 'text-blue-600';
-      case 'completed': return 'text-green-600';
-      case 'failed': return 'text-red-600';
-      default: return 'text-gray-600';
     }
   };
 

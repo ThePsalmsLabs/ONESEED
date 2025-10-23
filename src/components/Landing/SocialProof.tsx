@@ -202,7 +202,7 @@ export function SocialProof() {
 
                       {/* Content */}
                       <blockquote className="text-xl md:text-2xl text-gray-200 leading-relaxed max-w-2xl">
-                        "{testimonial.content}"
+                        &quot;{testimonial.content}&quot;
                       </blockquote>
 
                       {/* Author info */}

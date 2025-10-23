@@ -1,8 +1,6 @@
 import { base, baseSepolia } from 'viem/chains';
-import { 
-  getActiveNetwork, 
-  getActiveChainId, 
-  getActiveChain,
+import {
+  getActiveChainId,
   getActiveNetworkConfig,
   isSupportedChainId as isSupportedChainIdFromConfig,
   getNetworkFromChainId,

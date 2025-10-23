@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useDCA } from '@/hooks/useDCA';
 import { useDCAAnalytics } from '@/hooks/useDCAAnalytics';
@@ -8,16 +8,15 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import {
   PlayIcon,
-  PauseIcon,
   ArrowTrendingUpIcon,
   ChartBarIcon,
   ClockIcon,
   CurrencyDollarIcon,
   CheckCircleIcon,
-  RefreshIcon
+  ArrowPathIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import { formatUnits } from 'viem';
-import { formatDistance } from 'date-fns';
 
 interface DCAExecutionMonitorProps {
   className?: string;
@@ -27,7 +26,6 @@ export function DCAExecutionMonitor({ className = '' }: DCAExecutionMonitorProps
   const {
     config,
     pending,
-    shouldExecute,
     executeDCA,
     isExecuting,
     executeError,
@@ -85,7 +83,7 @@ export function DCAExecutionMonitor({ className = '' }: DCAExecutionMonitorProps
   }
 
   const hasPendingExecutions = pending && (pending.tokens.length > 0);
-  const canExecute = shouldExecute && hasPendingExecutions;
+  const canExecute = hasPendingExecutions && !isExecuting;
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -102,7 +100,7 @@ export function DCAExecutionMonitor({ className = '' }: DCAExecutionMonitorProps
             onClick={handleRefresh}
             disabled={isRefreshing}
           >
-            <RefreshIcon className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <ArrowPathIcon className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
           </Button>
           {canExecute && (
             <Button

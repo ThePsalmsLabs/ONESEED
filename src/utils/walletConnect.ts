@@ -71,7 +71,7 @@ export function clearWalletConnectExpirer(): void {
  * window.clearWalletConnect()
  */
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-  // @ts-ignore
+  // @ts-expect-error - Development helper attached to window
   window.clearWalletConnect = clearWalletConnectStorage
 }
 

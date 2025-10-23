@@ -6,23 +6,17 @@ import { Button } from '../ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Progress } from '@/components/ui/Progress';
 import { useAdvancedDCA } from '@/hooks/useAdvancedDCA';
-import { formatEther } from 'viem';
-import { 
-  BarChart3, 
-  TrendingUp, 
-  TrendingDown, 
-  Target, 
-  Zap, 
+import {
+  BarChart3,
+  TrendingUp,
+  Target,
+  Zap,
   Activity,
-  Clock,
   CheckCircle,
-  AlertTriangle,
-  Info,
   Settings,
   Play,
   Pause,
   Layers,
-  Users,
   DollarSign
 } from 'lucide-react';
 
@@ -56,13 +50,15 @@ interface RecentExecution {
   gasSaved: bigint;
 }
 
-export function AdvancedDCADashboard({ 
-  onConfigureDynamic, 
-  onConfigureTick, 
-  onConfigureBatch 
+type TabType = 'overview' | 'executions' | 'analytics';
+
+export function AdvancedDCADashboard({
+  onConfigureDynamic,
+  onConfigureTick,
+  onConfigureBatch
 }: AdvancedDCADashboardProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'executions' | 'analytics'>('overview');
-  const [dcaMetrics, setDcaMetrics] = useState<DCAMetrics>({
+  const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [dcaMetrics] = useState<DCAMetrics>({
     totalExecutions: 156,
     successfulExecutions: 148,
     failedExecutions: 8,
@@ -74,7 +70,7 @@ export function AdvancedDCADashboard({
     batchExecutions: 12
   });
 
-  const [recentExecutions, setRecentExecutions] = useState<RecentExecution[]>([
+  const [recentExecutions] = useState<RecentExecution[]>([
     {
       id: '1',
       timestamp: Date.now() - 300000, // 5 minutes ago
@@ -111,11 +107,7 @@ export function AdvancedDCADashboard({
   ]);
 
   const {
-    contractAddress,
-    formatAmount,
-    getVolatilityLevel,
-    getTickPrice,
-    calculateTickMovement
+    formatAmount
   } = useAdvancedDCA();
 
   const formatTime = (timestamp: number) => {
@@ -471,7 +463,7 @@ export function AdvancedDCADashboard({
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id as TabType)}
               className={`flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === tab.id
                   ? 'border-blue-500 text-blue-600'

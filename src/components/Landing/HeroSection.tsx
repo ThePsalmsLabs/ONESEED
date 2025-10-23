@@ -36,7 +36,7 @@ export function HeroSection() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-primary-500"></span>
               </span>
-              <span className="text-gray-300">Powered by Uniswap V4 & Biconomy</span>
+              <span className="text-text-secondary">Powered by Uniswap V4 & Biconomy</span>
             </div>
 
             {/* Main Headline */}
@@ -44,10 +44,10 @@ export function HeroSection() {
               <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold leading-tight">
                 <span className="gradient-text">Save While</span>
                 <br />
-                <span className="text-white">You Transact</span>
+                <span className="text-text-primary">You Transact</span>
               </h1>
               
-              <p className="text-xl md:text-2xl text-gray-300 leading-relaxed max-w-xl">
+              <p className="text-xl md:text-2xl text-text-secondary leading-relaxed max-w-xl">
                 Automatically grow your wealth with every swap. 
                 <span className="text-primary-400 font-semibold"> OneSeed</span> makes saving effortless, 
                 gasless, and completely automated.
@@ -66,7 +66,7 @@ export function HeroSection() {
                   className="flex items-center gap-2 glass-subtle px-4 py-2 rounded-lg hover:glass-medium transition-all duration-300"
                 >
                   <span className="text-lg">{prop.icon}</span>
-                  <span className="text-gray-300">{prop.text}</span>
+                  <span className="text-text-secondary">{prop.text}</span>
                 </div>
               ))}
             </div>
@@ -80,7 +80,7 @@ export function HeroSection() {
                     <Button 
                       variant="ghost" 
                       size="lg" 
-                      className="px-8 py-4 text-lg glass-subtle hover:glass-medium text-white border-0"
+                      className="px-8 py-4 text-lg glass-subtle hover:glass-medium text-text-primary border-0"
                     >
                       Try Swap →
                     </Button>
@@ -101,7 +101,7 @@ export function HeroSection() {
                     <Button 
                       variant="ghost" 
                       size="lg" 
-                      className="px-8 py-4 text-lg glass-subtle hover:glass-medium text-white border-0"
+                      className="px-8 py-4 text-lg glass-subtle hover:glass-medium text-text-primary border-0"
                     >
                       Configure Savings
                     </Button>
@@ -122,7 +122,7 @@ export function HeroSection() {
                     <Button 
                       variant="ghost" 
                       size="lg" 
-                      className="px-8 py-4 text-lg glass-subtle hover:glass-medium text-white border-0"
+                      className="px-8 py-4 text-lg glass-subtle hover:glass-medium text-text-primary border-0"
                     >
                       View Dashboard
                     </Button>
@@ -132,8 +132,8 @@ export function HeroSection() {
             </div>
 
             {/* Trust Indicators */}
-            <div className="pt-8 border-t border-white/10">
-              <p className="text-sm text-gray-300 mb-4">Built with proven technology</p>
+            <div className="pt-8 border-t border-border/10">
+              <p className="text-sm text-text-secondary mb-4">Built with proven technology</p>
               <div className="flex flex-wrap items-center gap-6 opacity-60">
                 {[
                   { name: 'Uniswap V4', icon: '🦄' },
@@ -142,7 +142,7 @@ export function HeroSection() {
                 ].map((partner, index) => (
                   <div
                     key={index}
-                    className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors duration-300"
+                    className="flex items-center gap-2 text-text-muted hover:text-text-primary transition-colors duration-300"
                   >
                     <span className="text-2xl">{partner.icon}</span>
                     <span className="font-semibold">{partner.name}</span>
