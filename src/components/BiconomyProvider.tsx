@@ -1,7 +1,8 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
-import { useWalletClient, useChainId } from 'wagmi'
+import { useWalletClient } from 'wagmi'
+import { useActiveChainId } from '@/hooks/useActiveChainId'
 import { createBiconomySmartAccount } from '@/config/biconomy'
 import { BiconomySmartAccountV2 } from '@biconomy/account'
 
@@ -25,7 +26,7 @@ export function BiconomyProvider({ children }: BiconomyProviderProps) {
   const [smartAccountAddress, setSmartAccountAddress] = useState<string | null>(null)
   
   const { data: walletClient } = useWalletClient()
-  const chainId = useChainId()
+  const chainId = useActiveChainId()
 
   useEffect(() => {
     const initSmartAccount = async () => {
