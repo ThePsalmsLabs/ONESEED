@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useAccount, useSwitchChain, useChainId } from 'wagmi';
+import { useAccount, useSwitchChain } from 'wagmi';
+import { useActiveChainId } from '@/hooks/useActiveChainId';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   CHAIN_IDS, 
@@ -33,7 +34,7 @@ export function NetworkSwitcher({
 }: NetworkSwitcherProps) {
   const { address, isConnected } = useAccount();
   const { switchChain, isPending: isSwitching } = useSwitchChain();
-  const chainId = useChainId();
+  const chainId = useActiveChainId();
   const [isOpen, setIsOpen] = useState(false);
 
   const currentNetwork = getCurrentNetworkConfig();
@@ -200,7 +201,7 @@ export function NetworkSwitcher({
 
 // Network status indicator component
 export function NetworkStatus({ className = '' }: { className?: string }) {
-  const chainId = useChainId();
+  const chainId = useActiveChainId();
   const isCurrentNetworkSupported = isSupportedChain(chainId);
   const isOnTestnet = isTestnet(chainId);
   const isOnMainnet = isMainnet(chainId);
@@ -230,7 +231,7 @@ export function NetworkStatus({ className = '' }: { className?: string }) {
 
 // Network warning component for unsupported networks
 export function NetworkWarning({ className = '' }: { className?: string }) {
-  const chainId = useChainId();
+  const chainId = useActiveChainId();
   const isCurrentNetworkSupported = isSupportedChain(chainId);
 
   if (isCurrentNetworkSupported) {
