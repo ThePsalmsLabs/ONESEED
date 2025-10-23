@@ -23,7 +23,6 @@ export function useSocialRecovery() {
   const { smartAccount } = useBiconomy();
   const { showToast } = useToast();
   const [isSettingUp, setIsSettingUp] = useState(false);
-  const [isRecovering, setIsRecovering] = useState(false);
   const [guardians, setGuardians] = useState<Guardian[]>([]);
   const [recoveryRequests, setRecoveryRequests] = useState<RecoveryRequest[]>([]);
 
@@ -86,8 +85,7 @@ export function useSocialRecovery() {
   }, [smartAccount, showToast]);
 
   const initiateRecovery = useCallback(async (
-    newOwner: `0x${string}`,
-    reason: string = 'Account recovery requested'
+    newOwner: `0x${string}`
   ) => {
     if (!smartAccount) {
       showToast('Smart account not initialized', 'error');
@@ -100,7 +98,6 @@ export function useSocialRecovery() {
       return false;
     }
 
-    const guardians: Guardian[] = JSON.parse(storedGuardians);
     const threshold = parseInt(localStorage.getItem('social_recovery_threshold') || '2');
     const delay = parseInt(localStorage.getItem('social_recovery_delay') || '259200'); // 3 days
 
