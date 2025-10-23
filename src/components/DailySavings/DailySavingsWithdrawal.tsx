@@ -392,7 +392,7 @@ export function DailySavingsWithdrawal({ onBack }: DailySavingsWithdrawalProps) 
                 </span>
               </div>
               <div className="flex justify-between border-t pt-2">
-                <span className="text-gray-600">You'll Receive:</span>
+                <span className="text-gray-600">You&apos;ll Receive:</span>
                 <span className="font-bold text-green-600">
                   {formatTokenAmount(preview.netAmount, selectedToken.symbol)}
                 </span>
@@ -405,7 +405,7 @@ export function DailySavingsWithdrawal({ onBack }: DailySavingsWithdrawalProps) 
                   <Info className="w-4 h-4 text-red-600 mt-0.5" />
                   <div className="text-sm text-red-800">
                     <p className="font-medium">Early Withdrawal Warning</p>
-                    <p>You're withdrawing before reaching your goal. This will result in a {preview.penaltyPercentage}% penalty.</p>
+                    <p>You&apos;re withdrawing before reaching your goal. This will result in a {preview.penaltyPercentage}% penalty.</p>
                   </div>
                 </div>
               </div>
