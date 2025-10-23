@@ -1,14 +1,14 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useAccount, usePublicClient, useChainId } from 'wagmi';
+import { useAccount, usePublicClient } from 'wagmi';
 import { useQuery } from '@tanstack/react-query';
 import { useSavingsBalance } from './useSavingsBalance';
 import { useDCA } from './useDCA';
 import { useDailySavings } from './useDailySavings';
-import { formatUnits } from 'viem';
-import { CONTRACT_ADDRESSES } from '@/contracts/addresses';
-import { SpendSaveQuoterABI } from '@/contracts/abis/SpendSaveQuoter';
+import { formatUnits, parseAbiItem } from 'viem';
+import { getContractAddress } from '@/contracts/addresses';
+import { useActiveChainId } from './useActiveChainId';
 
 export interface PortfolioData {
   totalValue: number;
@@ -41,15 +41,15 @@ export interface PerformanceData {
 const TOKEN_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6', '#F43F5E'];
 
 export function usePortfolio() {
-  const { address } = useAccount();
+  const { address: _address } = useAccount();
   const publicClient = usePublicClient();
-  const chainId = useChainId();
+  const chainId = useActiveChainId();
   const { tokenBalances, totalBalance, isLoading: isLoadingSavings } = useSavingsBalance();
   const { config: dcaConfig, history: dcaHistory, isLoadingConfig: isLoadingDCA } = useDCA();
   const { hasPending: dailySavingsStatus, isLoadingPending: isLoadingDaily } = useDailySavings();
 
   // Get quoter contract address
-  const quoterAddress = CONTRACT_ADDRESSES[chainId as keyof typeof CONTRACT_ADDRESSES]?.Quoter;
+  const quoterAddress = getContractAddress(chainId, 'Quoter');
 
   // Fetch token prices using SpendSaveQuoter contract
   const { data: tokenPrices, isLoading: isLoadingPrices } = useQuery({
@@ -87,13 +87,13 @@ export function usePortfolio() {
               // Get quote for 1 unit of the token
               const amountIn = BigInt(10 ** balance.decimals); // 1 token unit
 
-              // Use the contract call with proper typing
+              // Use dynamic ABI parsing for getDCAQuote function
               const result = await publicClient.readContract({
                 address: quoterAddress as `0x${string}`,
-                abi: SpendSaveQuoterABI,
+                abi: [parseAbiItem('function getDCAQuote(tuple(address currency0, address currency1, uint24 fee, int24 tickSpacing, address hooks) poolKey, bool zeroForOne, uint256 amountIn) view returns (uint256)')],
                 functionName: 'getDCAQuote',
                 args: [poolKey, true, amountIn]
-              } as any); // Type assertion for complex ABI
+              });
 
               // Convert amountOut to USD price
               const amountOut = Array.isArray(result) ? result[0] : result;
