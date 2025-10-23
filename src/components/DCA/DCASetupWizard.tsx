@@ -268,7 +268,7 @@ export function DCASetupWizard({ onComplete, onCancel }: DCASetupWizardProps) {
       <div className="text-center">
         <div className="text-6xl mb-4">✨</div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Review Your Auto-Invest Setup</h2>
-        <p className="text-gray-600">Everything looks good? Let's activate it!</p>
+        <p className="text-gray-600">Everything looks good? Let&apos;s activate it!</p>
       </div>
 
       <Card className="bg-gradient-to-r from-blue-50 to-green-50">
