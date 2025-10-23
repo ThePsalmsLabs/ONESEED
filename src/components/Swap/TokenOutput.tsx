@@ -64,7 +64,7 @@ export function TokenOutput({
             {isLoading ? (
               <div className="inline-flex items-center gap-2">
                 <div className="w-4 h-4 border-2 border-primary-400 border-t-transparent rounded-full animate-spin" />
-                <span className="text-lg text-gray-500">Loading...</span>
+                <span className="text-lg text-gray-300">Loading...</span>
               </div>
             ) : amount && parseFloat(amount) > 0 ? (
               <div className="text-2xl md:text-3xl font-bold text-white">
@@ -80,7 +80,7 @@ export function TokenOutput({
 
         {/* USD Value */}
         {amount && parseFloat(amount) > 0 && !isLoading && (
-          <div className="text-right text-sm text-gray-500 mt-2">
+          <div className="text-right text-sm text-gray-300 mt-2">
             {isLoadingPrice ? (
               <span>Loading price...</span>
             ) : (
