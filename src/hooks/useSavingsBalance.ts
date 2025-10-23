@@ -1,10 +1,11 @@
 'use client';
 
-import { useAccount, useReadContract, useChainId, usePublicClient } from 'wagmi';
+import { useAccount, usePublicClient } from 'wagmi';
 import { useQuery } from '@tanstack/react-query';
-import { CONTRACT_ADDRESSES } from '@/contracts/addresses';
+import { getContractAddress } from '@/contracts/addresses';
 import { TokenModuleABI } from '@/contracts/abis/Token';
 import { useSpendSaveContracts } from './useSpendSaveContracts';
+import { useActiveChainId } from './useActiveChainId';
 
 export interface TokenBalance {
   token: `0x${string}`;
@@ -16,12 +17,12 @@ export interface TokenBalance {
 
 export function useSavingsBalance() {
   const { address } = useAccount();
-  const chainId = useChainId();
+  const chainId = useActiveChainId();
   const publicClient = usePublicClient();
   const contracts = useSpendSaveContracts();
 
   // Get contract address for current chain
-  const contractAddress = CONTRACT_ADDRESSES[chainId as keyof typeof CONTRACT_ADDRESSES]?.Token;
+  const contractAddress = getContractAddress(chainId, 'Token');
 
   // Fetch actual token balances from the contract
   const { data: tokenBalances, isLoading } = useQuery<TokenBalance[]>({
@@ -31,12 +32,12 @@ export function useSavingsBalance() {
       
       // Check if contracts are deployed on this chain
       if (!contractAddress || contractAddress === '0x0000000000000000000000000000000000000000') {
-        console.warn(`Contracts not deployed on chain ${chainId}. Please switch to Base Sepolia (84532) for testing.`);
+        console.warn(`Contracts not deployed on chain ${chainId}. Please switch to a supported network for testing.`);
         return [];
       }
       
       if (!contracts.savings.address || contracts.savings.address === '0x0000000000000000000000000000000000000000') {
-        console.warn(`Savings contract not deployed on chain ${chainId}. Please switch to Base Sepolia (84532) for testing.`);
+        console.warn(`Savings contract not deployed on chain ${chainId}. Please switch to a supported network for testing.`);
         return [];
       }
       
@@ -124,158 +125,6 @@ export function useSavingsBalance() {
     staleTime: 30000, // 30 seconds
   });
 
-  // Get balance for a specific token
-  const getTokenBalance = (tokenId: bigint) => {
-    return useReadContract({
-      address: contractAddress as `0x${string}`,
-      abi: TokenModuleABI,
-      functionName: 'balanceOf',
-      args: address && tokenId ? [address, tokenId] : undefined,
-      query: {
-        enabled: !!address && !!tokenId && !!contractAddress
-      }
-    });
-  };
-
-  // Get balances for multiple tokens at once
-  const getTokenBalances = (tokenIds: bigint[]) => {
-    return useReadContract({
-      address: contractAddress as `0x${string}`,
-      abi: TokenModuleABI,
-      functionName: 'balanceOfBatch',
-      args: address && tokenIds.length > 0 ? [address, tokenIds] : undefined,
-      query: {
-        enabled: !!address && tokenIds.length > 0 && !!contractAddress
-      }
-    });
-  };
-
-  // Helper function to fetch balances for known token addresses
-  const fetchBalancesForTokens = async (tokenAddresses: `0x${string}`[]): Promise<TokenBalance[]> => {
-    if (!address || !contractAddress || tokenAddresses.length === 0) return [];
-    
-    try {
-      const balances: TokenBalance[] = [];
-      
-      for (const tokenAddress of tokenAddresses) {
-        try {
-          // Check if token is registered
-          const isRegisteredResult = isTokenRegistered(tokenAddress);
-          if (!isRegisteredResult.data) continue;
-          
-          // Get token ID
-          const tokenIdResult = getTokenId(tokenAddress);
-          if (!tokenIdResult.data) continue;
-          
-          // Get user's balance
-          const balanceResult = getTokenBalance(tokenIdResult.data);
-          if (!balanceResult.data || balanceResult.data === BigInt(0)) continue;
-          
-          // Get token metadata
-          const [nameResult, symbolResult, decimalsResult] = await Promise.all([
-            getTokenName(tokenIdResult.data),
-            getTokenSymbol(tokenIdResult.data),
-            getTokenDecimals(tokenIdResult.data)
-          ]);
-          
-          balances.push({
-            token: tokenAddress,
-            amount: balanceResult.data,
-            decimals: decimalsResult.data || 18,
-            symbol: symbolResult.data || 'UNKNOWN',
-            name: nameResult.data || 'Unknown Token'
-          });
-        } catch (error) {
-          console.error(`Error fetching balance for token ${tokenAddress}:`, error);
-          continue;
-        }
-      }
-      
-      return balances;
-    } catch (error) {
-      console.error('Error fetching balances for tokens:', error);
-      return [];
-    }
-  };
-
-  // Get token address from token ID
-  const getTokenAddress = (tokenId: bigint) => {
-    return useReadContract({
-      address: contractAddress as `0x${string}`,
-      abi: TokenModuleABI,
-      functionName: 'getTokenAddress',
-      args: tokenId ? [tokenId] : undefined,
-      query: {
-        enabled: !!tokenId && !!contractAddress
-      }
-    });
-  };
-
-  // Get token ID from token address
-  const getTokenId = (tokenAddress: `0x${string}`) => {
-    return useReadContract({
-      address: contractAddress as `0x${string}`,
-      abi: TokenModuleABI,
-      functionName: 'getTokenId',
-      args: tokenAddress ? [tokenAddress] : undefined,
-      query: {
-        enabled: !!tokenAddress && !!contractAddress
-      }
-    });
-  };
-
-  // Check if token is registered
-  const isTokenRegistered = (tokenAddress: `0x${string}`) => {
-    return useReadContract({
-      address: contractAddress as `0x${string}`,
-      abi: TokenModuleABI,
-      functionName: 'isTokenRegistered',
-      args: tokenAddress ? [tokenAddress] : undefined,
-      query: {
-        enabled: !!tokenAddress && !!contractAddress
-      }
-    });
-  };
-
-  // Get token name
-  const getTokenName = (tokenId: bigint) => {
-    return useReadContract({
-      address: contractAddress as `0x${string}`,
-      abi: TokenModuleABI,
-      functionName: 'name',
-      args: tokenId ? [tokenId] : undefined,
-      query: {
-        enabled: !!tokenId && !!contractAddress
-      }
-    });
-  };
-
-  // Get token symbol
-  const getTokenSymbol = (tokenId: bigint) => {
-    return useReadContract({
-      address: contractAddress as `0x${string}`,
-      abi: TokenModuleABI,
-      functionName: 'symbol',
-      args: tokenId ? [tokenId] : undefined,
-      query: {
-        enabled: !!tokenId && !!contractAddress
-      }
-    });
-  };
-
-  // Get token decimals
-  const getTokenDecimals = (tokenId: bigint) => {
-    return useReadContract({
-      address: contractAddress as `0x${string}`,
-      abi: TokenModuleABI,
-      functionName: 'decimals',
-      args: tokenId ? [tokenId] : undefined,
-      query: {
-        enabled: !!tokenId && !!contractAddress
-      }
-    });
-  };
-
   // Calculate total balance across all tokens
   const totalBalance = tokenBalances?.reduce((sum, balance) => sum + balance.amount, BigInt(0)) || BigInt(0);
 
@@ -285,14 +134,17 @@ export function useSavingsBalance() {
   
   // Get supported chain info
   const getSupportedChainInfo = () => {
-    if (chainId === 84532) {
+    const isBaseSepolia = chainId === 84532;
+    const isBaseMainnet = chainId === 8453;
+    
+    if (isBaseSepolia) {
       return {
         name: 'Base Sepolia',
         chainId: 84532,
         isSupported: true,
         isTestnet: true
       };
-    } else if (chainId === 8453) {
+    } else if (isBaseMainnet) {
       return {
         name: 'Base Mainnet',
         chainId: 8453,
@@ -306,7 +158,7 @@ export function useSavingsBalance() {
         chainId,
         isSupported: false,
         isTestnet: false,
-        message: 'Please switch to Base Sepolia (84532) to use OneSeed features.'
+        message: 'Please switch to a supported network to use OneSeed features.'
       };
     }
   };
@@ -315,15 +167,6 @@ export function useSavingsBalance() {
     tokenBalances: (tokenBalances || []) as TokenBalance[],
     totalBalance,
     isLoading,
-    getTokenBalance,
-    getTokenBalances,
-    fetchBalancesForTokens,
-    getTokenAddress,
-    getTokenId,
-    isTokenRegistered,
-    getTokenName,
-    getTokenSymbol,
-    getTokenDecimals,
     contractAddress,
     isContractsDeployed,
     isSavingsContractDeployed,
