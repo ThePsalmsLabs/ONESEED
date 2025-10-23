@@ -3,20 +3,13 @@
 import { useState, useCallback } from 'react';
 import { useBiconomy } from '@/components/BiconomyProvider';
 import { useToast } from '@/components/ui/Toast';
-import { CONTRACT_ADDRESSES } from '@/contracts/addresses';
-import { DCAABI } from '@/contracts/abis/DCA';
-import { DailySavingsABI } from '@/contracts/abis/DailySavings';
-
-interface SessionKeyConfig {
-  contractAddress: `0x${string}`;
-  allowedFunctions: string[];
-  maxValue: bigint;
-  validUntil: number; // Unix timestamp
-}
+import { getContractAddress } from '@/contracts/addresses';
+import { useActiveChainId } from './useActiveChainId';
 
 export function useSessionKeys() {
   const { smartAccount } = useBiconomy();
   const { showToast } = useToast();
+  const chainId = useActiveChainId();
   const [isCreating, setIsCreating] = useState(false);
 
   const createDCASession = useCallback(async (): Promise<string | null> => {
@@ -40,7 +33,7 @@ export function useSessionKeys() {
       // });
       
       const sessionKey = JSON.stringify({
-        contractAddress: CONTRACT_ADDRESSES[84532].DCA as `0x${string}`,
+        contractAddress: getContractAddress(chainId, 'DCA'),
         allowedFunctions: ['executeDCA'],
         maxValue: BigInt(0),
         validUntil: Math.floor(Date.now() / 1000) + (86400 * 30),
@@ -73,7 +66,7 @@ export function useSessionKeys() {
       // Create session key that can ONLY execute daily savings
       // Note: This is a mock implementation - actual Biconomy session keys would use different API
       const sessionKey = JSON.stringify({
-        contractAddress: CONTRACT_ADDRESSES[84532].DailySavings as `0x${string}`,
+        contractAddress: getContractAddress(chainId, 'DailySavings'),
         allowedFunctions: ['executeDailySavings', 'executeDailySavingsForToken'],
         maxValue: BigInt(0),
         validUntil: Math.floor(Date.now() / 1000) + (86400 * 365),
@@ -105,7 +98,7 @@ export function useSessionKeys() {
       // Create session key that can execute multiple operations
       // Note: This is a mock implementation - actual Biconomy session keys would use different API
       const sessionKey = JSON.stringify({
-        contractAddress: CONTRACT_ADDRESSES[84532].DCA as `0x${string}`,
+        contractAddress: getContractAddress(chainId, 'DCA'),
         allowedFunctions: [
           'executeDCA',
           'queueDCAExecution',
