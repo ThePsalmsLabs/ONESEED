@@ -1,6 +1,7 @@
 'use client';
 
-import { useAccount, useReadContract, useWriteContract, useChainId } from 'wagmi';
+import { useAccount, useReadContract, useWriteContract } from 'wagmi';
+import { useActiveChainId } from '@/hooks/useActiveChainId';
 import { getContractAddress } from '@/contracts/addresses';
 import { SavingsStrategyABI } from '@/contracts/abis/SavingStrategy';
 import { useState, useCallback } from 'react';
@@ -27,7 +28,7 @@ export interface StrategyParams {
 
 export function useSavingsStrategy() {
   const { address } = useAccount();
-  const chainId = useChainId();
+  const chainId = useActiveChainId();
   const [isSettingStrategy, setIsSettingStrategy] = useState(false);
   
   // Read current strategy
