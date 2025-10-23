@@ -73,3 +73,6 @@ LIGHT_MODE_FIX_COMPLETE.md
 LIGHT_MODE_STATUS.txt
 NETWORK_CONFIGURATION_COMPLETE.md
 env.example
+
+# Backup files
+*.bak
