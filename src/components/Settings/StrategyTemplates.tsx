@@ -12,16 +12,16 @@ import {
   PencilIcon,
   StarIcon,
   ShareIcon,
-  DownloadIcon,
-  UploadIcon,
+  ArrowDownTrayIcon,
+  ArrowUpTrayIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon,
   ChartBarIcon,
-  TargetIcon,
   ClockIcon,
   CurrencyDollarIcon
 } from '@heroicons/react/24/outline';
+import { TargetIcon } from 'lucide-react';
 
 interface StrategyTemplatesProps {
   className?: string;
@@ -59,7 +59,7 @@ interface TemplateCategory {
 }
 
 const categories: TemplateCategory[] = [
-  { id: 'savings', name: 'Savings', description: 'Daily and automated savings strategies', icon: TargetIcon, count: 12 },
+  { id: 'savings', name: 'Savings', description: 'Daily and automated savings strategies', icon: ChartBarIcon, count: 12 },
   { id: 'dca', name: 'DCA', description: 'Dollar-cost averaging strategies', icon: ChartBarIcon, count: 8 },
   { id: 'withdrawal', name: 'Withdrawal', description: 'Smart withdrawal strategies', icon: CurrencyDollarIcon, count: 6 },
   { id: 'trading', name: 'Trading', description: 'Advanced trading strategies', icon: ChartBarIcon, count: 15 },
@@ -267,11 +267,11 @@ export function StrategyTemplates({ className = '', onTemplateSelect }: Strategy
           </div>
           <div className="flex items-center gap-2">
             <AnimatedButton variant="outline" size="sm">
-              <DownloadIcon className="w-4 h-4" />
+              <ArrowDownTrayIcon className="w-4 h-4" />
               Import
             </AnimatedButton>
             <AnimatedButton variant="outline" size="sm">
-              <UploadIcon className="w-4 h-4" />
+              <ArrowUpTrayIcon className="w-4 h-4" />
               Export
             </AnimatedButton>
           </div>
@@ -311,12 +311,12 @@ export function StrategyTemplates({ className = '', onTemplateSelect }: Strategy
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
             >
-              <AnimatedCard 
-                className={`p-6 cursor-pointer transition-all ${
-                  isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
-                }`}
-                onClick={() => handleTemplateSelect(template)}
-              >
+              <div onClick={() => handleTemplateSelect(template)}>
+                <AnimatedCard
+                  className={`p-6 cursor-pointer transition-all ${
+                    isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                  }`}
+                >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -411,7 +411,8 @@ export function StrategyTemplates({ className = '', onTemplateSelect }: Strategy
                     </AnimatedButton>
                   )}
                 </div>
-              </AnimatedCard>
+                </AnimatedCard>
+              </div>
             </motion.div>
           );
         })}
