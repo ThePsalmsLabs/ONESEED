@@ -4,13 +4,14 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { AnimatedCard, AnimatedButton, AnimatedInput, AnimatedTabs } from '@/components/ui/AnimatedComponents';
+import { AnimatedCard, AnimatedButton, AnimatedInput } from '@/components/ui/AnimatedComponents';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { 
   UserIcon,
   CogIcon,
   BellIcon,
   ShieldCheckIcon,
-  PaletteIcon,
+  SwatchIcon,
   LanguageIcon,
   CurrencyDollarIcon,
   ClockIcon,
@@ -20,6 +21,7 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
+import { PaletteIcon } from 'lucide-react';
 
 interface UserPreferencesProps {
   className?: string;
@@ -579,16 +581,20 @@ export function UserPreferences({ className = '', onSave }: UserPreferencesProps
       </div>
 
       {/* Tabs */}
-      <AnimatedTabs
-        tabs={tabs.map(tab => ({
-          id: tab.id,
-          label: tab.label,
-          content: renderTabContent()
-        }))}
-        defaultTab={activeTab}
-        onTabChange={setActiveTab}
-        className="w-full"
-      />
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList>
+          {tabs.map(tab => (
+            <TabsTrigger key={tab.id} value={tab.id}>
+              {tab.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        {tabs.map(tab => (
+          <TabsContent key={tab.id} value={tab.id}>
+            {renderTabContent()}
+          </TabsContent>
+        ))}
+      </Tabs>
     </div>
   );
 }
