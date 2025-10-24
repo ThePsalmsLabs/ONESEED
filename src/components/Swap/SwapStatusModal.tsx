@@ -226,7 +226,7 @@ export function SwapStatusModal({
               {/* Processing Note */}
               {!isComplete && !hasError && (
                 <div className="text-center text-sm text-gray-300">
-                  Please don't close this window while the transaction is processing
+                  Please don&apos;t close this window while the transaction is processing
                 </div>
               )}
             </motion.div>
