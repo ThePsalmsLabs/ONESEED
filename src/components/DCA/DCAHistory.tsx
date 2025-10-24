@@ -46,7 +46,7 @@ interface TokenStats {
 }
 
 export function DCAHistory({ className = '' }: DCAHistoryProps) {
-  const { history, isLoadingHistory, historyError } = useDCA();
+  const { history, isLoadingHistory } = useDCA();
   
   const [filters, setFilters] = useState<HistoryFilters>({
     timeRange: '30d',
@@ -92,8 +92,8 @@ export function DCAHistory({ className = '' }: DCAHistoryProps) {
     }
 
     const statusMatch = filters.status === 'all' || 
-      (filters.status === 'success' && item.executedPrice > 0) ||
-      (filters.status === 'failed' && item.executedPrice === 0);
+      (filters.status === 'success' && item.executedPrice > BigInt(0)) ||
+      (filters.status === 'failed' && item.executedPrice === BigInt(0));
 
     const tokenMatch = filters.token === 'all' || item.toToken === filters.token;
 
@@ -275,11 +275,15 @@ export function DCAHistory({ className = '' }: DCAHistoryProps) {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={tokenStats}
+                  data={tokenStats.map(stat => ({
+                    name: stat.token,
+                    value: stat.executions,
+                    fill: stat.color
+                  }))}
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ token, percentage }) => `${token} ${percentage}%`}
+                  label={({ name, percent }) => `${name} ${(percent as number).toFixed(1)}%`}
                   outerRadius={80}
                   fill="#8884d8"
                   dataKey="executions"
@@ -393,25 +397,6 @@ export function DCAHistory({ className = '' }: DCAHistoryProps) {
         </div>
       </Card>
 
-      {/* Error Display */}
-      <AnimatePresence>
-        {historyError && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="p-4 bg-red-50 border border-red-200 rounded-lg"
-          >
-            <div className="flex items-center gap-2 text-red-800">
-              <ExclamationTriangleIcon className="w-4 h-4" />
-              <span className="font-medium">Error Loading History</span>
-            </div>
-            <p className="text-sm text-red-700 mt-1">
-              {historyError.message || 'Failed to load DCA history'}
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
