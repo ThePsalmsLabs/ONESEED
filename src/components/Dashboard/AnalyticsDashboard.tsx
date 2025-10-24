@@ -10,12 +10,11 @@ import {
   ArrowTrendingDownIcon,
   CurrencyDollarIcon,
   ClockIcon,
-  TargetIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
   EyeIcon,
   FunnelIcon,
-  DownloadIcon
+  ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area, ScatterChart, Scatter } from 'recharts';
 
@@ -192,7 +191,7 @@ export function AnalyticsDashboard({ className = '' }: AnalyticsDashboardProps) 
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" className="flex items-center gap-2">
-            <DownloadIcon className="w-4 h-4" />
+            <ArrowDownTrayIcon className="w-4 h-4" />
             Export Data
           </Button>
         </div>
