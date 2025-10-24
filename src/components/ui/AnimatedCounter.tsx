@@ -47,7 +47,8 @@ export function AnimatedCounter({
     <motion.div
       initial={{ opacity: 0, scale: 0.8 }}
       animate={isVisible ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.8 }}
-      whileInView={whileInView ? () => setIsVisible(true) : undefined}
+      whileInView={whileInView ? "visible" : undefined}
+      onViewportEnter={() => setIsVisible(true)}
       viewport={viewport}
       transition={{
         delay,
