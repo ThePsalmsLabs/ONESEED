@@ -9,13 +9,12 @@ import {
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon,
   CurrencyDollarIcon,
-  TargetIcon,
   ClockIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon,
   EyeIcon,
-  DownloadIcon
+  ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area, ScatterChart, Scatter } from 'recharts';
 
@@ -230,7 +229,7 @@ export function PerformanceMetrics({ className = '' }: PerformanceMetricsProps) 
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" className="flex items-center gap-2">
-            <DownloadIcon className="w-4 h-4" />
+            <ArrowDownTrayIcon className="w-4 h-4" />
             Export Report
           </Button>
         </div>
@@ -325,7 +324,7 @@ export function PerformanceMetrics({ className = '' }: PerformanceMetricsProps) 
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" />
                 <YAxis />
-                <Tooltip formatter={(value) => [`${value.toFixed(1)}%`, 'ROI']} />
+                 <Tooltip formatter={(value) => [`${(value as number).toFixed(1)}%`, 'ROI']} />
                 <Line 
                   type="monotone" 
                   dataKey="roi" 
@@ -380,7 +379,7 @@ export function PerformanceMetrics({ className = '' }: PerformanceMetricsProps) 
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" />
                 <YAxis />
-                <Tooltip formatter={(value) => [`${value.toFixed(2)}%`, 'Slippage']} />
+                <Tooltip formatter={(value) => [`${(value as number).toFixed(2)}%`, 'Slippage']} />
                 <Scatter 
                   dataKey="slippage" 
                   fill="#EF4444" 
@@ -399,7 +398,7 @@ export function PerformanceMetrics({ className = '' }: PerformanceMetricsProps) 
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" />
                 <YAxis />
-                <Tooltip formatter={(value) => [`$${value.toFixed(2)}`, 'Fees']} />
+                <Tooltip formatter={(value) => [`$${(value as number).toFixed(2)}`, 'Fees']} />
                 <Bar dataKey="fees" fill="#8B5CF6" />
               </BarChart>
             </ResponsiveContainer>
