@@ -65,7 +65,7 @@ export function getChainInfo(chainId: number) {
   return {
     id: chain.id,
     name: chain.name,
-    network: chain.network,
+    network: chain.name,
     nativeCurrency: chain.nativeCurrency,
     rpcUrls: chain.rpcUrls,
     blockExplorers: chain.blockExplorers,
