@@ -47,11 +47,10 @@ export default function ConfigurePage() {
       await setSavingStrategy({
         percentage: BigInt(percentage),
         savingsTokenType: tokenType,
-        specificToken: '0x0000000000000000000000000000000000000000',
+        specificSavingsToken: '0x0000000000000000000000000000000000000000',
         autoIncrement: BigInt(autoIncrement),
         maxPercentage: BigInt(maxPercentage),
         roundUpSavings: roundUp,
-        enableDCA: false,
       });
       setShowSuccess(true);
       setTimeout(() => {
