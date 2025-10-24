@@ -32,7 +32,8 @@ export function LandingNav() {
   ];
 
   const appLinks = [
-    { href: '/swap', label: 'Swap', icon: '🔄' },
+    { href: '/swap', label: 'Swap', icon: '💎' },
+    { href: '/turbo', label: 'Turbo', icon: '⚡' },
     { href: '/dashboard', label: 'Dashboard', icon: '📊' },
     { href: '/configure', label: 'Configure', icon: '⚙️' },
     { href: '/withdraw', label: 'Withdraw', icon: '💰' },

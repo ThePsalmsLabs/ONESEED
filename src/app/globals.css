@@ -347,6 +347,15 @@ body {
   }
 }
 
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
 @keyframes rotate-gradient {
   0% {
     background-position: 0% 50%;
@@ -416,6 +425,10 @@ body {
 
 .animate-scale-in {
   animation: scale-in 0.5s ease-out;
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 .animate-rotate-gradient {
