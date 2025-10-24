@@ -369,7 +369,7 @@ export function PenaltyPreview({ className = '', withdrawals, onConfirm }: Penal
             <div>
               <div className="font-medium text-blue-800">Batch Withdrawal Benefits</div>
               <div className="text-sm text-blue-700">
-                By batching these withdrawals, you'll save approximately {formatEther(penaltySummary.savings)} in gas costs compared to individual transactions.
+                By batching these withdrawals, you&apos;ll save approximately {formatEther(penaltySummary.savings)} in gas costs compared to individual transactions.
               </div>
             </div>
           </motion.div>
