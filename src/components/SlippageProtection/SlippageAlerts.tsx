@@ -11,11 +11,9 @@ import {
   CheckCircleIcon,
   InformationCircleIcon,
   XMarkIcon,
-  EyeIcon,
-  EyeSlashIcon,
+
   FunnelIcon,
-  ClockIcon,
-  ShieldCheckIcon
+
 } from '@heroicons/react/24/outline';
 
 interface SlippageAlertsProps {
@@ -46,11 +44,10 @@ interface AlertFilters {
 
 export function SlippageAlerts({ className = '' }: SlippageAlertsProps) {
   const {
-    settings,
-    effectiveTolerance,
-    calculateSlippagePercentage,
+    userSlippageTolerance,
+    calculateSlippagePercent,
     isSlippageWithinTolerance,
-    getSlippageWarningLevel
+    formatSlippage
   } = useSlippageControl();
 
   const [alerts, setAlerts] = useState<Alert[]>([]);
