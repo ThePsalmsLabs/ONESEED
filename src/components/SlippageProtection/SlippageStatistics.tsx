@@ -59,11 +59,10 @@ const timeRanges: TimeRange[] = [
 
 export function SlippageStatistics({ className = '' }: SlippageStatisticsProps) {
   const {
-    settings,
-    effectiveTolerance,
-    calculateSlippagePercentage,
+    userSlippageTolerance,
+    calculateSlippagePercent,
     isSlippageWithinTolerance,
-    getSlippageWarningLevel
+    formatSlippage
   } = useSlippageControl();
 
   const [selectedTimeRange, setSelectedTimeRange] = useState<string>('7d');
@@ -324,7 +323,7 @@ export function SlippageStatistics({ className = '' }: SlippageStatisticsProps) 
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ token, volatility }) => `${token} ${volatility.toFixed(2)}%`}
+                  label={({ token, volatility }) => `${token} ${(volatility as number).toFixed(2)}%`}
                   outerRadius={80}
                   fill="#8884d8"
                   dataKey="volatility"
