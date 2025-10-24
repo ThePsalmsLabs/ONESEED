@@ -395,7 +395,7 @@ export function SlippageCalculator({ onBack }: SlippageCalculatorProps) {
             <div className="flex items-start space-x-2">
               <Calculator className="w-4 h-4 text-blue-600 mt-0.5" />
               <div>
-                <span className="font-medium">Input Values:</span> Enter the amount you're swapping, the expected output, and the actual output you received.
+                <span className="font-medium">Input Values:</span> Enter the amount you&apos;re swapping, the expected output, and the actual output you received.
               </div>
             </div>
             <div className="flex items-start space-x-2">
