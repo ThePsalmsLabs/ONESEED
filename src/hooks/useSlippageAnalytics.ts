@@ -48,8 +48,8 @@ export function useSlippageAnalytics() {
 
       try {
         const currentBlock = await publicClient.getBlockNumber();
-        const blocksToSearch = 50000n;
-        const fromBlock = currentBlock > blocksToSearch ? currentBlock - blocksToSearch : 0n;
+        const blocksToSearch = BigInt(50000);
+        const fromBlock = currentBlock > blocksToSearch ? currentBlock - blocksToSearch : BigInt(0);
 
         const logs = await publicClient.getLogs({
           address: contracts.slippageControl.address,
@@ -65,10 +65,10 @@ export function useSlippageAnalytics() {
 
         for (const log of logs) {
           const block = await publicClient.getBlock({ blockNumber: log.blockNumber });
-          const expected = log.args.expectedAmount || 0n;
-          const actual = log.args.actualAmount || 0n;
-          const slippagePercentage = expected > 0n
-            ? Number((expected - actual) * 10000n / expected) / 100
+          const expected = log.args.expectedAmount || BigInt(0);
+          const actual = log.args.actualAmount || BigInt(0);
+          const slippagePercentage = expected > BigInt(0)
+            ? Number((expected - actual) * BigInt(10000) / expected) / 100
             : 0;
 
           events.push({
