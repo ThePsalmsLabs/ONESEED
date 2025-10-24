@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/AnimatedTabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { Badge } from '@/components/ui/Badge';
 import {
   Zap,
@@ -346,7 +346,7 @@ export function BiconomyFeatures() {
                           <div className="font-medium">{guardian.name}</div>
                           <div className="text-sm text-gray-500">{guardian.address}</div>
                         </div>
-                        <Badge variant={guardian.isActive ? 'default' : 'outline'}>
+                        <Badge variant={guardian.isActive ? 'default' : 'secondary'}>
                           {guardian.isActive ? 'Active' : 'Inactive'}
                         </Badge>
                       </div>
@@ -378,7 +378,7 @@ export function BiconomyFeatures() {
                     <div key={operation} className="p-4 border rounded-lg">
                       <h3 className="font-semibold mb-2">{operation}</h3>
                       <div className="space-y-2">
-                        <Badge variant="outline">{policyInfo.name}</Badge>
+                        <Badge variant="secondary">{policyInfo.name}</Badge>
                         <p className="text-sm text-gray-600">{policyInfo.description}</p>
                         <ul className="text-xs space-y-1">
                           {policyInfo.benefits.map((benefit, index) => (
