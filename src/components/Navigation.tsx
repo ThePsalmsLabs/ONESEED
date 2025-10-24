@@ -43,6 +43,8 @@ export function Navigation({ isMobile }: NavigationProps) {
 
   const links = [
     { href: '/dashboard', icon: '📊', label: 'Dashboard' },
+    { href: '/swap', icon: '💎', label: 'Swap' },
+    { href: '/turbo', icon: '⚡', label: 'Turbo' },
     { href: '/configure', icon: '⚙️', label: 'Configure' },
     { href: '/withdraw', icon: '💰', label: 'Withdraw' },
   ];

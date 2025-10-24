@@ -294,6 +294,7 @@ export function useToken() {
 export function useTokenInfo(tokenAddress: `0x${string}` | undefined) {
   const { address } = useAccount();
   const publicClient = usePublicClient();
+  const chainId = useActiveChainId();
 
   return useQuery({
     queryKey: ['tokenInfo', tokenAddress],
@@ -357,6 +358,7 @@ export function useTokenInfo(tokenAddress: `0x${string}` | undefined) {
 export function useTokenBalance(tokenId: bigint | undefined) {
   const { address } = useAccount();
   const publicClient = usePublicClient();
+  const chainId = useActiveChainId();
 
   return useQuery({
     queryKey: ['tokenBalance', address, tokenId],
@@ -383,6 +385,7 @@ export function useTokenBalance(tokenId: bigint | undefined) {
 export function useBatchTokenBalances(tokenIds: bigint[]) {
   const { address } = useAccount();
   const publicClient = usePublicClient();
+  const chainId = useActiveChainId();
 
   return useQuery({
     queryKey: ['batchTokenBalances', address, tokenIds],
@@ -408,6 +411,7 @@ export function useBatchTokenBalances(tokenIds: bigint[]) {
 
 export function useTotalSupply(tokenId: bigint | undefined) {
   const publicClient = usePublicClient();
+  const chainId = useActiveChainId();
 
   return useQuery({
     queryKey: ['totalSupply', tokenId],
@@ -437,6 +441,7 @@ export function useAllowance(params: {
   tokenId?: bigint;
 }) {
   const publicClient = usePublicClient();
+  const chainId = useActiveChainId();
 
   return useQuery({
     queryKey: ['allowance', params.owner, params.spender, params.tokenId],
@@ -462,6 +467,7 @@ export function useAllowance(params: {
 
 export function useIsTokenRegistered(tokenAddress: `0x${string}` | undefined) {
   const publicClient = usePublicClient();
+  const chainId = useActiveChainId();
 
   return useQuery({
     queryKey: ['isTokenRegistered', tokenAddress],
