@@ -10,8 +10,7 @@ import {
   CurrencyDollarIcon,
   ArrowTrendingUpIcon,
   ChartBarIcon,
-  TargetIcon,
-  RefreshIcon
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import { PieChart, Pie, Cell, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 
@@ -26,7 +25,8 @@ export function PortfolioOverview({ className = '' }: PortfolioOverviewProps) {
 
   // Get token metadata for all allocations
   const tokenAddresses = tokenAllocations.map(t => t.token as `0x${string}`);
-  const { metadata: tokenMetadata } = useTokenMetadataBatch(tokenAddresses);
+  const { metadata } = useTokenMetadataBatch(tokenAddresses);
+  const tokenMetadata = metadata as Record<string, { symbol: string; name: string; decimals: number } | undefined>;
 
   // Enhance allocations with metadata
   const enhancedAllocations = tokenAllocations.map(allocation => ({
@@ -85,7 +85,7 @@ export function PortfolioOverview({ className = '' }: PortfolioOverviewProps) {
             disabled={isRefreshing}
             className="flex items-center gap-2"
           >
-            <RefreshIcon className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <ArrowPathIcon className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </div>
@@ -114,7 +114,7 @@ export function PortfolioOverview({ className = '' }: PortfolioOverviewProps) {
         <Card className="p-6">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-              <TargetIcon className="w-5 h-5 text-green-600" />
+              <ChartBarIcon className="w-5 h-5 text-green-600" />
             </div>
             <div>
               <div className="text-sm text-muted-foreground">Total Savings</div>
@@ -297,7 +297,7 @@ export function PortfolioOverview({ className = '' }: PortfolioOverviewProps) {
         <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Button className="flex items-center gap-2 h-16">
-            <TargetIcon className="w-5 h-5" />
+            <ChartBarIcon className="w-5 h-5" />
             <div className="text-left">
               <div className="font-medium">Start Daily Savings</div>
               <div className="text-sm opacity-80">Set up automated savings</div>
