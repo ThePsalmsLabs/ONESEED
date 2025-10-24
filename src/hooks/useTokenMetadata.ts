@@ -102,7 +102,7 @@ export function useTokenMetadata(tokenAddress?: `0x${string}`) {
     },
     enabled: !!tokenAddress && !!publicClient,
     staleTime: 1000 * 60 * 60 * 24, // 24 hours - token metadata doesn't change
-    cacheTime: 1000 * 60 * 60 * 24 * 7 // Cache for 7 days
+    gcTime: 1000 * 60 * 60 * 24 * 7 // Cache for 7 days
   });
 
   return {
@@ -173,7 +173,7 @@ export function useTokenMetadataBatch(tokenAddresses: `0x${string}`[]) {
     },
     enabled: tokenAddresses.length > 0 && !!publicClient,
     staleTime: 1000 * 60 * 60 * 24, // 24 hours
-    cacheTime: 1000 * 60 * 60 * 24 * 7 // 7 days
+    gcTime: 1000 * 60 * 60 * 24 * 7 // 7 days
   });
 
   return {
