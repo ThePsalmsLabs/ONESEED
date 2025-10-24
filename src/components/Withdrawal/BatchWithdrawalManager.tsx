@@ -72,8 +72,8 @@ interface BatchSummary {
 }
 
 export function BatchWithdrawalManager({ className = '', onComplete }: BatchWithdrawalManagerProps) {
-  const { getUserSavings, isLoading: isLoadingSavings } = useSavingsBalance();
-  const { calculateWithdrawalAmount, withdraw, isLoading: isLoadingWithdraw } = useWithdraw();
+  const { tokenBalances: savingsBalances, isLoading: isLoadingSavings } = useSavingsBalance();
+  const { withdraw, isPending: isLoadingWithdraw } = useWithdraw();
 
   const [tokenBalances, setTokenBalances] = useState<TokenBalance[]>([]);
   const [withdrawals, setWithdrawals] = useState<BatchWithdrawal[]>([]);
