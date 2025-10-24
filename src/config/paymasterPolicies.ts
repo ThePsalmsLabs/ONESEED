@@ -84,18 +84,25 @@ export function getApplicablePolicy(
   daysActive: number
 ): PaymasterPolicy | null {
   // Check premium users first
-  if (userBalance >= PAYMASTER_POLICIES.premiumUsers.requirement!.minBalance ||
-      userStakingAmount >= PAYMASTER_POLICIES.premiumUsers.requirement!.stakingAmount) {
+  if (PAYMASTER_POLICIES.premiumUsers.requirement && 
+      PAYMASTER_POLICIES.premiumUsers.requirement.minBalance !== undefined &&
+      PAYMASTER_POLICIES.premiumUsers.requirement.stakingAmount !== undefined &&
+      (userBalance >= PAYMASTER_POLICIES.premiumUsers.requirement.minBalance ||
+       userStakingAmount >= PAYMASTER_POLICIES.premiumUsers.requirement.stakingAmount)) {
     return PAYMASTER_POLICIES.premiumUsers;
   }
   
   // Check loyal users
-  if (daysActive >= 30 && userBalance >= PAYMASTER_POLICIES.loyalUsers.requirement!.minBalance) {
+  if (PAYMASTER_POLICIES.loyalUsers.requirement && 
+      PAYMASTER_POLICIES.loyalUsers.requirement.minBalance !== undefined &&
+      daysActive >= 30 && userBalance >= PAYMASTER_POLICIES.loyalUsers.requirement.minBalance) {
     return PAYMASTER_POLICIES.loyalUsers;
   }
   
   // Check emergency withdrawals
-  if (operation === 'withdraw' && userBalance >= PAYMASTER_POLICIES.emergencyWithdrawals.requirement!.minBalance) {
+  if (PAYMASTER_POLICIES.emergencyWithdrawals.requirement && 
+      PAYMASTER_POLICIES.emergencyWithdrawals.requirement.minBalance !== undefined &&
+      operation === 'withdraw' && userBalance >= PAYMASTER_POLICIES.emergencyWithdrawals.requirement.minBalance) {
     return PAYMASTER_POLICIES.emergencyWithdrawals;
   }
   
