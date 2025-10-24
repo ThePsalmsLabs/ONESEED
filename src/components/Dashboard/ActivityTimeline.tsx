@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
 import { getExplorerUrl } from '@/utils/transactions';
 import { useActiveChainId } from '@/hooks/useActiveChainId';
+import { Hash } from 'viem';
 
 interface ActivityItem {
   id: string;
@@ -155,7 +156,7 @@ export function ActivityTimeline({ activities, isLoading = false }: ActivityTime
                   <>
                     <span>•</span>
                     <a
-                      href={`${getExplorerUrl(chainId, activity.txHash)}`}
+                      href={`${getExplorerUrl(chainId, activity.txHash as Hash)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-primary-400 hover:text-primary-300 transition-colors"
