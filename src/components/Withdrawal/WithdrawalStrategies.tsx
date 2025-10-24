@@ -14,7 +14,6 @@ import {
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon,
   CurrencyDollarIcon,
-  TargetIcon,
   CheckCircleIcon
 } from '@heroicons/react/24/outline';
 import { formatEther, parseEther } from 'viem';
@@ -115,7 +114,7 @@ export function WithdrawalStrategies({ className = '', onStrategySelect }: Withd
         name: 'Conditional Withdrawal',
         description: 'Withdraw when specific market conditions are met',
         type: 'conditional',
-        icon: TargetIcon,
+        icon: ChartBarIcon,
         benefits: [
           'Optimized execution',
           'Market-based timing',
@@ -302,12 +301,12 @@ export function WithdrawalStrategies({ className = '', onStrategySelect }: Withd
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
             >
-              <AnimatedCard 
-                className={`p-6 cursor-pointer transition-all ${
-                  isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
-                }`}
-                onClick={() => handleStrategySelect(strategy)}
-              >
+              <div onClick={() => handleStrategySelect(strategy)}>
+                <AnimatedCard
+                  className={`p-6 cursor-pointer transition-all ${
+                    isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                  }`}
+                >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -388,7 +387,8 @@ export function WithdrawalStrategies({ className = '', onStrategySelect }: Withd
                     </motion.div>
                   )}
                 </AnimatePresence>
-              </AnimatedCard>
+                </AnimatedCard>
+              </div>
             </motion.div>
           );
         })}
