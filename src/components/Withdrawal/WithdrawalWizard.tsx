@@ -64,8 +64,8 @@ const steps = [
 ];
 
 export function WithdrawalWizard({ className = '', onComplete }: WithdrawalWizardProps) {
-  const { getUserSavings, isLoading: isLoadingSavings } = useSavingsBalance();
-  const { calculateWithdrawalAmount, withdraw, isLoading: isLoadingWithdraw } = useWithdraw();
+  const { tokenBalances: savingsBalances, isLoading: isLoadingSavings } = useSavingsBalance();
+  const { withdraw, isPending: isLoadingWithdraw } = useWithdraw();
 
   const [currentStep, setCurrentStep] = useState(0);
   const [tokenBalances, setTokenBalances] = useState<TokenBalance[]>([]);
@@ -298,7 +298,6 @@ export function WithdrawalWizard({ className = '', onComplete }: WithdrawalWizar
                         <AnimatedProgress
                           value={withdrawalPercentages[token] || 0}
                           max={100}
-                          onChange={(value) => handlePercentageChange(token, value)}
                           className="w-full"
                         />
                         <div className="flex justify-between text-sm text-muted-foreground mt-1">
