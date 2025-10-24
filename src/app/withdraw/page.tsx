@@ -13,7 +13,7 @@ import { WithdrawBalanceCard } from '@/components/Withdraw/WithdrawBalanceCard';
 export default function WithdrawPage() {
   const router = useRouter();
   const { isConnected } = useAccount();
-  const { tokenBalances, isLoading: isLoadingBalances, totalBalanceUSD } = useSavingsBalance();
+  const { tokenBalances, isLoading: isLoadingBalances } = useSavingsBalance();
   const { withdraw, useCalculateWithdrawal, isPending } = useWithdraw();
 
   const [selectedToken, setSelectedToken] = useState<`0x${string}` | ''>('');
@@ -179,11 +179,11 @@ export default function WithdrawPage() {
               <p className="text-sm text-text-muted mb-2">Total Savings Balance</p>
               <motion.h2
                 className="text-5xl font-black text-text-primary mb-2"
-                key={totalBalanceUSD}
+                key="total-balance"
                 initial={{ scale: 1.1 }}
                 animate={{ scale: 1 }}
               >
-                ${totalBalanceUSD?.toFixed(2) || '0.00'}
+                ${tokenBalances.length > 0 ? '--.--' : '0.00'}
               </motion.h2>
               <p className="text-text-secondary">Across {tokenBalances.length} token{tokenBalances.length !== 1 ? 's' : ''}</p>
             </div>
