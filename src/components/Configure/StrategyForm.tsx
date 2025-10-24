@@ -58,6 +58,7 @@ export function StrategyForm() {
         <CardContent className="space-y-6">
           {/* Percentage Slider */}
           <PercentageSlider
+            label="Savings Percentage"
             value={percentage}
             onChange={setPercentage}
           />
