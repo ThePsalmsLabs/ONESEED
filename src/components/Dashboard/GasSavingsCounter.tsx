@@ -2,6 +2,8 @@
 
 import { Card, CardContent } from '../ui/Card';
 import { useEffect, useState } from 'react';
+import { useTokenPrice } from '@/hooks/swap/useTokenPrice';
+import { ErrorState, LoadingState } from '@/components/ui';
 
 interface GasSavingsCounterProps {
   transactionCount?: number;
@@ -13,20 +15,47 @@ export function GasSavingsCounter({
   averageGasPrice = 0.001 // ETH per transaction
 }: GasSavingsCounterProps) {
   const [totalSavings, setTotalSavings] = useState(0);
-  const [ethPrice, setEthPrice] = useState(3000); // USD per ETH
-
-  // Fetch ETH price (mock for now)
-  useEffect(() => {
-    // In a real app, you'd fetch this from an API
-    setEthPrice(3000);
-  }, []);
+  
+  // Use real ETH price from contract
+  const { priceUSD: ethPrice, isLoading: isLoadingEthPrice, error: ethPriceError } = useTokenPrice({
+    tokenAddress: '0x4200000000000000000000000000000000000006', // WETH on Base
+    enabled: true
+  });
 
   // Calculate total gas savings
   useEffect(() => {
-    const gasSaved = transactionCount * averageGasPrice;
-    const usdSaved = gasSaved * ethPrice;
-    setTotalSavings(usdSaved);
+    if (ethPrice > 0) {
+      const gasSaved = transactionCount * averageGasPrice;
+      const usdSaved = gasSaved * ethPrice;
+      setTotalSavings(usdSaved);
+    }
   }, [transactionCount, averageGasPrice, ethPrice]);
+
+  // Show loading state
+  if (isLoadingEthPrice) {
+    return (
+      <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+        <CardContent className="p-6">
+          <LoadingState message="Loading gas savings..." />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Show error state
+  if (ethPriceError) {
+    return (
+      <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+        <CardContent className="p-6">
+          <ErrorState
+            title="Unable to fetch ETH price"
+            message="Gas savings calculation requires current ETH price."
+            showContactSupport={false}
+          />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
@@ -68,9 +97,15 @@ export function GasSavingsCounter({
               </div>
             </div>
           </div>
+          
+          {/* ETH Price Display */}
+          <div className="mt-2 pt-2 border-t border-green-200">
+            <div className="text-xs text-green-500">
+              ETH Price: ${ethPrice.toFixed(2)}
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>
   );
 }
-

@@ -19,7 +19,7 @@ interface PortfolioOverviewProps {
 }
 
 export function PortfolioOverview({ className = '' }: PortfolioOverviewProps) {
-  const { portfolioData, tokenAllocations, performanceData, isLoading, hasData } = usePortfolio();
+  const { portfolioData, tokenAllocations, performanceData, isLoading } = usePortfolio();
   const [selectedTimeRange, setSelectedTimeRange] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -56,7 +56,7 @@ export function PortfolioOverview({ className = '' }: PortfolioOverviewProps) {
     );
   }
 
-  if (!hasData) {
+  if (!portfolioData || portfolioData.totalValue === 0) {
     return (
       <div className={`space-y-6 ${className}`}>
         <Card className="p-12 text-center">
