@@ -1,0 +1,21 @@
+{
+  "name": "spendsave-subgraph",
+  "version": "1.0.0",
+  "description": "SpendSave Protocol Subgraph",
+  "scripts": {
+    "codegen": "graph codegen",
+    "build": "graph build",
+    "deploy": "graph deploy --node https://api.thegraph.com/deploy/ spendsave-protocol",
+    "create-local": "graph create --node http://localhost:8020/ spendsave-protocol",
+    "remove-local": "graph remove --node http://localhost:8020/ spendsave-protocol",
+    "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 spendsave-protocol",
+    "test": "graph test"
+  },
+  "dependencies": {
+    "@graphprotocol/graph-cli": "0.51.0",
+    "@graphprotocol/graph-ts": "0.29.1"
+  },
+  "devDependencies": {
+    "matchstick-as": "0.5.0"
+  }
+}

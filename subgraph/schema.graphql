@@ -1,0 +1,252 @@
+# SpendSave Protocol Subgraph Schema
+
+# User entity to track user data and statistics
+type User @entity {
+  id: ID! # User address
+  totalSaved: BigInt!
+  totalDCA: BigInt!
+  totalWithdrawn: BigInt!
+  netGrowth: BigInt!
+  averageDailySave: BigInt!
+  dcaExecutions: BigInt!
+  successRate: BigInt!
+  averageSlippage: BigInt!
+  totalFees: BigInt!
+  roi: BigInt!
+  createdAt: BigInt!
+  lastActivity: BigInt!
+  
+  # Relations
+  savingsEvents: [SavingsEvent!]! @derivedFrom(field: "user")
+  dcaEvents: [DCAEvent!]! @derivedFrom(field: "user")
+  withdrawalEvents: [WithdrawalEvent!]! @derivedFrom(field: "user")
+  strategies: [Strategy!]! @derivedFrom(field: "user")
+}
+
+# Strategy entity to track user strategies
+type Strategy @entity {
+  id: ID! # Strategy ID
+  user: User!
+  name: String!
+  description: String
+  isActive: Boolean!
+  createdAt: BigInt!
+  updatedAt: BigInt!
+  
+  # Strategy parameters
+  targetAmount: BigInt
+  targetToken: String
+  frequency: BigInt # seconds between executions
+  maxSlippage: BigInt
+  gasPriceLimit: BigInt
+  
+  # Performance metrics
+  totalExecutions: BigInt!
+  successfulExecutions: BigInt!
+  totalVolume: BigInt!
+  averageExecutionPrice: BigInt!
+  totalFees: BigInt!
+  
+  # Relations
+  executions: [StrategyExecution!]! @derivedFrom(field: "strategy")
+}
+
+# Strategy execution entity
+type StrategyExecution @entity {
+  id: ID! # Transaction hash + log index
+  strategy: Strategy!
+  user: User!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: String!
+  
+  # Execution details
+  fromToken: String!
+  toToken: String!
+  amountIn: BigInt!
+  amountOut: BigInt!
+  executedPrice: BigInt!
+  slippage: BigInt!
+  gasUsed: BigInt!
+  gasPrice: BigInt!
+  success: Boolean!
+  
+  # Pool information
+  poolAddress: String
+  poolFee: BigInt
+}
+
+# Savings event entity
+type SavingsEvent @entity {
+  id: ID! # Transaction hash + log index
+  user: User!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: String!
+  
+  # Event details
+  token: String!
+  amount: BigInt!
+  balance: BigInt!
+  eventType: String! # "SavingsIncreased", "SavingsDecreased", "SavingsWithdrawn"
+  
+  # Related transaction
+  from: String!
+  to: String!
+}
+
+# DCA event entity
+type DCAEvent @entity {
+  id: ID! # Transaction hash + log index
+  user: User!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: String!
+  
+  # DCA details
+  fromToken: String!
+  toToken: String!
+  amountIn: BigInt!
+  amountOut: BigInt!
+  executedPrice: BigInt!
+  slippage: BigInt!
+  success: Boolean!
+  
+  # Pool information
+  poolAddress: String
+  poolFee: BigInt
+}
+
+# Withdrawal event entity
+type WithdrawalEvent @entity {
+  id: ID! # Transaction hash + log index
+  user: User!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: String!
+  
+  # Withdrawal details
+  token: String!
+  amount: BigInt!
+  balance: BigInt!
+  withdrawalType: String! # "partial", "full", "emergency"
+  
+  # Related transaction
+  from: String!
+  to: String!
+}
+
+# Pool entity to track pool statistics
+type Pool @entity {
+  id: ID! # Pool address
+  token0: String!
+  token1: String!
+  fee: BigInt!
+  tickSpacing: BigInt!
+  liquidity: BigInt!
+  sqrtPriceX96: BigInt!
+  tick: BigInt!
+  
+  # Pool statistics
+  totalVolume: BigInt!
+  totalFees: BigInt!
+  totalTransactions: BigInt!
+  averageSlippage: BigInt!
+  
+  # Relations
+  transactions: [PoolTransaction!]! @derivedFrom(field: "pool")
+}
+
+# Pool transaction entity
+type PoolTransaction @entity {
+  id: ID! # Transaction hash + log index
+  pool: Pool!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  transactionHash: String!
+  
+  # Transaction details
+  user: String!
+  amount0In: BigInt!
+  amount1In: BigInt!
+  amount0Out: BigInt!
+  amount1Out: BigInt!
+  price: BigInt!
+  slippage: BigInt!
+  
+  # Transaction type
+  transactionType: String! # "swap", "addLiquidity", "removeLiquidity"
+}
+
+# Token entity to track token information
+type Token @entity {
+  id: ID! # Token address
+  symbol: String!
+  name: String!
+  decimals: BigInt!
+  totalSupply: BigInt!
+  
+  # Token statistics
+  totalVolume: BigInt!
+  totalTransactions: BigInt!
+  averagePrice: BigInt!
+  priceHistory: [TokenPrice!]! @derivedFrom(field: "token")
+}
+
+# Token price entity for price history
+type TokenPrice @entity {
+  id: ID! # Token address + timestamp
+  token: Token!
+  timestamp: BigInt!
+  price: BigInt!
+  source: String! # "uniswap", "coingecko", "contract"
+}
+
+# Protocol statistics
+type ProtocolStats @entity {
+  id: ID! # "protocol"
+  totalUsers: BigInt!
+  totalStrategies: BigInt!
+  totalExecutions: BigInt!
+  totalVolume: BigInt!
+  totalFees: BigInt!
+  totalGasSaved: BigInt!
+  averageSlippage: BigInt!
+  successRate: BigInt!
+  lastUpdated: BigInt!
+}
+
+# Daily statistics for time series data
+type DailyStats @entity {
+  id: ID! # Date string (YYYY-MM-DD)
+  date: String!
+  totalUsers: BigInt!
+  newUsers: BigInt!
+  totalStrategies: BigInt!
+  activeStrategies: BigInt!
+  totalExecutions: BigInt!
+  successfulExecutions: BigInt!
+  totalVolume: BigInt!
+  totalFees: BigInt!
+  totalGasSaved: BigInt!
+  averageSlippage: BigInt!
+  successRate: BigInt!
+}
+
+# Hourly statistics for more granular data
+type HourlyStats @entity {
+  id: ID! # Date string + hour (YYYY-MM-DD-HH)
+  date: String!
+  hour: BigInt!
+  totalUsers: BigInt!
+  newUsers: BigInt!
+  totalStrategies: BigInt!
+  activeStrategies: BigInt!
+  totalExecutions: BigInt!
+  successfulExecutions: BigInt!
+  totalVolume: BigInt!
+  totalFees: BigInt!
+  totalGasSaved: BigInt!
+  averageSlippage: BigInt!
+  successRate: BigInt!
+}

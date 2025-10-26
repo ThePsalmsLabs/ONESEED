@@ -1,0 +1,138 @@
+specVersion: 0.0.5
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: SpendSaveStorage
+    network: base-sepolia
+    source:
+      address: "0x0000000000000000000000000000000000000000" # Replace with actual contract address
+      abi: SpendSaveStorage
+      startBlock: 0 # Replace with actual deployment block
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - User
+        - Strategy
+        - StrategyExecution
+        - SavingsEvent
+        - DCAEvent
+        - WithdrawalEvent
+        - Pool
+        - PoolTransaction
+        - Token
+        - TokenPrice
+        - ProtocolStats
+        - DailyStats
+        - HourlyStats
+      abis:
+        - name: SpendSaveStorage
+          file: ./abis/SpendSaveStorage.json
+        - name: SpendSaveAnalytics
+          file: ./abis/SpendSaveAnalytics.json
+        - name: SpendSaveQuoter
+          file: ./abis/SpendSaveQuoter.json
+        - name: UniswapV4PoolManager
+          file: ./abis/UniswapV4PoolManager.json
+      eventHandlers:
+        - event: SavingsIncreased(indexed address,indexed address,uint256,uint256)
+          handler: handleSavingsIncreased
+        - event: SavingsDecreased(indexed address,indexed address,uint256,uint256)
+          handler: handleSavingsDecreased
+        - event: SavingsWithdrawn(indexed address,indexed address,uint256,uint256)
+          handler: handleSavingsWithdrawn
+        - event: DCAExecuted(indexed address,indexed address,indexed address,uint256,uint256,uint256,uint256)
+          handler: handleDCAExecuted
+        - event: StrategyCreated(indexed address,indexed uint256,string,string)
+          handler: handleStrategyCreated
+        - event: StrategyUpdated(indexed address,indexed uint256,string,string)
+          handler: handleStrategyUpdated
+        - event: StrategyDeactivated(indexed address,indexed uint256)
+          handler: handleStrategyDeactivated
+        - event: PoolInitialized(indexed address,indexed address,indexed address,uint24,int24)
+          handler: handlePoolInitialized
+        - event: Swap(indexed address,indexed address,indexed address,int256,int256,uint160,uint128,int24)
+          handler: handleSwap
+      callHandlers:
+        - function: createStrategy(address,string,string,uint256,address,uint256,uint256,uint256)
+          handler: handleCreateStrategy
+        - function: executeDCA(address,address,uint256,uint256,uint256)
+          handler: handleExecuteDCA
+        - function: withdrawSavings(address,uint256,uint256)
+          handler: handleWithdrawSavings
+      blockHandlers:
+        - handler: handleBlock
+          filter:
+            kind: polling
+            pollingInterval: 100
+      file: ./src/mapping.ts
+  - kind: ethereum
+    name: SpendSaveAnalytics
+    network: base-sepolia
+    source:
+      address: "0x0000000000000000000000000000000000000000" # Replace with actual contract address
+      abi: SpendSaveAnalytics
+      startBlock: 0 # Replace with actual deployment block
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - User
+        - ProtocolStats
+        - DailyStats
+        - HourlyStats
+      abis:
+        - name: SpendSaveAnalytics
+          file: ./abis/SpendSaveAnalytics.json
+      eventHandlers:
+        - event: AnalyticsUpdated(indexed address,uint256,uint256,uint256,uint256)
+          handler: handleAnalyticsUpdated
+      file: ./src/mapping.ts
+  - kind: ethereum
+    name: UniswapV4PoolManager
+    network: base-sepolia
+    source:
+      address: "0x0000000000000000000000000000000000000000" # Replace with actual contract address
+      abi: UniswapV4PoolManager
+      startBlock: 0 # Replace with actual deployment block
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Pool
+        - PoolTransaction
+        - Token
+        - TokenPrice
+      abis:
+        - name: UniswapV4PoolManager
+          file: ./abis/UniswapV4PoolManager.json
+      eventHandlers:
+        - event: PoolInitialized(indexed address,indexed address,indexed address,uint24,int24)
+          handler: handlePoolInitialized
+        - event: Swap(indexed address,indexed address,indexed address,int256,int256,uint160,uint128,int24)
+          handler: handleSwap
+      file: ./src/mapping.ts
+templates:
+  - kind: ethereum
+    name: PoolTemplate
+    network: base-sepolia
+    source:
+      abi: UniswapV4PoolManager
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Pool
+        - PoolTransaction
+      abis:
+        - name: UniswapV4PoolManager
+          file: ./abis/UniswapV4PoolManager.json
+      eventHandlers:
+        - event: Swap(indexed address,indexed address,indexed address,int256,int256,uint160,uint128,int24)
+          handler: handleSwap
+      file: ./src/mapping.ts
