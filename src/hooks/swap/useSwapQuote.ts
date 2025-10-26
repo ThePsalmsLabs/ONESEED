@@ -12,10 +12,39 @@ import {
   calculatePriceImpact,
   estimateSwapGas 
 } from '@/utils/quoteHelpers';
-import { SpendSaveQuoterABI, PoolKey, SpendSaveQuoterContract } from '@/contracts/abis/SpendSaveQuoter';
+import { SpendSaveQuoterABI } from '@/contracts/abis/SpendSaveQuoter';
 import { getContractAddress } from '@/contracts/addresses';
 
-// Type-safe wrapper for getDCAQuote function
+// Define PoolKey type
+export interface PoolKey {
+  currency0: Address;
+  currency1: Address;
+  fee: number;
+  tickSpacing: number;
+  hooks: Address;
+}
+
+// Type-safe wrapper for previewSavingsImpact function
+async function getSavingsImpactQuote(
+  publicClient: NonNullable<ReturnType<typeof usePublicClient>>,
+  quoterAddress: Address,
+  poolKey: PoolKey,
+  zeroForOne: boolean,
+  amountIn: bigint,
+  savingsPercentage: number
+): Promise<[bigint, bigint, bigint]> {
+  // Use the raw contract call with proper typing
+  const result = await publicClient.readContract({
+    address: quoterAddress,
+    abi: SpendSaveQuoterABI,
+    functionName: 'previewSavingsImpact',
+    args: [poolKey, zeroForOne, amountIn, BigInt(savingsPercentage * 100)],
+  } as Parameters<typeof publicClient.readContract>[0]);
+  
+  return result as [bigint, bigint, bigint]; // [swapOutput, savedAmount, netOutput]
+}
+
+// Type-safe wrapper for getDCAQuote function (for DCA-specific quotes)
 async function getDCAQuote(
   publicClient: NonNullable<ReturnType<typeof usePublicClient>>,
   quoterAddress: Address,
@@ -42,6 +71,7 @@ interface UseSwapQuoteProps {
   inputToken: Token | null;
   outputToken: Token | null;
   swapAmount: bigint; // Amount after savings deduction
+  savingsPercentage?: number; // Savings percentage (0-100)
   enabled?: boolean;
 }
 
@@ -49,6 +79,7 @@ export function useSwapQuote({
   inputToken,
   outputToken,
   swapAmount,
+  savingsPercentage = 0,
   enabled = true,
 }: UseSwapQuoteProps) {
   const [quote, setQuote] = useState<SwapQuote | null>(null);
@@ -132,13 +163,34 @@ export function useSwapQuote({
             hooks: hookAddress,
           };
           
-          const [amountOut, gasEstimate] = await getDCAQuote(
-            publicClient,
-            quoterAddress,
-            poolKey,
-            zeroForOne,
-            BigInt(swapAmount)
-          );
+          // Use savings impact quote if savings percentage > 0, otherwise use DCA quote
+          let amountOut: bigint;
+          let gasEstimate: bigint;
+          let savedAmount: bigint = BigInt(0);
+          
+          if (savingsPercentage > 0) {
+            const [swapOutput, saved, netOutput] = await getSavingsImpactQuote(
+              publicClient,
+              quoterAddress,
+              poolKey,
+              zeroForOne,
+              BigInt(swapAmount),
+              savingsPercentage
+            );
+            amountOut = swapOutput; // Amount user receives from swap
+            savedAmount = saved; // Amount saved
+            gasEstimate = BigInt(0); // Gas estimate not available from this function
+          } else {
+            const [output, gas] = await getDCAQuote(
+              publicClient,
+              quoterAddress,
+              poolKey,
+              zeroForOne,
+              BigInt(swapAmount)
+            );
+            amountOut = output;
+            gasEstimate = gas;
+          }
           
           if (amountOut > bestOutputAmount) {
             bestOutputAmount = amountOut;
@@ -159,6 +211,7 @@ export function useSwapQuote({
               fee: BigInt(fee),
               gas: gasEstimate,
               minOutputAmount: calculateMinOutput(amountOut, 50),
+              savedAmount: savedAmount > BigInt(0) ? savedAmount : undefined,
             };
           }
         } catch (feeError) {

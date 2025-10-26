@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import { Address } from 'viem';
+import { useActiveChainId } from '@/hooks/useActiveChainId';
+import { CHAIN_IDS, BASE_SEPOLIA_TOKENS } from '@/config/network';
 
 export interface Token {
   address: Address;
@@ -10,8 +12,8 @@ export interface Token {
   isCommon?: boolean;
 }
 
-// Common tokens on Base
-const COMMON_TOKENS: Token[] = [
+// Common tokens on Base Mainnet
+const BASE_MAINNET_TOKENS: Token[] = [
   {
     address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as Address,
     symbol: 'USDC',
@@ -42,13 +44,47 @@ const COMMON_TOKENS: Token[] = [
   },
 ];
 
+// Test tokens on Base Sepolia (from proven deployment)
+const BASE_SEPOLIA_TOKEN_LIST: Token[] = [
+  {
+    address: BASE_SEPOLIA_TOKENS.USDC as Address,
+    symbol: 'USDC',
+    name: 'USD Coin (Testnet)',
+    decimals: 6,
+    isCommon: true,
+  },
+  {
+    address: BASE_SEPOLIA_TOKENS.WETH as Address,
+    symbol: 'WETH',
+    name: 'Wrapped Ether (Testnet)',
+    decimals: 18,
+    isCommon: true,
+  },
+];
+
+/**
+ * Network-aware token list hook
+ * Returns correct token list based on current chain ID
+ */
 export function useTokenList() {
-  const tokens = useMemo(() => COMMON_TOKENS, []);
-  
+  const chainId = useActiveChainId();
+
+  const tokens = useMemo(() => {
+    // Return testnet tokens for Base Sepolia
+    if (chainId === CHAIN_IDS.BASE_SEPOLIA) {
+      console.log('📋 Using Base Sepolia testnet token list');
+      return BASE_SEPOLIA_TOKEN_LIST;
+    }
+
+    // Return mainnet tokens for Base Mainnet
+    console.log('📋 Using Base Mainnet token list');
+    return BASE_MAINNET_TOKENS;
+  }, [chainId]);
+
   const getTokenByAddress = (address: Address): Token | undefined => {
     return tokens.find(t => t.address.toLowerCase() === address.toLowerCase());
   };
-  
+
   const getTokenBySymbol = (symbol: string): Token | undefined => {
     return tokens.find(t => t.symbol.toLowerCase() === symbol.toLowerCase());
   };
@@ -58,6 +94,6 @@ export function useTokenList() {
     commonTokens: tokens.filter(t => t.isCommon),
     getTokenByAddress,
     getTokenBySymbol,
+    chainId, // Expose for debugging
   };
 }
-

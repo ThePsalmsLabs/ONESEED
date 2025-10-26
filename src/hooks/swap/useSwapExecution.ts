@@ -7,10 +7,11 @@ import { useTokenApproval } from './useTokenApproval';
 import { useBiconomyTransaction } from '../useBiconomyTransaction';
 import { Token } from './useTokenList';
 import { SwapQuote } from '@/utils/quoteHelpers';
-import { UniswapV4PoolManagerABI } from '@/contracts/abis/UniswapV4PoolManager';
+import { SwapRouterABI } from '@/contracts/abis/SwapRouter';
 import { getContractAddress } from '@/contracts/addresses';
 import { useActiveChainId } from '@/hooks/useActiveChainId';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 
 export type SwapStatus =
   | 'idle'
@@ -59,21 +60,23 @@ const NATIVE_ETH = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE' as Address;
  */
 export function useSwapExecution(params?: SwapParams) {
   const { smartAccountAddress, smartAccount } = useBiconomy();
-  const { sendTransaction } = useBiconomyTransaction();
+  const { sendTransaction, userOpHash, transactionHash } = useBiconomyTransaction();
   const chainId = useActiveChainId();
+  const queryClient = useQueryClient();
   const [status, setStatus] = useState<SwapStatus>('idle');
   const [txHash, setTxHash] = useState<string | null>(null);
+  const [userOpHashState, setUserOpHashState] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Get Uniswap V4 PoolManager address
-  const poolManagerAddress = useMemo(() => {
+  // Get SwapRouter address (NOT PoolManager - swaps must go through router!)
+  const swapRouterAddress = useMemo(() => {
     try {
-      return getContractAddress(chainId, 'UniswapV4PoolManager');
+      return getContractAddress(chainId, 'SwapRouter');
     } catch {
       return '0x0000000000000000000000000000000000000000' as Address;
     }
   }, [chainId]);
-  
+
   // Get SpendSaveHook address for poolKey
   const spendSaveHookAddress = useMemo(() => {
     try {
@@ -100,10 +103,10 @@ export function useSwapExecution(params?: SwapParams) {
            params.inputToken.address === '0x0000000000000000000000000000000000000000';
   }, [params?.inputToken]);
 
-  // Setup token approval for PoolManager (hook must be called unconditionally)
+  // Setup token approval for SwapRouter (NOT PoolManager!)
   const tokenApproval = useTokenApproval({
     tokenAddress: params?.inputToken?.address,
-    spenderAddress: poolManagerAddress,
+    spenderAddress: swapRouterAddress,
     amount: inputAmountBigInt,
     enabled: !isNativeETH && !!params?.inputToken && inputAmountBigInt > 0,
   });
@@ -113,16 +116,17 @@ export function useSwapExecution(params?: SwapParams) {
       setStatus('checking_approval');
       setError(null);
       setTxHash(null);
+      setUserOpHashState(null);
 
       // Validate smart account
       if (!smartAccountAddress || !smartAccount) {
         throw new Error('Smart account not initialized. Please wait...');
       }
 
-      if (poolManagerAddress === '0x0000000000000000000000000000000000000000') {
-        throw new Error('Uniswap V4 PoolManager not available on this network');
+      if (swapRouterAddress === '0x0000000000000000000000000000000000000000') {
+        throw new Error('SwapRouter not deployed on this network');
       }
-      
+
       if (spendSaveHookAddress === '0x0000000000000000000000000000000000000000') {
         throw new Error('SpendSaveHook not deployed on this network');
       }
@@ -133,6 +137,15 @@ export function useSwapExecution(params?: SwapParams) {
       // Calculate savings amount (savingsPercentage is 0-100)
       // Note: Hook will handle savings capture automatically in beforeSwap
       const savingsAmount = (inputAmountBigInt * BigInt(swapParams.savingsPercentage * 100)) / BigInt(10000);
+      
+      console.log('💰 Savings calculation:', {
+        inputAmount: inputAmountBigInt.toString(),
+        inputAmountFormatted: swapParams.inputAmount,
+        savingsPercentage: swapParams.savingsPercentage,
+        calculatedSavings: savingsAmount.toString(),
+        tokenDecimals: swapParams.inputToken.decimals,
+        tokenSymbol: swapParams.inputToken.symbol,
+      });
 
       // Check if we need approval (skip for native ETH)
       const isNativeETH = swapParams.inputToken.address === NATIVE_ETH ||
@@ -197,27 +210,67 @@ export function useSwapExecution(params?: SwapParams) {
       );
       
       /**
-       * Call PoolManager.swap() with poolKey containing SpendSaveHook
-       * 
+       * Call SwapRouter.swap() with poolKey containing SpendSaveHook
+       *
        * Flow:
-       * 1. PoolManager receives swap request
-       * 2. Sees poolKey.hooks = SpendSaveHook address
-       * 3. Automatically calls SpendSaveHook.beforeSwap() -> captures savings
-       * 4. Executes actual AMM swap with adjusted amounts
-       * 5. Automatically calls SpendSaveHook.afterSwap() -> records savings
-       * 6. Returns swap delta to user
+       * 1. SwapRouter receives swap request
+       * 2. Calls PoolManager.unlock() with encoded swap data
+       * 3. PoolManager calls back router.unlockCallback()
+       * 4. Inside callback, router calls PoolManager.swap()
+       * 5. PoolManager sees poolKey.hooks = SpendSaveHook
+       * 6. Calls SpendSaveHook.beforeSwap() -> captures savings
+       * 7. Executes AMM swap with adjusted amounts
+       * 8. Calls SpendSaveHook.afterSwap() -> records savings
+       * 9. Returns swap delta to router
+       * 10. Router settles tokens and returns result
        */
       const swapCalldata = encodeFunctionData({
-        abi: UniswapV4PoolManagerABI,
+        abi: SwapRouterABI,
         functionName: 'swap',
-        args: [poolKey, swapParamsStruct, hookData],
+        args: [
+          poolKey,
+          swapParamsStruct,
+          { takeClaims: false, settleUsingBurn: false }, // TestSettings
+          hookData
+        ],
       });
 
       setStatus('executing');
 
+      // Debug: Log what we're sending
+      console.log('🔄 Executing swap:', {
+        router: swapRouterAddress,
+        poolKey: {
+          currency0: poolKey.currency0,
+          currency1: poolKey.currency1,
+          fee: poolKey.fee,
+          tickSpacing: poolKey.tickSpacing,
+          hooks: poolKey.hooks,
+        },
+        swapParams: {
+          zeroForOne,
+          amountSpecified: swapParamsStruct.amountSpecified.toString(),
+          sqrtPriceLimitX96: swapParamsStruct.sqrtPriceLimitX96.toString(),
+        },
+        inputAmount: inputAmountBigInt.toString(),
+        inputToken: swapParams.inputToken.symbol,
+        outputToken: swapParams.outputToken.symbol,
+        hookData: hookData,
+        savingsPercentage: swapParams.savingsPercentage,
+      });
+
+      console.log('📊 Swap Details:', {
+        userAddress: smartAccountAddress,
+        chainId: chainId,
+        isNativeETH,
+        savingsAmount: savingsAmount.toString(),
+        expectedOutput: swapParams.outputAmount.toString(),
+        minOutput: swapParams.minOutputAmount.toString(),
+      });
+
       // Execute gasless transaction via Biconomy Smart Account
       const hash = await sendTransaction(
-        poolManagerAddress,
+        swapRouterAddress,  // Send to router, NOT PoolManager!
         swapCalldata,
         isNativeETH ? inputAmountBigInt : BigInt(0),
         {
@@ -232,13 +285,66 @@ export function useSwapExecution(params?: SwapParams) {
         }
       );
 
+      // Update state with both hash types
       setTxHash(hash);
+      if (userOpHash) {
+        setUserOpHashState(userOpHash);
+      }
       setStatus('confirming');
+
+      console.log('✅ Swap transaction submitted:', {
+        returnedHash: hash,
+        userOpHash: userOpHash,
+        transactionHash: transactionHash,
+        status: 'confirming',
+      });
 
       // Wait for confirmation (handled by useBiconomyTransaction)
       // The transaction is already confirmed when sendTransaction returns
 
       setStatus('success');
+
+      console.log('🎉 Swap completed successfully:', {
+        finalTxHash: hash,
+        finalUserOpHash: userOpHash,
+        finalTransactionHash: transactionHash,
+        savingsAmount: savingsAmount.toString(),
+        status: 'success',
+      });
+
+      // Refresh savings balance after successful swap
+      console.log('🔄 Refreshing savings balance after swap...');
+      
+      // Immediate refresh (in case event listener works)
+      queryClient.invalidateQueries({
+        queryKey: ['realtimeSavingsBalance', smartAccountAddress, chainId]
+      });
+      
+      // Add a delayed refresh to ensure blockchain has processed the savings
+      setTimeout(() => {
+        // Invalidate all savings-related queries
+        queryClient.invalidateQueries({
+          queryKey: ['realtimeSavingsBalance', smartAccountAddress, chainId]
+        });
+        
+        queryClient.invalidateQueries({
+          queryKey: ['realtimeSavingsBalance']
+        });
+        
+        queryClient.invalidateQueries({
+          queryKey: ['savingsBalance']
+        });
+        
+        queryClient.invalidateQueries({
+          queryKey: ['tokenBalances', smartAccountAddress, chainId]
+        });
+        
+        queryClient.invalidateQueries({
+          queryKey: ['tokenBalances']
+        });
+        
+        console.log('✅ Savings balance refresh triggered for all queries');
+      }, 2000); // 2 second delay to allow blockchain processing
 
       return {
         success: true,
@@ -266,7 +372,13 @@ export function useSwapExecution(params?: SwapParams) {
         }
       }
       
-      console.error('Swap execution error:', err);
+      console.error('❌ Swap execution error:', {
+        error: err,
+        errorMessage,
+        userOpHash: userOpHash,
+        transactionHash: transactionHash,
+        status: 'error',
+      });
       setError(errorMessage);
       setStatus('error');
       toast.error(errorMessage);
@@ -276,11 +388,12 @@ export function useSwapExecution(params?: SwapParams) {
         error: errorMessage,
       };
     }
-  }, [smartAccountAddress, smartAccount, sendTransaction, poolManagerAddress, spendSaveHookAddress, tokenApproval]);
+  }, [smartAccountAddress, smartAccount, sendTransaction, swapRouterAddress, spendSaveHookAddress, tokenApproval]);
 
   const reset = useCallback(() => {
     setStatus('idle');
     setTxHash(null);
+    setUserOpHashState(null);
     setError(null);
   }, []);
 
@@ -288,6 +401,7 @@ export function useSwapExecution(params?: SwapParams) {
     executeSwap,
     status,
     txHash,
+    userOpHash: userOpHashState,
     error,
     isLoading: status !== 'idle' && status !== 'success' && status !== 'error',
     isSuccess: status === 'success',
