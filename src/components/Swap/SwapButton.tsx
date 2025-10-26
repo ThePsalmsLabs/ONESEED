@@ -8,6 +8,7 @@ import { useSwapExecution } from '@/hooks/swap/useSwapExecution';
 import { useTokenBalance } from '@/hooks/swap/useTokenBalance';
 import { WalletConnect } from '@/components/WalletConnect';
 import { SwapStatusModal } from '@/components/Swap/SwapStatusModal';
+import { PoolStatusIndicator } from '@/components/Pool/PoolStatusCard';
 import { parseUnits } from 'viem';
 import { toast } from 'sonner';
 
@@ -36,7 +37,7 @@ export function SwapButton({
   quoteError,
   settings,
 }: SwapButtonProps) {
-  const { executeSwap, status, txHash, error, isLoading: isExecuting, isSuccess, reset } = useSwapExecution();
+  const { executeSwap, status, txHash, userOpHash, error, isLoading: isExecuting, isSuccess, reset } = useSwapExecution();
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [lastSavingsAmount, setLastSavingsAmount] = useState<bigint>(BigInt(0));
   
@@ -124,6 +125,12 @@ export function SwapButton({
       });
       
       if (result.success && result.savingsAmount) {
+        console.log('💾 Setting savings amount in modal:', {
+          savingsAmount: result.savingsAmount.toString(),
+          tokenSymbol: inputToken?.symbol,
+          tokenDecimals: inputToken?.decimals,
+          formatted: (Number(result.savingsAmount) / Math.pow(10, inputToken?.decimals || 18)).toFixed(4),
+        });
         setLastSavingsAmount(result.savingsAmount);
         toast.success('Swap completed successfully!', {
           description: `Saved ${savingsPercentage}% to your vault`,
@@ -160,11 +167,23 @@ export function SwapButton({
         isOpen={showStatusModal}
         status={status}
         txHash={txHash}
+        userOpHash={userOpHash}
         error={error}
         savingsAmount={lastSavingsAmount}
         tokenSymbol={inputToken?.symbol}
+        tokenDecimals={inputToken?.decimals}
         onClose={handleCloseStatusModal}
       />
+      
+      {/* Pool Status Indicator */}
+      {inputToken && outputToken && (
+        <div className="mb-3">
+          <PoolStatusIndicator
+            token0Address={inputToken.address}
+            token1Address={outputToken.address}
+          />
+        </div>
+      )}
       
       <button
         onClick={handleSwap}

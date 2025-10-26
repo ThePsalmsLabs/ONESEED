@@ -11,9 +11,11 @@ interface SwapStatusModalProps {
   isOpen: boolean;
   status: SwapStatus;
   txHash: string | null;
+  userOpHash?: string | null;
   error: string | null;
   savingsAmount?: bigint;
   tokenSymbol?: string;
+  tokenDecimals?: number;
   onClose: () => void;
 }
 
@@ -67,9 +69,11 @@ export function SwapStatusModal({
   isOpen,
   status,
   txHash,
+  userOpHash,
   error,
   savingsAmount,
   tokenSymbol,
+  tokenDecimals = 18,
   onClose,
 }: SwapStatusModalProps) {
   const chainId = useActiveChainId();
@@ -88,6 +92,30 @@ export function SwapStatusModal({
   
   const isComplete = status === 'success';
   const hasError = status === 'error';
+  
+  // Debug logging
+  console.log('🔍 SwapStatusModal props:', {
+    status,
+    savingsAmount: savingsAmount?.toString(),
+    tokenSymbol,
+    tokenDecimals,
+    isComplete,
+    hasError,
+    isZero: savingsAmount === BigInt(0),
+    isUndefined: savingsAmount === undefined,
+  });
+  
+  // Calculate formatted amount for debugging
+  const formattedAmount = savingsAmount !== undefined 
+    ? (Number(savingsAmount) / Math.pow(10, tokenDecimals)).toFixed(6)
+    : 'undefined';
+  
+  console.log('🧮 Savings amount calculation:', {
+    rawAmount: savingsAmount?.toString(),
+    tokenDecimals,
+    formattedAmount,
+    isRealValue: savingsAmount !== undefined && savingsAmount > BigInt(0),
+  });
   
   return (
     <AnimatePresence>
@@ -138,7 +166,7 @@ export function SwapStatusModal({
               )}
 
               {/* Success State with Savings */}
-              {isComplete && savingsAmount && (
+              {isComplete && savingsAmount !== undefined && savingsAmount > BigInt(0) && (
                 <div className="glass-neon rounded-xl p-6 mb-6 border border-primary-400/30">
                   <div className="flex items-center gap-3 mb-4">
                     <CheckCircleIcon className="w-8 h-8 text-primary-400" />
@@ -147,11 +175,34 @@ export function SwapStatusModal({
                   <div className="bg-white/5 rounded-lg p-4">
                     <div className="text-sm text-gray-400 mb-1">Savings Captured</div>
                     <div className="text-3xl font-bold text-primary-400">
-                      {(Number(savingsAmount) / 1e18).toFixed(4)} {tokenSymbol || 'tokens'}
+                      {(Number(savingsAmount) / Math.pow(10, tokenDecimals)).toFixed(4)} {tokenSymbol || 'tokens'}
+                    </div>
+                    {/* Debug info - remove in production */}
+                    <div className="text-xs text-gray-500 mt-1">
+                      Raw: {savingsAmount.toString()} | Decimals: {tokenDecimals} | 
+                      Calculation: {savingsAmount.toString()} ÷ 10^{tokenDecimals} = {(Number(savingsAmount) / Math.pow(10, tokenDecimals)).toFixed(6)}
                     </div>
                     <div className="text-xs text-gray-300 mt-2">
                       Automatically deposited to your savings vault
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* No Savings Captured */}
+              {isComplete && (savingsAmount === undefined || savingsAmount === BigInt(0)) && (
+                <div className="bg-white/5 rounded-xl p-6 mb-6 border border-white/10">
+                  <div className="flex items-center gap-3 mb-4">
+                    <CheckCircleIcon className="w-8 h-8 text-green-400" />
+                    <div className="text-xl font-bold text-white">Swap Successful!</div>
+                  </div>
+                  <div className="text-sm text-gray-400">
+                    No savings were captured in this transaction. This could be because:
+                    <ul className="mt-2 ml-4 list-disc text-xs">
+                      <li>Savings percentage was set to 0%</li>
+                      <li>Savings strategy not configured</li>
+                      <li>Amount too small to capture savings</li>
+                    </ul>
                   </div>
                 </div>
               )}
@@ -194,8 +245,52 @@ export function SwapStatusModal({
                 </div>
               )}
 
-              {/* Explorer Link */}
-              {explorerUrl && (
+              {/* Transaction Details */}
+              {(txHash || userOpHash) && (
+                <div className="mb-6 space-y-3">
+                  {/* UserOp Hash */}
+                  {userOpHash && (
+                    <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                      <div className="text-xs text-gray-400 mb-2">UserOp Hash (Biconomy)</div>
+                      <div className="font-mono text-sm text-gray-300 break-all">{userOpHash}</div>
+                      <a 
+                        href={`${getExplorerUrl(chainId)}/tx/${userOpHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary-400 hover:text-primary-300 mt-2 inline-block"
+                      >
+                        View UserOp →
+                      </a>
+                    </div>
+                  )}
+                  
+                  {/* Transaction Hash */}
+                  {txHash && txHash !== userOpHash && (
+                    <div className="bg-white/5 rounded-xl p-4 border border-primary-400/30">
+                      <div className="text-xs text-gray-400 mb-2">Transaction Hash</div>
+                      <div className="font-mono text-sm text-white break-all">{txHash}</div>
+                      <a 
+                        href={`${getExplorerUrl(chainId)}/tx/${txHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary-400 hover:text-primary-300 mt-2 inline-block"
+                      >
+                        View on Block Explorer →
+                      </a>
+                    </div>
+                  )}
+                  
+                  {/* Loading state for transaction hash */}
+                  {userOpHash && !txHash && status === 'confirming' && (
+                    <div className="text-xs text-gray-400 text-center">
+                      Waiting for blockchain transaction hash...
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Legacy Explorer Link (fallback) */}
+              {explorerUrl && !userOpHash && !txHash && (
                 <div className="mb-6">
                   <a
                     href={explorerUrl}

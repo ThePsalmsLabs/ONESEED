@@ -20,6 +20,10 @@ import { SavingsSplitVisual } from '@/components/Swap/SavingsSplitVisual';
 import { SwapButton } from '@/components/Swap/SwapButton';
 import { AdvancedSettings } from '@/components/Swap/AdvancedSettings';
 import { SavingsConfigModal } from '@/components/Swap/SavingsConfigModal';
+import { SavingsPreview } from './SavingsPreview';
+import { FaucetGuide } from '@/components/Onboarding/FaucetGuide';
+import { useNeedsTestTokens } from '@/hooks/useBalanceCheck';
+import { PoolStatusCard, PoolStatusIndicator } from '@/components/Pool/PoolStatusCard';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
@@ -27,6 +31,7 @@ export function SwapInterface() {
   const { isConnected } = useAccount();
   const chainId = useActiveChainId();
   const { commonTokens, getTokenBySymbol } = useTokenList();
+  const { needsTokens } = useNeedsTestTokens();
   const { settings, updateSettings } = useSwapSettings();
   const { hasStrategy, isLoading: isLoadingStrategy } = useSavingsStrategy();
   
@@ -90,6 +95,7 @@ export function SwapInterface() {
     inputToken,
     outputToken,
     swapAmount: savingsSplit.swapAmount,
+    savingsPercentage: savingsPercentage,
     enabled: !!inputToken && !!outputToken && savingsSplit.swapAmount > BigInt(0),
   });
   
@@ -186,6 +192,13 @@ export function SwapInterface() {
               Back to Home
             </Link>
 
+            {/* Faucet Guide - Show if user needs test tokens */}
+            {needsTokens && (
+              <div className="mb-6">
+                <FaucetGuide />
+              </div>
+            )}
+
             {/* Token Inputs */}
             <div className="space-y-2">
               <TokenInput
@@ -206,6 +219,28 @@ export function SwapInterface() {
                 isLoading={isLoadingQuote}
               />
             </div>
+
+            {/* Savings Preview - Show real-time savings calculation */}
+            {inputAmount && parseFloat(inputAmount) > 0 && inputToken && outputToken && (
+              <div className="mt-6">
+                <SavingsPreview
+                  inputAmount={inputAmount}
+                  inputToken={inputToken}
+                  outputToken={outputToken}
+                />
+              </div>
+            )}
+
+            {/* Pool Status Check */}
+            {inputToken && outputToken && (
+              <div className="mt-4">
+                <PoolStatusCard
+                  token0Address={inputToken.address}
+                  token1Address={outputToken.address}
+                  showDetails={false}
+                />
+              </div>
+            )}
 
             {/* Savings Control */}
             <div className="mt-6">
