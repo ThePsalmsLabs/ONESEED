@@ -417,6 +417,11 @@ export function useSwapExecution(params?: SwapParams) {
           queryKey: ['tokenBalances']
         });
         
+        // CRITICAL: Refresh savings balance after swap
+        queryClient.invalidateQueries({
+          queryKey: ['realtimeSavingsBalance', smartAccountAddress, chainId]
+        });
+        
         console.log('✅ Savings balance refresh triggered for all queries');
       }, 2000); // 2 second delay to allow blockchain processing
 

@@ -6,6 +6,7 @@ import { useEffect, useCallback } from 'react';
 import { formatUnits } from 'viem';
 import { getContractAddress } from '@/contracts/addresses';
 import { SpendSaveStorageABI } from '@/contracts/abis/SpendSaveStorage';
+import { SpendSaveHookABI } from '@/contracts/abis/SpendSaveHook';
 import { useActiveChainId } from './useActiveChainId';
 import { BASE_SEPOLIA_TOKENS } from '@/config/network';
 import { useBiconomy } from '@/components/BiconomyProvider';
@@ -148,28 +149,29 @@ export function useSavingsBalanceRealtime() {
       }
     },
     enabled: !!address && !!publicClient && !!storageAddress && storageAddress !== '0x0000000000000000000000000000000000000000',
-    refetchInterval: 10000, // Reduced to 10 seconds to reduce load
+    refetchInterval: 5000, // Reduced to 5 seconds for faster updates
     refetchIntervalInBackground: false, // Only refetch when tab is active
     retry: 2,
-    staleTime: 5000, // Consider data stale after 5 seconds
-    gcTime: 30000, // Keep in cache for 30 seconds
+    staleTime: 2000, // Consider data stale after 2 seconds
+    gcTime: 10000, // Keep in cache for 10 seconds
   });
 
-  // Subscribe to SavingsExtracted events for real-time updates
+  // Subscribe to multiple events for real-time updates
   useEffect(() => {
     if (!address || !publicClient || !storageAddress || storageAddress === '0x0000000000000000000000000000000000000000') {
       return;
     }
 
-    const handleSavingsExtracted = () => {
+    const handleSavingsUpdate = () => {
+      console.log('🔄 Savings update detected, refreshing data...');
       // Invalidate and refetch savings data when event is detected
       queryClient.invalidateQueries({
         queryKey: ['realtimeSavingsBalance', address, chainId]
       });
     };
 
-    // Set up event listener for SavingsIncreased events
-    const unwatch = publicClient.watchContractEvent({
+    // Set up multiple event listeners for different savings events
+    const unwatchSavingsIncreased = publicClient.watchContractEvent({
       address: storageAddress as `0x${string}`,
       abi: SpendSaveStorageABI,
       eventName: 'SavingsIncreased',
@@ -177,16 +179,35 @@ export function useSavingsBalanceRealtime() {
         user: address as `0x${string}`
       },
       onLogs: (logs) => {
-        console.log('SavingsIncreased event detected:', logs);
-        handleSavingsExtracted();
+        console.log('💰 SavingsIncreased event detected:', logs);
+        handleSavingsUpdate();
       },
       onError: (error) => {
         console.error('Error watching SavingsIncreased events:', error);
       }
     });
 
+    // Also listen for AfterSwapExecuted events from SpendSaveHook
+    const spendSaveHookAddress = getContractAddress(chainId, 'SpendSaveHook');
+    const unwatchAfterSwap = publicClient.watchContractEvent({
+      address: spendSaveHookAddress as `0x${string}`,
+      abi: SpendSaveHookABI,
+      eventName: 'AfterSwapExecuted',
+      args: {
+        user: address as `0x${string}`
+      },
+      onLogs: (logs) => {
+        console.log('🔄 AfterSwapExecuted event detected:', logs);
+        handleSavingsUpdate();
+      },
+      onError: (error) => {
+        console.error('Error watching AfterSwapExecuted events:', error);
+      }
+    });
+
     return () => {
-      unwatch();
+      unwatchSavingsIncreased();
+      unwatchAfterSwap();
     };
   }, [address, publicClient, storageAddress, chainId, queryClient]);
 

@@ -3,6 +3,7 @@
 import { useAccount, useBalance, useReadContract } from 'wagmi';
 import { Address, erc20Abi, formatUnits } from 'viem';
 import { useMemo } from 'react';
+import { useBiconomy } from '@/components/BiconomyProvider';
 
 const NATIVE_ETH_ADDRESS = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE' as Address;
 
@@ -12,7 +13,11 @@ interface UseTokenBalanceProps {
 }
 
 export function useTokenBalance({ tokenAddress, decimals = 18 }: UseTokenBalanceProps) {
-  const { address: userAddress, isConnected } = useAccount();
+  const { address: eoaAddress, isConnected } = useAccount();
+  const { smartAccountAddress } = useBiconomy();
+  
+  // Use Smart Account address if available, fallback to EOA
+  const userAddress = smartAccountAddress || eoaAddress;
   
   // Check if token is native ETH
   const isNativeETH = !tokenAddress || 
@@ -25,7 +30,7 @@ export function useTokenBalance({ tokenAddress, decimals = 18 }: UseTokenBalance
     isLoading: ethLoading,
     refetch: refetchEth,
   } = useBalance({
-    address: userAddress,
+    address: userAddress as `0x${string}`,
     query: {
       enabled: isConnected && isNativeETH,
     },
@@ -40,7 +45,7 @@ export function useTokenBalance({ tokenAddress, decimals = 18 }: UseTokenBalance
     address: tokenAddress,
     abi: erc20Abi,
     functionName: 'balanceOf',
-    args: userAddress ? [userAddress] : undefined,
+    args: userAddress ? [userAddress as `0x${string}`] : undefined,
     query: {
       enabled: isConnected && !!userAddress && !!tokenAddress && !isNativeETH,
     },
@@ -49,8 +54,23 @@ export function useTokenBalance({ tokenAddress, decimals = 18 }: UseTokenBalance
   const balance = useMemo(() => {
     if (!isConnected) return BigInt(0);
     if (isNativeETH) return ethBalance?.value || BigInt(0);
-    return (tokenBalance as bigint) || BigInt(0);
-  }, [isConnected, isNativeETH, ethBalance, tokenBalance]);
+    
+    const tokenBal = (tokenBalance as bigint) || BigInt(0);
+    
+    // Debug logging for token balance
+    if (tokenAddress && tokenBal > BigInt(0)) {
+      console.log('💰 Token Balance Debug:', {
+        eoaAddress,
+        smartAccountAddress,
+        addressUsed: userAddress,
+        tokenAddress,
+        balance: tokenBal.toString(),
+        formatted: formatUnits(tokenBal, decimals)
+      });
+    }
+    
+    return tokenBal;
+  }, [isConnected, isNativeETH, ethBalance, tokenBalance, eoaAddress, smartAccountAddress, userAddress, tokenAddress, decimals]);
   
   const formatted = useMemo(() => {
     try {
