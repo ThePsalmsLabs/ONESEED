@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useBiconomy } from '@/components/BiconomyProvider';
 import { useAccount } from 'wagmi';
 import { useActiveChainId } from './useActiveChainId';
+import { useTokenPrice } from './swap/useTokenPrice';
 
 interface GasSavings {
   totalGasSaved: bigint;
@@ -58,6 +59,11 @@ export function useBiconomyAnalytics() {
   const { smartAccountAddress } = useBiconomy();
   const { address } = useAccount();
   const chainId = useActiveChainId();
+  const { priceUSD: ethPrice, isLoading: isLoadingEthPrice } = useTokenPrice({ 
+    tokenAddress: '0x0000000000000000000000000000000000000000' as `0x${string}`, // Native ETH address
+    enabled: !!address
+  });
+  
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -85,119 +91,64 @@ export function useBiconomyAnalytics() {
         })) || [];
       }
     } catch (error) {
-      console.warn('Biconomy API not available, falling back to localStorage:', error);
+      console.warn('Biconomy API not available:', error);
     }
 
-    // Fallback to localStorage for development
-    const storedOps = localStorage.getItem(`userOps_${userAddress}`);
-    if (storedOps) {
-      return JSON.parse(storedOps);
-    }
-    
     // Return empty array if no data available
     return [];
+  }, [chainId]);
+
+  // Calculate gas savings in USD
+  const calculateGasSavingsUSD = useCallback((gasSavedWei: bigint, ethPriceUSD: number): number => {
+    if (ethPriceUSD === 0) return 0;
+    
+    // Convert wei to ETH (1 ETH = 10^18 wei)
+    const gasSavedETH = Number(gasSavedWei) / 1e18;
+    return gasSavedETH * ethPriceUSD;
   }, []);
 
-  const convertToUSD = useCallback(async (ethAmount: bigint): Promise<number> => {
-    try {
-      // Fetch real ETH price from CoinGecko
-      const response = await fetch(
-        'https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd'
-      );
-      const data = await response.json();
-      const ethPrice = data.ethereum?.usd || 2000; // Fallback to $2000
-      const ethValue = Number(ethAmount) / 1e18;
-      return ethValue * ethPrice;
-    } catch (error) {
-      console.warn('Failed to fetch ETH price, using fallback:', error);
-      const ethPrice = 2000; // Fallback price
-      const ethValue = Number(ethAmount) / 1e18;
-      return ethValue * ethPrice;
-    }
-  }, []);
-
-  const getGasSavings = useCallback(async (): Promise<GasSavings> => {
-    if (!smartAccountAddress) {
-      throw new Error('Smart account address not available');
-    }
-
-    const userOps = await fetchUserOps(smartAccountAddress);
+  // Process analytics data
+  const processAnalyticsData = useCallback((userOps: UserOpHistory[], ethPriceUSD: number): AnalyticsData => {
+    const totalGasSaved = userOps.reduce((sum, op) => sum + op.savings, BigInt(0));
+    const totalTransactions = userOps.length;
+    const averagePerTx = totalTransactions > 0 ? totalGasSaved / BigInt(totalTransactions) : BigInt(0);
     
-    const totalGasSaved = userOps.reduce((sum, op) => {
-      return sum + op.savings;
-    }, BigInt(0));
-
-    const usdValue = await convertToUSD(totalGasSaved);
-    const transactionCount = userOps.length;
-    const averagePerTx = transactionCount > 0 ? totalGasSaved / BigInt(transactionCount) : BigInt(0);
-    
-    // Calculate monthly savings (assuming 30 transactions per month)
-    const monthlySavings = usdValue * (30 / transactionCount);
+    const usdValue = calculateGasSavingsUSD(totalGasSaved, ethPriceUSD);
+    const monthlySavings = usdValue * 0.1; // Rough estimate
     const yearlyProjection = monthlySavings * 12;
 
-    return {
-      totalGasSaved,
-      usdValue,
-      transactionCount,
-      averagePerTx,
-      monthlySavings,
-      yearlyProjection
-    };
-  }, [smartAccountAddress, fetchUserOps, convertToUSD]);
-
-  const getUserOpHistory = useCallback(async (): Promise<UserOpHistory[]> => {
-    if (!smartAccountAddress) {
-      throw new Error('Smart account address not available');
-    }
-
-    return await fetchUserOps(smartAccountAddress);
-  }, [smartAccountAddress, fetchUserOps]);
-
-  const getTopOperations = useCallback((userOps: UserOpHistory[]) => {
-    const operationMap = new Map<string, { count: number; totalSavings: bigint }>();
-    
+    // Calculate top operations
+    const operationCounts = new Map<string, { count: number; totalSavings: bigint }>();
     userOps.forEach(op => {
-      const existing = operationMap.get(op.operation);
-      if (existing) {
-        existing.count++;
-        existing.totalSavings += op.savings;
-      } else {
-        operationMap.set(op.operation, { count: 1, totalSavings: op.savings });
-      }
+      const existing = operationCounts.get(op.operation) || { count: 0, totalSavings: BigInt(0) };
+      operationCounts.set(op.operation, {
+        count: existing.count + 1,
+        totalSavings: existing.totalSavings + op.savings
+      });
     });
 
-    return Array.from(operationMap.entries())
+    const topOperations = Array.from(operationCounts.entries())
       .map(([operation, data]) => ({
         operation,
         count: data.count,
         totalSavings: data.totalSavings
       }))
-      .sort((a, b) => Number(b.totalSavings - a.totalSavings))
+      .sort((a, b) => b.count - a.count)
       .slice(0, 5);
-  }, []);
 
-  const getMonthlyBreakdown = useCallback((userOps: UserOpHistory[]) => {
-    const monthlyData = new Map<string, { transactions: number; gasSaved: bigint; usdValue: number }>();
-    
+    // Calculate monthly breakdown
+    const monthlyBreakdown = new Map<string, { transactions: number; gasSaved: bigint; usdValue: number }>();
     userOps.forEach(op => {
-      const date = new Date(op.timestamp);
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      
-      const existing = monthlyData.get(monthKey);
-      if (existing) {
-        existing.transactions++;
-        existing.gasSaved += op.savings;
-        existing.usdValue += Number(op.savings) / 1e18 * 2000; // Mock USD conversion
-      } else {
-        monthlyData.set(monthKey, {
-          transactions: 1,
-          gasSaved: op.savings,
-          usdValue: Number(op.savings) / 1e18 * 2000
-        });
-      }
+      const month = new Date(op.timestamp * 1000).toISOString().slice(0, 7); // YYYY-MM
+      const existing = monthlyBreakdown.get(month) || { transactions: 0, gasSaved: BigInt(0), usdValue: 0 };
+      monthlyBreakdown.set(month, {
+        transactions: existing.transactions + 1,
+        gasSaved: existing.gasSaved + op.savings,
+        usdValue: existing.usdValue + calculateGasSavingsUSD(op.savings, ethPriceUSD)
+      });
     });
 
-    return Array.from(monthlyData.entries())
+    const monthlyBreakdownArray = Array.from(monthlyBreakdown.entries())
       .map(([month, data]) => ({
         month,
         transactions: data.transactions,
@@ -205,62 +156,64 @@ export function useBiconomyAnalytics() {
         usdValue: data.usdValue
       }))
       .sort((a, b) => a.month.localeCompare(b.month));
-  }, []);
 
-  const loadAnalytics = useCallback(async () => {
-    if (!smartAccountAddress || !address) return;
+    return {
+      gasSavings: {
+        totalGasSaved,
+        usdValue,
+        transactionCount: totalTransactions,
+        averagePerTx,
+        monthlySavings,
+        yearlyProjection
+      },
+      userOpHistory: userOps,
+      topOperations,
+      monthlyBreakdown: monthlyBreakdownArray
+    };
+  }, [calculateGasSavingsUSD]);
+
+  // Fetch analytics data
+  const fetchAnalytics = useCallback(async () => {
+    if (!address || !smartAccountAddress || isLoadingEthPrice) return;
 
     setIsLoading(true);
     setError(null);
 
     try {
-      const [gasSavings, userOpHistory] = await Promise.all([
-        getGasSavings(),
-        getUserOpHistory()
-      ]);
-
-      const topOperations = getTopOperations(userOpHistory);
-      const monthlyBreakdown = getMonthlyBreakdown(userOpHistory);
-
-      setAnalyticsData({
-        gasSavings,
-        userOpHistory,
-        topOperations,
-        monthlyBreakdown
-      });
+      const userOps = await fetchUserOps(smartAccountAddress);
+      const analytics = processAnalyticsData(userOps, ethPrice);
+      setAnalyticsData(analytics);
     } catch (err) {
-      console.error('Error loading analytics:', err);
-      setError((err as Error).message);
+      setError(err instanceof Error ? err.message : 'Failed to fetch analytics');
     } finally {
       setIsLoading(false);
     }
-  }, [smartAccountAddress, address, getGasSavings, getUserOpHistory, getTopOperations, getMonthlyBreakdown]);
+  }, [address, smartAccountAddress, isLoadingEthPrice, ethPrice, fetchUserOps, processAnalyticsData]);
 
-  const saveUserOp = useCallback(async (userOp: UserOpHistory) => {
-    if (!smartAccountAddress) return;
-
-    const existingOps = await fetchUserOps(smartAccountAddress);
-    const updatedOps = [userOp, ...existingOps];
-    
-    localStorage.setItem(`userOps_${smartAccountAddress}`, JSON.stringify(updatedOps));
-    
-    // Reload analytics
-    await loadAnalytics();
-  }, [smartAccountAddress, fetchUserOps, loadAnalytics]);
-
+  // Fetch data on mount and when dependencies change
   useEffect(() => {
-    if (smartAccountAddress && address) {
-      loadAnalytics();
-    }
-  }, [smartAccountAddress, address, loadAnalytics]);
+    fetchAnalytics();
+  }, [fetchAnalytics]);
+
+  // Refresh function
+  const refreshAnalytics = useCallback(() => {
+    fetchAnalytics();
+  }, [fetchAnalytics]);
 
   return {
     analyticsData,
     isLoading,
     error,
-    loadAnalytics,
-    saveUserOp,
-    getGasSavings,
-    getUserOpHistory
+    refreshAnalytics,
+    // Expose individual metrics for convenience
+    totalUserOps: analyticsData?.gasSavings.transactionCount || 0,
+    totalGasSaved: analyticsData?.gasSavings.totalGasSaved || BigInt(0),
+    totalSavingsUSD: analyticsData?.gasSavings.usdValue || 0,
+    averageGasSavedPerTx: analyticsData?.gasSavings.averagePerTx || BigInt(0),
+    monthlySavings: analyticsData?.gasSavings.monthlySavings || 0,
+    yearlyProjection: analyticsData?.gasSavings.yearlyProjection || 0,
+    topOperations: analyticsData?.topOperations || [],
+    monthlyBreakdown: analyticsData?.monthlyBreakdown || [],
+    userOpHistory: analyticsData?.userOpHistory || []
   };
 }

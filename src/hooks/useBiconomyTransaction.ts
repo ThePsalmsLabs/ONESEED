@@ -15,6 +15,8 @@ export function useBiconomyTransaction() {
   const { showToast } = useToast();
   const [isPending, setIsPending] = useState(false);
   const [hash, setHash] = useState<Hash | undefined>();
+  const [userOpHash, setUserOpHash] = useState<Hash | undefined>();
+  const [transactionHash, setTransactionHash] = useState<Hash | undefined>();
 
   const sendTransaction = useCallback(
     async (
@@ -32,6 +34,8 @@ export function useBiconomyTransaction() {
 
       setIsPending(true);
       setHash(undefined);
+      setUserOpHash(undefined);
+      setTransactionHash(undefined);
 
       try {
         // Build user operation
@@ -46,15 +50,44 @@ export function useBiconomyTransaction() {
         // Send user operation
         const userOpResponse = await smartAccount.sendUserOp(userOp);
         
-        // Wait for transaction hash
-        const txHash = await userOpResponse.wait();
+        // Set UserOp hash immediately
+        const userOpHashValue = userOpResponse.userOpHash as Hash;
+        setUserOpHash(userOpHashValue);
         
-        setHash(txHash.userOpHash as Hash);
+        console.log('📦 UserOp sent:', {
+          userOpHash: userOpHashValue,
+        });
+
+        // Wait for transaction receipt
+        console.log('⏳ Waiting for transaction receipt...');
+        const txReceipt = await userOpResponse.wait();
+
+        // Extract both hashes separately
+        const actualTransactionHash = txReceipt.receipt?.transactionHash as Hash | undefined;
+        
+        console.log('✅ Transaction mined:', {
+          userOpHash: txReceipt.userOpHash,
+          transactionHash: actualTransactionHash,
+          blockNumber: txReceipt.receipt?.blockNumber,
+          hasReceipt: !!txReceipt.receipt,
+        });
+
+        // Set transaction hash if available
+        if (actualTransactionHash) {
+          setTransactionHash(actualTransactionHash);
+          setHash(actualTransactionHash); // Keep backwards compatibility
+        } else {
+          console.warn('⚠️ No transaction hash in receipt, using UserOp hash as fallback');
+          setHash(userOpHashValue); // Fallback to UserOp hash
+        }
+
         showToast('Transaction successful!', 'success');
-        
-        options?.onSuccess?.(txHash.userOpHash as Hash);
-        
-        return txHash.userOpHash as Hash;
+
+        // Return the transaction hash if available, otherwise UserOp hash
+        const returnHash = actualTransactionHash || userOpHashValue;
+        options?.onSuccess?.(returnHash);
+
+        return returnHash;
       } catch (error) {
         console.error('Transaction error:', error);
         const err = error as Error;
@@ -71,7 +104,9 @@ export function useBiconomyTransaction() {
   return {
     sendTransaction,
     isPending,
-    hash,
+    hash, // DEPRECATED: Keep for backwards compatibility
+    userOpHash, // NEW: Biconomy UserOp hash
+    transactionHash, // NEW: Actual blockchain transaction hash
   };
 }
 
