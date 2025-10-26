@@ -1,17 +1,18 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
-import { Address, encodeFunctionData, parseUnits, Hash, encodeAbiParameters } from 'viem';
+import { Address, encodeFunctionData, parseUnits, Hash, encodeAbiParameters, erc20Abi, maxUint256 } from 'viem';
 import { useBiconomy } from '@/components/BiconomyProvider';
 import { useTokenApproval } from './useTokenApproval';
 import { useBiconomyTransaction } from '../useBiconomyTransaction';
 import { Token } from './useTokenList';
 import { SwapQuote } from '@/utils/quoteHelpers';
-import { SwapRouterABI } from '@/contracts/abis/SwapRouter';
 import { getContractAddress } from '@/contracts/addresses';
 import { useActiveChainId } from '@/hooks/useActiveChainId';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
+import { UniswapV4PoolSwapTestABI } from '@/contracts/abis/UniswapV4PoolSwapTest';
+import { usePublicClient } from 'wagmi';
 
 export type SwapStatus =
   | 'idle'
@@ -63,15 +64,16 @@ export function useSwapExecution(params?: SwapParams) {
   const { sendTransaction, userOpHash, transactionHash } = useBiconomyTransaction();
   const chainId = useActiveChainId();
   const queryClient = useQueryClient();
+  const publicClient = usePublicClient();
   const [status, setStatus] = useState<SwapStatus>('idle');
   const [txHash, setTxHash] = useState<string | null>(null);
   const [userOpHashState, setUserOpHashState] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Get SwapRouter address (NOT PoolManager - swaps must go through router!)
-  const swapRouterAddress = useMemo(() => {
+  // Get PoolSwapTest address for V4 swaps (matches CompleteProtocolTest.s.sol)
+  const poolSwapTestAddress = useMemo(() => {
     try {
-      return getContractAddress(chainId, 'SwapRouter');
+      return getContractAddress(chainId, 'UniswapV4PoolSwapTest');
     } catch {
       return '0x0000000000000000000000000000000000000000' as Address;
     }
@@ -103,13 +105,61 @@ export function useSwapExecution(params?: SwapParams) {
            params.inputToken.address === '0x0000000000000000000000000000000000000000';
   }, [params?.inputToken]);
 
-  // Setup token approval for SwapRouter (NOT PoolManager!)
-  const tokenApproval = useTokenApproval({
-    tokenAddress: params?.inputToken?.address,
-    spenderAddress: swapRouterAddress,
-    amount: inputAmountBigInt,
-    enabled: !isNativeETH && !!params?.inputToken && inputAmountBigInt > 0,
-  });
+  // Custom Smart Account token approval logic
+  const checkSmartAccountApproval = useCallback(async (tokenAddress: Address, spenderAddress: Address, amount: bigint): Promise<boolean> => {
+    if (!smartAccountAddress || !publicClient) return false;
+    
+    try {
+      const allowance = await publicClient.readContract({
+        address: tokenAddress,
+        abi: erc20Abi,
+        functionName: 'allowance',
+        args: [smartAccountAddress as Address, spenderAddress],
+      });
+      
+      console.log('🔍 Smart Account allowance check:', {
+        smartAccount: smartAccountAddress,
+        token: tokenAddress,
+        spender: spenderAddress,
+        currentAllowance: allowance.toString(),
+        requiredAmount: amount.toString(),
+        hasEnoughAllowance: allowance >= amount
+      });
+      
+      return allowance >= amount;
+    } catch (error) {
+      console.error('Error checking Smart Account allowance:', error);
+      return false;
+    }
+  }, [smartAccountAddress, publicClient]);
+
+  const executeSmartAccountApproval = useCallback(async (tokenAddress: Address, spenderAddress: Address, amount: bigint): Promise<string> => {
+    if (!smartAccount || !smartAccountAddress) {
+      throw new Error('Smart account not initialized');
+    }
+
+    console.log('🔐 Executing Smart Account approval:', {
+      smartAccount: smartAccountAddress,
+      token: tokenAddress,
+      spender: spenderAddress,
+      amount: amount.toString()
+    });
+
+    // Use max approval for better UX
+    const approvalCalldata = encodeFunctionData({
+      abi: erc20Abi,
+      functionName: 'approve',
+      args: [spenderAddress, maxUint256],
+    });
+
+    const hash = await sendTransaction(
+      tokenAddress,
+      approvalCalldata,
+      BigInt(0)
+    );
+
+    return hash;
+  }, [smartAccount, smartAccountAddress, sendTransaction]);
 
   const executeSwap = useCallback(async (swapParams: SwapParams): Promise<SwapResult> => {
     try {
@@ -123,8 +173,8 @@ export function useSwapExecution(params?: SwapParams) {
         throw new Error('Smart account not initialized. Please wait...');
       }
 
-      if (swapRouterAddress === '0x0000000000000000000000000000000000000000') {
-        throw new Error('SwapRouter not deployed on this network');
+      if (poolSwapTestAddress === '0x0000000000000000000000000000000000000000') {
+        throw new Error('UniswapV4PoolSwapTest not deployed on this network');
       }
 
       if (spendSaveHookAddress === '0x0000000000000000000000000000000000000000') {
@@ -147,37 +197,59 @@ export function useSwapExecution(params?: SwapParams) {
         tokenSymbol: swapParams.inputToken.symbol,
       });
 
-      // Check if we need approval (skip for native ETH)
+      // Check if we need Smart Account approval (skip for native ETH)
       const isNativeETH = swapParams.inputToken.address === NATIVE_ETH ||
                          swapParams.inputToken.address === '0x0000000000000000000000000000000000000000';
 
-      if (!isNativeETH && tokenApproval.needsApproval) {
-        setStatus('approving');
-        try {
-          await tokenApproval.approve(true); // Use max approval for better UX
+      if (!isNativeETH) {
+        const hasApproval = await checkSmartAccountApproval(
+          swapParams.inputToken.address,
+          poolSwapTestAddress,
+          inputAmountBigInt
+        );
 
-          // Wait for approval confirmation
-          let attempts = 0;
-          while ((tokenApproval.isApproving || tokenApproval.isConfirming) && attempts < 60) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            attempts++;
+        if (!hasApproval) {
+          setStatus('approving');
+          try {
+            console.log('🔐 Smart Account needs approval, executing...');
+            const approvalHash = await executeSmartAccountApproval(
+              swapParams.inputToken.address,
+              poolSwapTestAddress,
+              inputAmountBigInt
+            );
+            
+            console.log('✅ Smart Account approval submitted:', approvalHash);
+            
+            // Wait a bit for the approval to be processed
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            // Verify approval was successful
+            const approvalConfirmed = await checkSmartAccountApproval(
+              swapParams.inputToken.address,
+              poolSwapTestAddress,
+              inputAmountBigInt
+            );
+            
+            if (!approvalConfirmed) {
+              throw new Error('Smart Account approval failed or not confirmed');
+            }
+            
+            console.log('✅ Smart Account approval confirmed');
+          } catch (approvalError) {
+            throw new Error(`Smart Account approval failed: ${approvalError instanceof Error ? approvalError.message : 'Unknown error'}`);
           }
-
-          if (!tokenApproval.isConfirmed) {
-            throw new Error('Token approval failed');
-          }
-        } catch (approvalError) {
-          throw new Error(`Token approval failed: ${approvalError instanceof Error ? approvalError.message : 'Unknown error'}`);
+        } else {
+          console.log('✅ Smart Account already has sufficient approval');
         }
       }
 
       setStatus('building');
 
       /**
-       * Build PoolKey with SpendSaveHook
+       * Build PoolKey with SpendSaveHook (exactly matching CompleteProtocolTest.s.sol)
        * This is CRITICAL - the hook address in poolKey tells PoolManager to call our hook
        */
-      // Sort tokens (currency0 < currency1)
+      // Sort tokens (currency0 < currency1) - matching the Solidity script
       const token0Address = swapParams.inputToken.address.toLowerCase() < swapParams.outputToken.address.toLowerCase()
         ? swapParams.inputToken.address
         : swapParams.outputToken.address;
@@ -187,59 +259,56 @@ export function useSwapExecution(params?: SwapParams) {
       
       const zeroForOne = swapParams.inputToken.address.toLowerCase() === token0Address.toLowerCase();
       
-      // Build PoolKey with SpendSaveHook
+      // Build PoolKey with SpendSaveHook (exactly as in CompleteProtocolTest.s.sol)
       const poolKey = {
         currency0: token0Address,
         currency1: token1Address,
-        fee: 3000, // 0.3% fee tier (most common)
+        fee: 3000, // 0.3% fee tier (matches the script)
         tickSpacing: 60,
         hooks: spendSaveHookAddress, // THIS IS THE MAGIC - enables automatic savings
       };
       
-      // Build swap params
+      // Build swap params with proper price limits (fixing PriceLimitOutOfBounds error)
+      // For zeroForOne = true (selling token0 for token1), use MIN price limit
+      // For zeroForOne = false (selling token1 for token0), use MAX price limit
+      const MIN_SQRT_PRICE = BigInt('4295128739'); // TickMath.MIN_SQRT_PRICE
+      const MAX_SQRT_PRICE = BigInt('1461446703485210103287273052203988822378723970342'); // TickMath.MAX_SQRT_PRICE
+      
       const swapParamsStruct = {
         zeroForOne,
         amountSpecified: -BigInt(inputAmountBigInt), // Negative for exact input
-        sqrtPriceLimitX96: BigInt(0), // No price limit
+        sqrtPriceLimitX96: zeroForOne 
+          ? MIN_SQRT_PRICE + BigInt(1) // For selling token0, use minimum price limit
+          : MAX_SQRT_PRICE - BigInt(1), // For selling token1, use maximum price limit
       };
       
-      // Encode hookData with user address (optional but recommended)
+      // Build test settings (exactly matching CompleteProtocolTest.s.sol)
+      const testSettings = {
+        takeClaims: false,
+        settleUsingBurn: false,
+      };
+      
+      // Encode hookData with user address (exactly as in CompleteProtocolTest.s.sol)
       const hookData = encodeAbiParameters(
         [{ type: 'address' }],
         [smartAccountAddress as Address]
       );
       
       /**
-       * Call SwapRouter.swap() with poolKey containing SpendSaveHook
-       *
-       * Flow:
-       * 1. SwapRouter receives swap request
-       * 2. Calls PoolManager.unlock() with encoded swap data
-       * 3. PoolManager calls back router.unlockCallback()
-       * 4. Inside callback, router calls PoolManager.swap()
-       * 5. PoolManager sees poolKey.hooks = SpendSaveHook
-       * 6. Calls SpendSaveHook.beforeSwap() -> captures savings
-       * 7. Executes AMM swap with adjusted amounts
-       * 8. Calls SpendSaveHook.afterSwap() -> records savings
-       * 9. Returns swap delta to router
-       * 10. Router settles tokens and returns result
+       * Use PoolSwapTest contract (exactly matching CompleteProtocolTest.s.sol)
+       * This is the proven approach that works in the Solidity test script
        */
       const swapCalldata = encodeFunctionData({
-        abi: SwapRouterABI,
+        abi: UniswapV4PoolSwapTestABI,
         functionName: 'swap',
-        args: [
-          poolKey,
-          swapParamsStruct,
-          { takeClaims: false, settleUsingBurn: false }, // TestSettings
-          hookData
-        ],
+        args: [poolKey, swapParamsStruct, testSettings, hookData]
       });
 
       setStatus('executing');
 
-      // Debug: Log what we're sending
-      console.log('🔄 Executing swap:', {
-        router: swapRouterAddress,
+      // Debug: Log what we're sending (with proper price limits to avoid PriceLimitOutOfBounds)
+      console.log('🔄 Executing swap via PoolSwapTest:', {
+        poolSwapTest: poolSwapTestAddress,
         poolKey: {
           currency0: poolKey.currency0,
           currency1: poolKey.currency1,
@@ -251,6 +320,11 @@ export function useSwapExecution(params?: SwapParams) {
           zeroForOne,
           amountSpecified: swapParamsStruct.amountSpecified.toString(),
           sqrtPriceLimitX96: swapParamsStruct.sqrtPriceLimitX96.toString(),
+          priceLimitType: zeroForOne ? 'MIN_SQRT_PRICE + 1' : 'MAX_SQRT_PRICE - 1',
+        },
+        testSettings: {
+          takeClaims: testSettings.takeClaims,
+          settleUsingBurn: testSettings.settleUsingBurn,
         },
         inputAmount: inputAmountBigInt.toString(),
         inputToken: swapParams.inputToken.symbol,
@@ -270,7 +344,7 @@ export function useSwapExecution(params?: SwapParams) {
 
       // Execute gasless transaction via Biconomy Smart Account
       const hash = await sendTransaction(
-        swapRouterAddress,  // Send to router, NOT PoolManager!
+        poolSwapTestAddress,  // Send to PoolSwapTest for V4 swaps (matching CompleteProtocolTest.s.sol)
         swapCalldata,
         isNativeETH ? inputAmountBigInt : BigInt(0),
         {
@@ -388,7 +462,7 @@ export function useSwapExecution(params?: SwapParams) {
         error: errorMessage,
       };
     }
-  }, [smartAccountAddress, smartAccount, sendTransaction, swapRouterAddress, spendSaveHookAddress, tokenApproval]);
+  }, [smartAccountAddress, smartAccount, sendTransaction, poolSwapTestAddress, spendSaveHookAddress, checkSmartAccountApproval, executeSmartAccountApproval]);
 
   const reset = useCallback(() => {
     setStatus('idle');

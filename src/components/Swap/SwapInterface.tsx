@@ -24,8 +24,14 @@ import { SavingsPreview } from './SavingsPreview';
 import { FaucetGuide } from '@/components/Onboarding/FaucetGuide';
 import { useNeedsTestTokens } from '@/hooks/useBalanceCheck';
 import { PoolStatusCard, PoolStatusIndicator } from '@/components/Pool/PoolStatusCard';
-import Link from 'next/link';
+import { PoolLiquidityCard } from './PoolLiquidityCard';
+import { SwapRangeCalculator } from './SwapRangeCalculator';
+import { MiniPriceChart } from './MiniPriceChart';
+import { LiquidityAnalysisCard } from './LiquidityAnalysisCard';
+import { TotalSavingsCard, TotalSavingsCompact } from '@/components/Savings/TotalSavingsCard';
+import { Link } from 'lucide-react';
 import { toast } from 'sonner';
+import { QuestionMarkTrigger } from './SpendSaveTooltips';
 
 export function SwapInterface() {
   const { isConnected } = useAccount();
@@ -53,24 +59,24 @@ export function SwapInterface() {
   // Modal states
   const [showConfigModal, setShowConfigModal] = useState(false);
   
-  // Check if user needs to configure savings
+  // Show informational prompt about savings (non-blocking)
   useEffect(() => {
-    if (isConnected && !isLoadingStrategy && !hasStrategy) {
-      // Show subtle prompt to configure savings
+    if (isConnected && !isLoadingStrategy && savingsPercentage === 0) {
+      // Show subtle informational prompt about savings (non-blocking)
       const timer = setTimeout(() => {
-        toast.info('💡 Configure your savings strategy', {
-          description: 'Set up automatic savings to start building wealth',
+        toast.info('💡 Optional: Configure automatic savings', {
+          description: 'Set a percentage to automatically save with every swap',
           action: {
-            label: 'Configure',
+            label: 'Learn More',
             onClick: () => setShowConfigModal(true),
           },
-          duration: 8000,
+          duration: 6000,
         });
-      }, 2000);
+      }, 3000);
       
       return () => clearTimeout(timer);
     }
-  }, [isConnected, isLoadingStrategy, hasStrategy]);
+  }, [isConnected, isLoadingStrategy, savingsPercentage]);
   
   // Get input token price for calculations
   const { priceUSD: inputTokenPrice } = useTokenPrice({
@@ -305,11 +311,41 @@ export function SwapInterface() {
 
         {/* Analytics Panel */}
         <div className="space-y-6">
+          {/* Pool Information */}
+          <PoolLiquidityCard 
+            token0Address={inputToken?.address}
+            token1Address={outputToken?.address}
+          />
+
+          {/* Total Savings */}
+          <TotalSavingsCard showDetails={true} />
+
+          {/* Liquidity Analysis */}
+          <LiquidityAnalysisCard />
+
+          {/* Price Chart */}
+          <MiniPriceChart 
+            token0Symbol={inputToken?.symbol}
+            token1Symbol={outputToken?.symbol}
+            currentPrice={1.0} // Would get from actual pool data
+          />
+
+          {/* Swap Calculator */}
+          <SwapRangeCalculator
+            inputToken={inputToken}
+            outputToken={outputToken}
+            inputAmount={inputAmount}
+            outputAmount={outputAmountFormatted}
+            quote={quote}
+            isLoadingQuote={isLoadingQuote}
+          />
+
           {/* Savings Summary */}
           <div className="glass-strong rounded-2xl p-6 border border-white/20">
             <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
               <span className="text-2xl">🌱</span>
               Your Savings
+              <QuestionMarkTrigger type="savings" />
             </h3>
             
             <div className="space-y-4">
@@ -317,6 +353,14 @@ export function SwapInterface() {
                 <div className="text-sm text-gray-400">This Trade</div>
                 <div className="text-2xl font-bold text-primary-400">
                   ${savingsSplit.savingsUSD.toFixed(2)}
+                </div>
+              </div>
+              
+              {/* Total Accumulated Savings */}
+              <div className="glass-subtle rounded-lg p-4 border border-green-400/20">
+                <div className="text-xs text-gray-400 mb-1">Total Accumulated</div>
+                <div className="text-lg font-bold text-green-400">
+                  <TotalSavingsCompact />
                 </div>
               </div>
               
@@ -330,15 +374,13 @@ export function SwapInterface() {
               </div>
             </div>
             
-            {/* Configure Button */}
-            {!hasStrategy && !isLoadingStrategy && (
-              <button
-                onClick={() => setShowConfigModal(true)}
-                className="w-full mt-4 px-4 py-3 bg-primary-500/20 hover:bg-primary-500/30 border border-primary-400/30 text-primary-300 rounded-xl transition-all duration-200 text-sm font-medium"
-              >
-                Configure Savings Strategy
-              </button>
-            )}
+            {/* Optional Configuration Button */}
+            <button
+              onClick={() => setShowConfigModal(true)}
+              className="w-full mt-4 px-4 py-3 bg-primary-500/10 hover:bg-primary-500/20 border border-primary-400/20 text-primary-300 rounded-xl transition-all duration-200 text-sm font-medium"
+            >
+              {savingsPercentage === 0 ? 'Configure Savings Strategy' : 'Adjust Savings Strategy'}
+            </button>
           </div>
 
           {/* Gasless Badge */}
@@ -346,7 +388,10 @@ export function SwapInterface() {
             <div className="flex items-start gap-3">
               <div className="text-3xl">⚡</div>
               <div>
-                <h4 className="text-white font-bold mb-1">Gasless Swaps</h4>
+                <h4 className="text-white font-bold mb-1 flex items-center gap-2">
+                  Gasless Swaps
+                  <QuestionMarkTrigger type="gasless" />
+                </h4>
                 <p className="text-sm text-gray-300">
                   Powered by Biconomy. Save <span className="text-primary-400 font-semibold">$0-15</span> in gas fees per transaction.
                 </p>

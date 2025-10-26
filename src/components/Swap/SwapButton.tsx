@@ -172,6 +172,11 @@ export function SwapButton({
         savingsAmount={lastSavingsAmount}
         tokenSymbol={inputToken?.symbol}
         tokenDecimals={inputToken?.decimals}
+        inputAmount={inputAmount}
+        inputTokenSymbol={inputToken?.symbol}
+        outputAmount={outputAmount}
+        outputTokenSymbol={outputToken?.symbol}
+        savingsPercentage={savingsPercentage}
         onClose={handleCloseStatusModal}
       />
       

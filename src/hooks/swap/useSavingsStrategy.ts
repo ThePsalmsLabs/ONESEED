@@ -53,7 +53,7 @@ export function useSavingsStrategy() {
     enableDCA: false, // Default value since not returned by getUserStrategy
   } : null;
   
-  const hasStrategy = strategy ? strategy.percentage > 0 : false;
+  const hasStrategy = strategy ? strategy.percentage >= 0 : true; // Allow 0% savings (no strategy required)
   
   // Write contract hook
   const { writeContractAsync } = useWriteContract();

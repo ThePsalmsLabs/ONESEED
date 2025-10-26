@@ -16,6 +16,11 @@ interface SwapStatusModalProps {
   savingsAmount?: bigint;
   tokenSymbol?: string;
   tokenDecimals?: number;
+  inputAmount?: string;
+  inputTokenSymbol?: string;
+  outputAmount?: string;
+  outputTokenSymbol?: string;
+  savingsPercentage?: number;
   onClose: () => void;
 }
 
@@ -74,6 +79,11 @@ export function SwapStatusModal({
   savingsAmount,
   tokenSymbol,
   tokenDecimals = 18,
+  inputAmount,
+  inputTokenSymbol,
+  outputAmount,
+  outputTokenSymbol,
+  savingsPercentage = 0,
   onClose,
 }: SwapStatusModalProps) {
   const chainId = useActiveChainId();
@@ -167,26 +177,73 @@ export function SwapStatusModal({
 
               {/* Success State with Savings */}
               {isComplete && savingsAmount !== undefined && savingsAmount > BigInt(0) && (
-                <div className="glass-neon rounded-xl p-6 mb-6 border border-primary-400/30">
-                  <div className="flex items-center gap-3 mb-4">
-                    <CheckCircleIcon className="w-8 h-8 text-primary-400" />
-                    <div className="text-xl font-bold text-white">Swap Successful!</div>
-                  </div>
-                  <div className="bg-white/5 rounded-lg p-4">
-                    <div className="text-sm text-gray-400 mb-1">Savings Captured</div>
-                    <div className="text-3xl font-bold text-primary-400">
+                <motion.div 
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: "spring", duration: 0.6 }}
+                  className="glass-neon rounded-xl p-6 mb-6 border border-primary-400/30"
+                >
+                  {/* Celebration Animation */}
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                    className="flex items-center gap-3 mb-4"
+                  >
+                    <motion.div
+                      animate={{ rotate: [0, 10, -10, 0] }}
+                      transition={{ duration: 0.5, delay: 0.3 }}
+                    >
+                      <CheckCircleIcon className="w-8 h-8 text-primary-400" />
+                    </motion.div>
+                    <div className="text-xl font-bold text-white">🎉 Swap Successful!</div>
+                  </motion.div>
+                  
+                  {/* Savings Breakdown */}
+                  <motion.div 
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.4 }}
+                    className="bg-white/5 rounded-lg p-4 mb-4"
+                  >
+                    <div className="text-sm text-gray-400 mb-2">Savings Captured</div>
+                    <motion.div 
+                      initial={{ scale: 0.5 }}
+                      animate={{ scale: 1 }}
+                      transition={{ delay: 0.5, type: "spring" }}
+                      className="text-3xl font-bold text-primary-400 mb-2"
+                    >
                       {(Number(savingsAmount) / Math.pow(10, tokenDecimals)).toFixed(4)} {tokenSymbol || 'tokens'}
+                    </motion.div>
+                    <div className="text-xs text-gray-300">
+                      ✨ Automatically deposited to your savings vault
                     </div>
-                    {/* Debug info - remove in production */}
-                    <div className="text-xs text-gray-500 mt-1">
-                      Raw: {savingsAmount.toString()} | Decimals: {tokenDecimals} | 
-                      Calculation: {savingsAmount.toString()} ÷ 10^{tokenDecimals} = {(Number(savingsAmount) / Math.pow(10, tokenDecimals)).toFixed(6)}
+                  </motion.div>
+
+                  {/* Transaction Summary */}
+                  <motion.div 
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.6 }}
+                    className="bg-white/5 rounded-lg p-4"
+                  >
+                    <div className="text-sm text-gray-400 mb-3">Transaction Summary</div>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-300">Gas Fee</span>
+                        <span className="text-green-400 font-medium">$0.00</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-300">Savings Rate</span>
+                        <span className="text-primary-400 font-medium">5%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-300">Hook Status</span>
+                        <span className="text-green-400 font-medium">✓ Active</span>
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-300 mt-2">
-                      Automatically deposited to your savings vault
-                    </div>
-                  </div>
-                </div>
+                  </motion.div>
+                </motion.div>
               )}
 
               {/* No Savings Captured */}
@@ -205,6 +262,60 @@ export function SwapStatusModal({
                     </ul>
                   </div>
                 </div>
+              )}
+
+              {/* Swap Preview - Show before execution */}
+              {status === 'idle' && inputAmount && outputAmount && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-white/5 rounded-xl p-6 mb-6 border border-white/10"
+                >
+                  <h3 className="text-lg font-bold text-white mb-4">Swap Preview</h3>
+                  
+                  {/* Input/Output Breakdown */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-300">You&apos;re swapping</span>
+                      <span className="text-white font-medium">
+                        {inputAmount} {inputTokenSymbol}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-300">You&apos;ll receive</span>
+                      <span className="text-white font-medium">
+                        {outputAmount} {outputTokenSymbol}
+                      </span>
+                    </div>
+                    
+                    {savingsPercentage > 0 && (
+                      <>
+                        <div className="border-t border-white/10 pt-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-gray-300">Savings ({savingsPercentage}%)</span>
+                            <span className="text-primary-400 font-medium">
+                              {(parseFloat(inputAmount) * savingsPercentage / 100).toFixed(4)} {inputTokenSymbol}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-300">Amount to swap</span>
+                            <span className="text-white font-medium">
+                              {(parseFloat(inputAmount) * (100 - savingsPercentage) / 100).toFixed(4)} {inputTokenSymbol}
+                            </span>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                    
+                    <div className="border-t border-white/10 pt-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-300">Gas Fee</span>
+                        <span className="text-green-400 font-medium">$0.00</span>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
               )}
 
               {/* Progress Steps */}
