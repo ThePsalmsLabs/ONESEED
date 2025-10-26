@@ -84,6 +84,8 @@ BICONOMY_INTEGRATION_STATUS.md
 SWAP_IMPLEMENTATION_GAP_ANALYSIS.md
 env.example
 
+frontend integration/*
+
 # Backup files
 *.bak
 
