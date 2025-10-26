@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { ErrorState, LoadingState, NoWithdrawalsEmptyState } from '@/components/ui';
+import { useSavingsBalanceRealtime } from '@/hooks/useSavingsBalanceRealtime';
+import { useAccount } from 'wagmi';
 import { AnimatedCard, AnimatedButton, AnimatedProgress } from '@/components/ui/AnimatedComponents';
 import { 
   ClockIcon,
@@ -16,7 +19,7 @@ import {
   CurrencyDollarIcon,
   CheckCircleIcon
 } from '@heroicons/react/24/outline';
-import { formatEther, parseEther } from 'viem';
+import { formatUnits } from 'viem';
 
 interface WithdrawalStrategiesProps {
   className?: string;
@@ -52,23 +55,39 @@ interface StrategyRecommendation {
 }
 
 export function WithdrawalStrategies({ className = '', onStrategySelect }: WithdrawalStrategiesProps) {
+  const { address } = useAccount();
+  const { balances, isLoading, error, refreshSavings } = useSavingsBalanceRealtime();
+  
   const [strategies, setStrategies] = useState<WithdrawalStrategy[]>([]);
   const [selectedStrategy, setSelectedStrategy] = useState<string | null>(null);
   const [marketConditions, setMarketConditions] = useState<MarketConditions>({
-    gasPrice: 25,
-    marketVolatility: 2.5,
+    gasPrice: 25, // Placeholder - would need real gas price
+    marketVolatility: 2.5, // Placeholder - would need real volatility data
     tokenPrices: {
-      'WETH': 2500,
+      'WETH': 2500, // Placeholder - would need real prices
       'USDC': 1,
       'DAI': 1
     },
-    networkCongestion: 0.3
+    networkCongestion: 0.3 // Placeholder - would need real congestion data
   });
   const [recommendation, setRecommendation] = useState<StrategyRecommendation | null>(null);
   const [showDetails, setShowDetails] = useState(false);
 
+  // Generate strategies based on user's savings data
   useEffect(() => {
-    const mockStrategies: WithdrawalStrategy[] = [
+    if (!balances || balances.length === 0) return;
+
+    const totalValue = balances.reduce((sum, balance) => {
+      // Simplified value calculation - would need real pricing
+      return sum + Number(formatUnits(balance.amount, balance.decimals));
+    }, 0);
+
+    const hasMultipleTokens = balances.length > 1;
+    const hasLargeAmounts = balances.some(balance => 
+      Number(formatUnits(balance.amount, balance.decimals)) > 1000
+    );
+
+    const generatedStrategies: WithdrawalStrategy[] = [
       {
         id: 'immediate',
         name: 'Immediate Withdrawal',
@@ -98,261 +117,249 @@ export function WithdrawalStrategies({ className = '', onStrategySelect }: Withd
         benefits: [
           'Better timing control',
           'Lower gas costs during off-peak',
-          'Predictable execution'
+          'Reduced penalty rates'
         ],
         risks: [
-          'Market conditions may change',
-          'Requires planning',
-          'Potential delays'
+          'Market changes during wait',
+          'Opportunity cost',
+          'Execution complexity'
         ],
-        estimatedSavings: 15,
+        estimatedSavings: hasLargeAmounts ? 15 : 8,
         complexity: 'medium',
-        recommended: true
+        recommended: hasLargeAmounts
       },
       {
         id: 'conditional',
         name: 'Conditional Withdrawal',
         description: 'Withdraw when specific market conditions are met',
         type: 'conditional',
-        icon: ChartBarIcon,
+        icon: ShieldCheckIcon,
         benefits: [
-          'Optimized execution',
-          'Market-based timing',
-          'Maximum savings potential'
+          'Optimal market timing',
+          'Maximum savings potential',
+          'Risk mitigation'
         ],
         risks: [
-          'May never execute',
           'Complex setup',
+          'May never execute',
           'Requires monitoring'
         ],
-        estimatedSavings: 35,
+        estimatedSavings: hasLargeAmounts ? 25 : 15,
         complexity: 'high',
-        recommended: true
+        recommended: hasLargeAmounts && hasMultipleTokens
       },
       {
         id: 'optimized',
-        name: 'AI-Optimized Withdrawal',
-        description: 'AI-powered strategy that finds the best execution time',
+        name: 'Optimized Batch Withdrawal',
+        description: 'Withdraw multiple tokens in optimized batches',
         type: 'optimized',
         icon: ChartBarIcon,
         benefits: [
-          'Maximum efficiency',
-          'AI-powered optimization',
-          'Continuous monitoring'
+          'Reduced gas costs',
+          'Better price execution',
+          'Batch optimization'
         ],
         risks: [
-          'Requires trust in AI',
-          'Complex algorithm',
-          'Potential over-optimization'
+          'Complex execution',
+          'Requires multiple transactions',
+          'Higher complexity'
         ],
-        estimatedSavings: 45,
+        estimatedSavings: hasMultipleTokens ? 20 : 5,
         complexity: 'high',
-        recommended: true
+        recommended: hasMultipleTokens
       }
     ];
 
-    setStrategies(mockStrategies);
+    setStrategies(generatedStrategies);
 
-    // Generate recommendation based on market conditions
-    const recommendedStrategy = mockStrategies.find(s => s.id === 'optimized');
-    if (recommendedStrategy) {
-      setRecommendation({
-        strategy: recommendedStrategy,
-        confidence: 85,
-        reasoning: 'Current market conditions favor AI-optimized withdrawal with low gas prices and stable volatility',
-        expectedSavings: 45,
-        riskLevel: 'low'
-      });
-    }
-  }, []);
+    // Generate recommendation based on user's portfolio
+    const recommendedStrategy = generatedStrategies.find(s => s.recommended) || generatedStrategies[0];
+    const recommendation: StrategyRecommendation = {
+      strategy: recommendedStrategy,
+      confidence: hasLargeAmounts ? 85 : 70,
+      reasoning: hasLargeAmounts 
+        ? 'Large amounts benefit from optimization strategies'
+        : 'Small amounts are best with simple immediate withdrawal',
+      expectedSavings: recommendedStrategy.estimatedSavings,
+      riskLevel: recommendedStrategy.complexity === 'high' ? 'medium' : 'low'
+    };
 
-  const handleStrategySelect = (strategy: WithdrawalStrategy) => {
-    setSelectedStrategy(strategy.id);
-    onStrategySelect?.(strategy);
-  };
+    setRecommendation(recommendation);
 
-  const getComplexityColor = (complexity: 'low' | 'medium' | 'high') => {
-    switch (complexity) {
-      case 'low': return 'text-green-600 bg-green-100';
-      case 'medium': return 'text-yellow-600 bg-yellow-100';
-      case 'high': return 'text-red-600 bg-red-100';
-    }
-  };
+  }, [balances]);
 
-  const getRiskLevelColor = (risk: 'low' | 'medium' | 'high') => {
-    switch (risk) {
-      case 'low': return 'text-green-600 bg-green-100';
-      case 'medium': return 'text-yellow-600 bg-yellow-100';
-      case 'high': return 'text-red-600 bg-red-100';
-    }
-  };
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className={`space-y-6 ${className}`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Withdrawal Strategies</h2>
+            <p className="text-muted-foreground">Choose the best strategy for your withdrawal</p>
+          </div>
+        </div>
+        <LoadingState message="Analyzing your savings for optimal strategies..." />
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className={`space-y-6 ${className}`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Withdrawal Strategies</h2>
+            <p className="text-muted-foreground">Choose the best strategy for your withdrawal</p>
+          </div>
+        </div>
+        <ErrorState
+          title="Failed to load strategies"
+          message="Unable to analyze your savings for withdrawal strategies. Please try again."
+          onRetry={refreshSavings}
+        />
+      </div>
+    );
+  }
+
+  // Show empty state if no balances
+  if (!balances || balances.length === 0) {
+    return (
+      <div className={`space-y-6 ${className}`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Withdrawal Strategies</h2>
+            <p className="text-muted-foreground">Choose the best strategy for your withdrawal</p>
+          </div>
+        </div>
+        <NoWithdrawalsEmptyState onAction={() => window.location.href = '/configure'} />
+      </div>
+    );
+  }
 
   return (
     <div className={`space-y-6 ${className}`}>
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-          <ChartBarIcon className="w-5 h-5 text-purple-600" />
-        </div>
+      <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Withdrawal Strategies</h2>
           <p className="text-muted-foreground">Choose the best strategy for your withdrawal</p>
         </div>
+        <div className="text-sm text-muted-foreground">
+          {balances.length} token{balances.length !== 1 ? 's' : ''} available
+        </div>
       </div>
 
-      {/* Market Conditions */}
-      <AnimatedCard className="p-6">
-        <h3 className="text-lg font-semibold mb-4">Current Market Conditions</h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">{marketConditions.gasPrice} Gwei</div>
-            <div className="text-sm text-muted-foreground">Gas Price</div>
-            <div className={`text-xs px-2 py-1 rounded-full mt-1 ${
-              marketConditions.gasPrice < 30 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-            }`}>
-              {marketConditions.gasPrice < 30 ? 'Low' : 'High'}
-            </div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-purple-600">{marketConditions.marketVolatility}%</div>
-            <div className="text-sm text-muted-foreground">Volatility</div>
-            <div className={`text-xs px-2 py-1 rounded-full mt-1 ${
-              marketConditions.marketVolatility < 3 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-            }`}>
-              {marketConditions.marketVolatility < 3 ? 'Stable' : 'Volatile'}
-            </div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-green-600">
-              {Math.round(marketConditions.networkCongestion * 100)}%
-            </div>
-            <div className="text-sm text-muted-foreground">Network Congestion</div>
-            <div className={`text-xs px-2 py-1 rounded-full mt-1 ${
-              marketConditions.networkCongestion < 0.5 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-            }`}>
-              {marketConditions.networkCongestion < 0.5 ? 'Low' : 'High'}
-            </div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-orange-600">Optimal</div>
-            <div className="text-sm text-muted-foreground">Withdrawal Window</div>
-            <div className="text-xs px-2 py-1 rounded-full mt-1 bg-green-100 text-green-800">
-              Now
-            </div>
-          </div>
-        </div>
-      </AnimatedCard>
-
-      {/* AI Recommendation */}
+      {/* Recommendation */}
       {recommendation && (
-        <AnimatedCard className="p-6">
+        <Card className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-              <ChartBarIcon className="w-4 h-4 text-blue-600" />
+              <CheckCircleIcon className="w-5 h-5 text-blue-600" />
             </div>
-            <div>
-              <h3 className="text-lg font-semibold">AI Recommendation</h3>
-              <p className="text-sm text-muted-foreground">
-                Based on current market conditions and your portfolio
-              </p>
+            <h3 className="text-lg font-semibold text-blue-800">Recommended Strategy</h3>
+          </div>
+          <div className="mb-4">
+            <div className="text-xl font-bold text-blue-700 mb-2">
+              {recommendation.strategy.name}
+            </div>
+            <p className="text-blue-600 mb-3">{recommendation.strategy.description}</p>
+            <div className="text-sm text-blue-600">
+              <strong>Reasoning:</strong> {recommendation.reasoning}
             </div>
           </div>
-          
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="font-medium">{recommendation.strategy.name}</div>
-              <div className={`px-2 py-1 rounded-full text-xs ${getRiskLevelColor(recommendation.riskLevel)}`}>
-                {recommendation.riskLevel} risk
-              </div>
-              <div className="text-sm text-muted-foreground">
-                {recommendation.confidence}% confidence
-              </div>
+          <div className="flex items-center gap-4">
+            <div className="text-sm">
+              <span className="text-blue-600">Confidence: </span>
+              <span className="font-semibold text-blue-700">{recommendation.confidence}%</span>
             </div>
-            <div className="text-right">
-              <div className="font-semibold text-green-600">
-                Save {recommendation.expectedSavings}%
-              </div>
-              <div className="text-sm text-muted-foreground">vs immediate</div>
+            <div className="text-sm">
+              <span className="text-blue-600">Expected Savings: </span>
+              <span className="font-semibold text-blue-700">{recommendation.expectedSavings}%</span>
+            </div>
+            <div className="text-sm">
+              <span className="text-blue-600">Risk Level: </span>
+              <span className={`font-semibold ${
+                recommendation.riskLevel === 'low' ? 'text-green-700' :
+                recommendation.riskLevel === 'medium' ? 'text-yellow-700' :
+                'text-red-700'
+              }`}>
+                {recommendation.riskLevel}
+              </span>
             </div>
           </div>
-          
-          <p className="text-sm text-muted-foreground mb-4">{recommendation.reasoning}</p>
-          
-          <AnimatedButton
-            onClick={() => handleStrategySelect(recommendation.strategy)}
-            className="w-full"
-          >
-            <CheckCircleIcon className="w-4 h-4" />
-            Use Recommended Strategy
-          </AnimatedButton>
-        </AnimatedCard>
+        </Card>
       )}
 
-      {/* Strategy Options */}
+      {/* Market Conditions */}
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold mb-4">Current Market Conditions</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="text-center p-3 bg-gray-50 rounded-lg">
+            <div className="text-sm text-muted-foreground">Gas Price</div>
+            <div className="text-lg font-bold">{marketConditions.gasPrice} gwei</div>
+          </div>
+          <div className="text-center p-3 bg-gray-50 rounded-lg">
+            <div className="text-sm text-muted-foreground">Volatility</div>
+            <div className="text-lg font-bold">{marketConditions.marketVolatility}%</div>
+          </div>
+          <div className="text-center p-3 bg-gray-50 rounded-lg">
+            <div className="text-sm text-muted-foreground">Network Congestion</div>
+            <div className="text-lg font-bold">{Math.round(marketConditions.networkCongestion * 100)}%</div>
+          </div>
+          <div className="text-center p-3 bg-gray-50 rounded-lg">
+            <div className="text-sm text-muted-foreground">Your Tokens</div>
+            <div className="text-lg font-bold">{balances.length}</div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Strategies */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {strategies.map((strategy, index) => {
-          const Icon = strategy.icon;
-          const isSelected = selectedStrategy === strategy.id;
-          
-          return (
-            <motion.div
+        {strategies.map((strategy) => (
+            <div
               key={strategy.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
+              className={`p-6 cursor-pointer transition-all duration-200 border rounded-lg ${
+                selectedStrategy === strategy.id
+                  ? 'ring-2 ring-primary bg-primary/5'
+                  : 'hover:shadow-md'
+              }`}
+              onClick={() => setSelectedStrategy(strategy.id)}
             >
-              <div onClick={() => handleStrategySelect(strategy)}>
-                <AnimatedCard
-                  className={`p-6 cursor-pointer transition-all ${
-                    isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
-                  }`}
-                >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Icon className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold">{strategy.name}</h4>
-                      <p className="text-sm text-muted-foreground">{strategy.description}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {strategy.recommended && (
-                      <div className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                        Recommended
-                      </div>
-                    )}
-                    <div className={`px-2 py-1 text-xs rounded-full ${getComplexityColor(strategy.complexity)}`}>
-                      {strategy.complexity}
-                    </div>
-                  </div>
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                <strategy.icon className="w-6 h-6 text-primary" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="font-semibold text-lg">{strategy.name}</h3>
+                  {strategy.recommended && (
+                    <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                      Recommended
+                    </span>
+                  )}
                 </div>
-
+                <p className="text-muted-foreground mb-4">{strategy.description}</p>
+                
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Estimated Savings</span>
-                    <span className="font-semibold text-green-600">{strategy.estimatedSavings}%</span>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="text-sm font-medium">Benefits:</div>
+                  <div>
+                    <div className="text-sm font-medium text-green-600 mb-1">Benefits</div>
                     <ul className="text-sm text-muted-foreground space-y-1">
-                      {strategy.benefits.map((benefit, idx) => (
-                        <li key={idx} className="flex items-center gap-2">
-                          <CheckCircleIcon className="w-3 h-3 text-green-600" />
+                      {strategy.benefits.map((benefit, index) => (
+                        <li key={index} className="flex items-center gap-2">
+                          <CheckCircleIcon className="w-3 h-3 text-green-500" />
                           {benefit}
                         </li>
                       ))}
                     </ul>
                   </div>
-
-                  <div className="space-y-2">
-                    <div className="text-sm font-medium">Risks:</div>
+                  
+                  <div>
+                    <div className="text-sm font-medium text-red-600 mb-1">Risks</div>
                     <ul className="text-sm text-muted-foreground space-y-1">
-                      {strategy.risks.map((risk, idx) => (
-                        <li key={idx} className="flex items-center gap-2">
-                          <ExclamationTriangleIcon className="w-3 h-3 text-orange-600" />
+                      {strategy.risks.map((risk, index) => (
+                        <li key={index} className="flex items-center gap-2">
+                          <ExclamationTriangleIcon className="w-3 h-3 text-red-500" />
                           {risk}
                         </li>
                       ))}
@@ -360,118 +367,136 @@ export function WithdrawalStrategies({ className = '', onStrategySelect }: Withd
                   </div>
                 </div>
 
-                <AnimatePresence>
-                  {isSelected && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="mt-4 pt-4 border-t"
-                    >
-                      <div className="space-y-3">
-                        <div className="text-sm font-medium">Strategy Details:</div>
-                        <div className="text-sm text-muted-foreground">
-                          This strategy will optimize your withdrawal based on current market conditions
-                          and your specific requirements. The AI will continuously monitor the market
-                          and execute when conditions are optimal.
-                        </div>
-                        <AnimatedButton
-                          size="sm"
-                          onClick={() => setShowDetails(!showDetails)}
-                          className="w-full"
-                        >
-                          <InformationCircleIcon className="w-4 h-4" />
-                          {showDetails ? 'Hide' : 'Show'} Advanced Settings
-                        </AnimatedButton>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                </AnimatedCard>
+                <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                  <div className="flex items-center gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Savings: </span>
+                      <span className="font-semibold text-green-600">
+                        {strategy.estimatedSavings}%
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Complexity: </span>
+                      <span className={`font-semibold ${
+                        strategy.complexity === 'low' ? 'text-green-600' :
+                        strategy.complexity === 'medium' ? 'text-yellow-600' :
+                        'text-red-600'
+                      }`}>
+                        {strategy.complexity}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowDetails(true);
+                    }}
+                  >
+                    <InformationCircleIcon className="w-4 h-4 mr-1" />
+                    Details
+                  </Button>
+                </div>
               </div>
-            </motion.div>
-          );
-        })}
+            </div>
+            </div>
+        ))}
       </div>
 
-      {/* Advanced Settings */}
+      {/* Action Buttons */}
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-muted-foreground">
+          {selectedStrategy ? `Selected: ${strategies.find(s => s.id === selectedStrategy)?.name}` : 'Select a strategy to continue'}
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setShowDetails(true)}
+          >
+            Compare All
+          </Button>
+          <Button
+            onClick={() => {
+              const strategy = strategies.find(s => s.id === selectedStrategy);
+              if (strategy) {
+                onStrategySelect?.(strategy);
+              }
+            }}
+            disabled={!selectedStrategy}
+          >
+            Use Selected Strategy
+          </Button>
+        </div>
+      </div>
+
+      {/* Strategy Details Modal */}
       <AnimatePresence>
         {showDetails && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowDetails(false)}
           >
-            <AnimatedCard className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Advanced Strategy Settings</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Gas Price Threshold (Gwei)</label>
-                    <input
-                      type="number"
-                      placeholder="30"
-                      className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Market Volatility Limit (%)</label>
-                    <input
-                      type="number"
-                      placeholder="5.0"
-                      className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Execution Time Window (hours)</label>
-                    <input
-                      type="number"
-                      placeholder="24"
-                      className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Priority Level</label>
-                    <select className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
-                      <option value="low">Low (Maximum Savings)</option>
-                      <option value="medium">Medium (Balanced)</option>
-                      <option value="high">High (Fast Execution)</option>
-                    </select>
-                  </div>
-                </div>
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[80vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold">Strategy Comparison</h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowDetails(false)}
+                >
+                  Close
+                </Button>
               </div>
-            </AnimatedCard>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {strategies.map((strategy) => (
+                  <div key={strategy.id} className="p-4 border rounded-lg">
+                    <div className="flex items-center gap-3 mb-3">
+                      <strategy.icon className="w-6 h-6 text-primary" />
+                      <h4 className="font-semibold">{strategy.name}</h4>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-4">{strategy.description}</p>
+                    
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>Estimated Savings:</span>
+                        <span className="font-medium text-green-600">{strategy.estimatedSavings}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Complexity:</span>
+                        <span className={`font-medium ${
+                          strategy.complexity === 'low' ? 'text-green-600' :
+                          strategy.complexity === 'medium' ? 'text-yellow-600' :
+                          'text-red-600'
+                        }`}>
+                          {strategy.complexity}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Recommended:</span>
+                        <span className={`font-medium ${strategy.recommended ? 'text-green-600' : 'text-gray-600'}`}>
+                          {strategy.recommended ? 'Yes' : 'No'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Action Buttons */}
-      {selectedStrategy && (
-        <div className="flex justify-between">
-          <AnimatedButton
-            variant="outline"
-            onClick={() => setSelectedStrategy(null)}
-            className="flex items-center gap-2"
-          >
-            <ArrowTrendingDownIcon className="w-4 h-4" />
-            Clear Selection
-          </AnimatedButton>
-
-          <AnimatedButton
-            onClick={() => {
-              const strategy = strategies.find(s => s.id === selectedStrategy);
-              if (strategy) handleStrategySelect(strategy);
-            }}
-            className="flex items-center gap-2"
-          >
-            <ShieldCheckIcon className="w-4 h-4" />
-            Configure Strategy
-          </AnimatedButton>
-        </div>
-      )}
     </div>
   );
 }
-

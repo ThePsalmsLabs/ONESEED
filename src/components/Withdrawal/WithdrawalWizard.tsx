@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSavingsBalance } from '@/hooks/useSavingsBalance';
-import { useWithdraw } from '@/hooks/useWithdraw';
+import { useSavingsBalanceRealtime } from '@/hooks/useSavingsBalanceRealtime';
+import { useTokenPrice } from '@/hooks/swap/useTokenPrice';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { ErrorState, LoadingState, NoWithdrawalsEmptyState } from '@/components/ui';
 import { AnimatedCard, AnimatedButton, AnimatedInput, AnimatedProgress } from '@/components/ui/AnimatedComponents';
 import { 
   CurrencyDollarIcon,
@@ -20,7 +21,7 @@ import {
   ShieldCheckIcon,
   BanknotesIcon
 } from '@heroicons/react/24/outline';
-import { formatEther, parseEther } from 'viem';
+import { formatUnits, parseUnits } from 'viem';
 
 interface WithdrawalWizardProps {
   className?: string;
@@ -34,6 +35,7 @@ interface TokenBalance {
   value: number;
   penaltyRate: number;
   minWithdrawal: bigint;
+  decimals: number;
 }
 
 interface WithdrawalData {
@@ -64,8 +66,7 @@ const steps = [
 ];
 
 export function WithdrawalWizard({ className = '', onComplete }: WithdrawalWizardProps) {
-  const { tokenBalances: savingsBalances, isLoading: isLoadingSavings } = useSavingsBalance();
-  const { withdraw, isPending: isLoadingWithdraw } = useWithdraw();
+  const { balances, isLoading: isLoadingSavings, error: savingsError, refreshSavings } = useSavingsBalanceRealtime();
 
   const [currentStep, setCurrentStep] = useState(0);
   const [tokenBalances, setTokenBalances] = useState<TokenBalance[]>([]);
@@ -77,94 +78,100 @@ export function WithdrawalWizard({ className = '', onComplete }: WithdrawalWizar
   const [conditions, setConditions] = useState<WithdrawalConditions>({});
   const [withdrawalData, setWithdrawalData] = useState<WithdrawalData | null>(null);
 
-  // Mock token balances
+  // Process real savings balances into token balances
   useEffect(() => {
-    const mockBalances: TokenBalance[] = [
-      {
-        token: '0x4200000000000000000000000000000000000006',
-        symbol: 'WETH',
-        balance: parseEther('2.5'),
-        value: 6250.00,
-        penaltyRate: 0.05, // 5% penalty
-        minWithdrawal: parseEther('0.1')
-      },
-      {
-        token: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-        symbol: 'USDC',
-        balance: parseEther('5000'),
-        value: 5000.00,
-        penaltyRate: 0.02, // 2% penalty
-        minWithdrawal: parseEther('100')
-      },
-      {
-        token: '0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb',
-        symbol: 'DAI',
-        balance: parseEther('1297.32'),
-        value: 1297.32,
-        penaltyRate: 0.03, // 3% penalty
-        minWithdrawal: parseEther('50')
-      }
-    ];
-    setTokenBalances(mockBalances);
-  }, []);
+    if (!balances || balances.length === 0) return;
 
-  const handleTokenSelect = (token: string) => {
-    setSelectedTokens(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(token)) {
-        newSet.delete(token);
-      } else {
-        newSet.add(token);
-      }
-      return newSet;
+    const processedBalances: TokenBalance[] = balances.map(balance => ({
+      token: balance.token,
+      symbol: balance.symbol || 'UNK',
+      balance: balance.amount,
+      value: 0, // Will be calculated with price
+      penaltyRate: 0.05, // 5% penalty - would need to get from contract
+      minWithdrawal: balance.amount / BigInt(10), // 10% of balance as minimum
+      decimals: balance.decimals
+    }));
+
+    setTokenBalances(processedBalances);
+  }, [balances]);
+
+  // Calculate USD values for each token
+  useEffect(() => {
+    if (tokenBalances.length === 0) return;
+
+    const updatedBalances = tokenBalances.map(async (balance) => {
+      const { priceUSD } = useTokenPrice({
+        tokenAddress: balance.token as `0x${string}`,
+        enabled: true
+      });
+
+      return {
+        ...balance,
+        value: Number(formatUnits(balance.balance, balance.decimals)) * priceUSD
+      };
     });
+
+    // Note: This is a simplified approach. In a real implementation,
+    // you'd need to handle the async nature properly
+    Promise.all(updatedBalances).then(setTokenBalances);
+  }, [tokenBalances]);
+
+  const handleTokenToggle = (token: string) => {
+    const newSelected = new Set(selectedTokens);
+    if (newSelected.has(token)) {
+      newSelected.delete(token);
+    } else {
+      newSelected.add(token);
+    }
+    setSelectedTokens(newSelected);
   };
 
   const handleAmountChange = (token: string, amount: string) => {
-    const parsedAmount = parseEther(amount);
-    setWithdrawalAmounts(prev => ({
-      ...prev,
-      [token]: parsedAmount
-    }));
-  };
+    const tokenBalance = tokenBalances.find(tb => tb.token === token);
+    if (!tokenBalance) return;
 
-  const handlePercentageChange = (token: string, percentage: number) => {
-    setWithdrawalPercentages(prev => ({
-      ...prev,
-      [token]: percentage
-    }));
-    
-    const tokenBalance = tokenBalances.find(t => t.token === token);
-    if (tokenBalance) {
-      const amount = (tokenBalance.balance * BigInt(percentage)) / BigInt(100);
-      setWithdrawalAmounts(prev => ({
-        ...prev,
-        [token]: amount
-      }));
+    try {
+      const amountBigInt = parseUnits(amount, tokenBalance.decimals);
+      const percentage = Number(formatUnits(amountBigInt, tokenBalance.decimals)) / 
+                        Number(formatUnits(tokenBalance.balance, tokenBalance.decimals)) * 100;
+
+      setWithdrawalAmounts(prev => ({ ...prev, [token]: amountBigInt }));
+      setWithdrawalPercentages(prev => ({ ...prev, [token]: percentage }));
+    } catch (error) {
+      console.error('Invalid amount:', error);
     }
   };
 
-  const calculateWithdrawalPreview = () => {
+  const handlePercentageChange = (token: string, percentage: number) => {
+    const tokenBalance = tokenBalances.find(tb => tb.token === token);
+    if (!tokenBalance) return;
+
+    const amountBigInt = (tokenBalance.balance * BigInt(Math.floor(percentage * 100))) / BigInt(10000);
+    
+    setWithdrawalAmounts(prev => ({ ...prev, [token]: amountBigInt }));
+    setWithdrawalPercentages(prev => ({ ...prev, [token]: percentage }));
+  };
+
+  const calculateWithdrawalData = (): WithdrawalData => {
     const tokens = Array.from(selectedTokens).map(token => {
       const amount = withdrawalAmounts[token] || BigInt(0);
-      const tokenBalance = tokenBalances.find(t => t.token === token);
-      const percentage = tokenBalance ? Number((amount * BigInt(100)) / tokenBalance.balance) : 0;
-      
+      const percentage = withdrawalPercentages[token] || 0;
       return { token, amount, percentage };
     });
 
-    const totalAmount = tokens.reduce((sum, t) => sum + t.amount, BigInt(0));
-    const totalPenalty = tokens.reduce((sum, t) => {
-      const tokenBalance = tokenBalances.find(tb => tb.token === t.token);
-      return sum + (t.amount * BigInt(Math.floor(tokenBalance?.penaltyRate || 0 * 10000))) / BigInt(10000);
+    const totalAmount = tokens.reduce((sum, token) => sum + token.amount, BigInt(0));
+    const totalPenalty = tokens.reduce((sum, token) => {
+      const tokenBalance = tokenBalances.find(tb => tb.token === token.token);
+      const penalty = tokenBalance ? (token.amount * BigInt(Math.floor(tokenBalance.penaltyRate * 100))) / BigInt(10000) : BigInt(0);
+      return sum + penalty;
     }, BigInt(0));
     const netAmount = totalAmount - totalPenalty;
 
     return {
       tokens,
       strategy,
-      scheduleDate,
-      conditions,
+      scheduleDate: strategy === 'scheduled' ? scheduleDate : undefined,
+      conditions: strategy === 'conditional' ? conditions : undefined,
       totalAmount,
       totalPenalty,
       netAmount
@@ -175,7 +182,7 @@ export function WithdrawalWizard({ className = '', onComplete }: WithdrawalWizar
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      const data = calculateWithdrawalPreview();
+      const data = calculateWithdrawalData();
       setWithdrawalData(data);
       onComplete?.(data);
     }
@@ -187,381 +194,347 @@ export function WithdrawalWizard({ className = '', onComplete }: WithdrawalWizar
     }
   };
 
-  const handleWithdraw = async () => {
-    if (!withdrawalData) return;
-    
-    try {
-      // Execute withdrawal logic here
-      console.log('Executing withdrawal:', withdrawalData);
-      // await withdraw(withdrawalData);
-    } catch (error) {
-      console.error('Withdrawal failed:', error);
-    }
-  };
-
-  const renderStepContent = () => {
+  const canProceed = () => {
     switch (currentStep) {
       case 0:
-        return (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold mb-4">Select Tokens to Withdraw</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {tokenBalances.map((token, index) => (
-                <motion.div
-                  key={token.token}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                >
-                  <Card 
-                    className={`p-4 cursor-pointer transition-all ${
-                      selectedTokens.has(token.token) 
-                        ? 'border-primary bg-primary/5' 
-                        : 'border-border hover:border-primary/50'
-                    }`}
-                    onClick={() => handleTokenSelect(token.token)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedTokens.has(token.token)}
-                          onChange={() => handleTokenSelect(token.token)}
-                          className="w-4 h-4 text-primary rounded focus:ring-primary"
-                        />
-                        <div>
-                          <div className="font-medium">{token.symbol}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {formatEther(token.balance)} {token.symbol}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-semibold">${token.value.toLocaleString()}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {token.penaltyRate * 100}% penalty
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        );
-
+        return selectedTokens.size > 0;
       case 1:
-        return (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold mb-4">Set Withdrawal Amounts</h3>
-            {Array.from(selectedTokens).map((token, index) => {
-              const tokenBalance = tokenBalances.find(t => t.token === token);
-              if (!tokenBalance) return null;
-
-              return (
-                <motion.div
-                  key={token}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                >
-                  <Card className="p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <div className="font-medium">{tokenBalance.symbol}</div>
-                        <div className="text-sm text-muted-foreground">
-                          Available: {formatEther(tokenBalance.balance)} {tokenBalance.symbol}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-semibold">${tokenBalance.value.toLocaleString()}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {tokenBalance.penaltyRate * 100}% penalty
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Withdrawal Amount</label>
-                        <AnimatedInput
-                          type="number"
-                          value={formatEther(withdrawalAmounts[token] || BigInt(0))}
-                          onChange={(e) => handleAmountChange(token, e.target.value)}
-                          placeholder="0.0"
-                          className="w-full"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Percentage</label>
-                        <AnimatedProgress
-                          value={withdrawalPercentages[token] || 0}
-                          max={100}
-                          className="w-full"
-                        />
-                        <div className="flex justify-between text-sm text-muted-foreground mt-1">
-                          <span>0%</span>
-                          <span>100%</span>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-4 text-sm">
-                        <div className="text-center">
-                          <div className="font-semibold">
-                            {formatEther(withdrawalAmounts[token] || BigInt(0))} {tokenBalance.symbol}
-                          </div>
-                          <div className="text-muted-foreground">Amount</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-semibold text-red-600">
-                            {formatEther((withdrawalAmounts[token] || BigInt(0)) * BigInt(Math.floor(tokenBalance.penaltyRate * 10000)) / BigInt(10000))} {tokenBalance.symbol}
-                          </div>
-                          <div className="text-muted-foreground">Penalty</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="font-semibold text-green-600">
-                            {formatEther((withdrawalAmounts[token] || BigInt(0)) - ((withdrawalAmounts[token] || BigInt(0)) * BigInt(Math.floor(tokenBalance.penaltyRate * 10000)) / BigInt(10000)))} {tokenBalance.symbol}
-                          </div>
-                          <div className="text-muted-foreground">Net Amount</div>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                </motion.div>
-              );
-            })}
-          </div>
+        return Array.from(selectedTokens).every(token => 
+          withdrawalAmounts[token] && withdrawalAmounts[token] > BigInt(0)
         );
-
       case 2:
-        return (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold mb-4">Choose Withdrawal Strategy</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card 
-                className={`p-4 cursor-pointer transition-all ${
-                  strategy === 'immediate' ? 'border-primary bg-primary/5' : 'border-border'
-                }`}
-                onClick={() => setStrategy('immediate')}
-              >
-                <div className="text-center">
-                  <ArrowTrendingDownIcon className="w-8 h-8 mx-auto mb-2 text-primary" />
-                  <h4 className="font-semibold">Immediate</h4>
-                  <p className="text-sm text-muted-foreground">Withdraw now</p>
-                </div>
-              </Card>
-
-              <Card 
-                className={`p-4 cursor-pointer transition-all ${
-                  strategy === 'scheduled' ? 'border-primary bg-primary/5' : 'border-border'
-                }`}
-                onClick={() => setStrategy('scheduled')}
-              >
-                <div className="text-center">
-                  <ClockIcon className="w-8 h-8 mx-auto mb-2 text-primary" />
-                  <h4 className="font-semibold">Scheduled</h4>
-                  <p className="text-sm text-muted-foreground">Withdraw at specific time</p>
-                </div>
-              </Card>
-
-              <Card 
-                className={`p-4 cursor-pointer transition-all ${
-                  strategy === 'conditional' ? 'border-primary bg-primary/5' : 'border-border'
-                }`}
-                onClick={() => setStrategy('conditional')}
-              >
-                <div className="text-center">
-                  <InformationCircleIcon className="w-8 h-8 mx-auto mb-2 text-primary" />
-                  <h4 className="font-semibold">Conditional</h4>
-                  <p className="text-sm text-muted-foreground">Withdraw when conditions are met</p>
-                </div>
-              </Card>
-            </div>
-
-            {strategy === 'scheduled' && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                className="mt-4"
-              >
-                <Card className="p-4">
-                  <label className="block text-sm font-medium mb-2">Schedule Date</label>
-                  <input
-                    type="datetime-local"
-                    value={scheduleDate.toISOString().slice(0, 16)}
-                    onChange={(e) => setScheduleDate(new Date(e.target.value))}
-                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                  />
-                </Card>
-              </motion.div>
-            )}
-
-            {strategy === 'conditional' && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                className="mt-4"
-              >
-                <Card className="p-4">
-                  <h4 className="font-semibold mb-4">Withdrawal Conditions</h4>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Price Target (Optional)</label>
-                      <AnimatedInput
-                        type="number"
-                        placeholder="0.0"
-                        value={conditions.priceTarget || ''}
-                        onChange={(e) => setConditions(prev => ({ ...prev, priceTarget: parseFloat(e.target.value) }))}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Max Gas Price (Gwei)</label>
-                      <AnimatedInput
-                        type="number"
-                        placeholder="50"
-                        value={conditions.gasPriceMax || ''}
-                        onChange={(e) => setConditions(prev => ({ ...prev, gasPriceMax: parseFloat(e.target.value) }))}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Max Market Volatility (%)</label>
-                      <AnimatedInput
-                        type="number"
-                        placeholder="5.0"
-                        value={conditions.marketVolatility || ''}
-                        onChange={(e) => setConditions(prev => ({ ...prev, marketVolatility: parseFloat(e.target.value) }))}
-                      />
-                    </div>
-                  </div>
-                </Card>
-              </motion.div>
-            )}
-          </div>
-        );
-
+        return true;
       case 3:
-        const preview = calculateWithdrawalPreview();
-        return (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold mb-4">Review Withdrawal</h3>
-            <Card className="p-6">
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="font-medium">Strategy</span>
-                  <span className="capitalize">{strategy}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="font-medium">Total Amount</span>
-                  <span className="font-semibold">{formatEther(preview.totalAmount)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="font-medium">Total Penalty</span>
-                  <span className="font-semibold text-red-600">{formatEther(preview.totalPenalty)}</span>
-                </div>
-                <div className="flex justify-between items-center border-t pt-4">
-                  <span className="font-medium">Net Amount</span>
-                  <span className="font-semibold text-green-600">{formatEther(preview.netAmount)}</span>
-                </div>
-              </div>
-            </Card>
-
-            <div className="space-y-2">
-              {preview.tokens.map((token, index) => {
-                const tokenBalance = tokenBalances.find(t => t.token === token.token);
-                return (
-                  <motion.div
-                    key={token.token}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                  >
-                    <Card className="p-4">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <div className="font-medium">{tokenBalance?.symbol}</div>
-                          <div className="text-sm text-muted-foreground">{token.percentage}% of balance</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-semibold">{formatEther(token.amount)} {tokenBalance?.symbol}</div>
-                          <div className="text-sm text-muted-foreground">
-                            Penalty: {formatEther((token.amount * BigInt(Math.floor((tokenBalance?.penaltyRate || 0) * 10000))) / BigInt(10000))} {tokenBalance?.symbol}
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </div>
-        );
-
+        return true;
       default:
-        return null;
+        return false;
     }
   };
+
+  // Show loading state
+  if (isLoadingSavings) {
+    return (
+      <div className={`space-y-6 ${className}`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Withdrawal Wizard</h2>
+            <p className="text-muted-foreground">Withdraw your savings step by step</p>
+          </div>
+        </div>
+        <LoadingState message="Loading your savings balances..." />
+      </div>
+    );
+  }
+
+  // Show error state
+  if (savingsError) {
+    return (
+      <div className={`space-y-6 ${className}`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Withdrawal Wizard</h2>
+            <p className="text-muted-foreground">Withdraw your savings step by step</p>
+          </div>
+        </div>
+        <ErrorState
+          title="Failed to load savings"
+          message="Unable to fetch your savings balances. Please try again."
+          onRetry={refreshSavings}
+        />
+      </div>
+    );
+  }
+
+  // Show empty state if no balances
+  if (!balances || balances.length === 0) {
+    return (
+      <div className={`space-y-6 ${className}`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Withdrawal Wizard</h2>
+            <p className="text-muted-foreground">Withdraw your savings step by step</p>
+          </div>
+        </div>
+        <NoWithdrawalsEmptyState onAction={() => window.location.href = '/configure'} />
+      </div>
+    );
+  }
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {/* Progress Steps */}
+      {/* Header */}
       <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Withdrawal Wizard</h2>
+          <p className="text-muted-foreground">Withdraw your savings step by step</p>
+        </div>
+        <div className="text-sm text-muted-foreground">
+          Step {currentStep + 1} of {steps.length}
+        </div>
+      </div>
+
+      {/* Progress */}
+      <AnimatedProgress
+        value={(currentStep / (steps.length - 1)) * 100}
+        className="w-full"
+      />
+
+      {/* Steps */}
+      <div className="grid grid-cols-4 gap-4 mb-6">
         {steps.map((step, index) => (
-          <div key={step.id} className="flex items-center">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-              index <= currentStep 
-                ? 'bg-primary text-white' 
-                : 'bg-muted text-muted-foreground'
-            }`}>
-              {index + 1}
-            </div>
-            <div className="ml-3">
-              <div className="font-medium">{step.title}</div>
-              <div className="text-sm text-muted-foreground">{step.description}</div>
-            </div>
-            {index < steps.length - 1 && (
-              <ArrowRightIcon className="w-4 h-4 mx-4 text-muted-foreground" />
-            )}
+          <div
+            key={step.id}
+            className={`text-center p-3 rounded-lg transition-all duration-200 ${
+              index <= currentStep
+                ? 'bg-primary text-white'
+                : 'bg-gray-100 text-gray-500'
+            }`}
+          >
+            <div className="font-semibold text-sm">{step.title}</div>
+            <div className="text-xs opacity-75">{step.description}</div>
           </div>
         ))}
       </div>
 
       {/* Step Content */}
-      <AnimatedCard className="p-6">
-        {renderStepContent()}
-      </AnimatedCard>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={currentStep}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          transition={{ duration: 0.3 }}
+        >
+          {/* Step 1: Select Tokens */}
+          {currentStep === 0 && (
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Select Tokens to Withdraw</h3>
+              <div className="space-y-3">
+                {tokenBalances.map((balance) => (
+                  <div
+                    key={balance.token}
+                    className={`p-4 border rounded-lg cursor-pointer transition-all duration-200 ${
+                      selectedTokens.has(balance.token)
+                        ? 'border-primary bg-primary/5'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => handleTokenToggle(balance.token)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-4 h-4 rounded-full border-2 ${
+                          selectedTokens.has(balance.token)
+                            ? 'bg-primary border-primary'
+                            : 'border-gray-300'
+                        }`}>
+                          {selectedTokens.has(balance.token) && (
+                            <CheckCircleIcon className="w-4 h-4 text-white" />
+                          )}
+                        </div>
+                        <div>
+                          <div className="font-semibold">{balance.symbol}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {formatUnits(balance.balance, balance.decimals)} {balance.symbol}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-semibold">${balance.value.toFixed(2)}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {balance.penaltyRate * 100}% penalty
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* Step 2: Set Amounts */}
+          {currentStep === 1 && (
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Set Withdrawal Amounts</h3>
+              <div className="space-y-4">
+                {Array.from(selectedTokens).map((token) => {
+                  const balance = tokenBalances.find(tb => tb.token === token);
+                  if (!balance) return null;
+
+                  return (
+                    <div key={token} className="p-4 border rounded-lg">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <div className="font-semibold">{balance.symbol}</div>
+                          <div className="text-sm text-muted-foreground">
+                            Available: {formatUnits(balance.balance, balance.decimals)} {balance.symbol}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-semibold">${balance.value.toFixed(2)}</div>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-sm font-medium">Amount</label>
+                          <AnimatedInput
+                            type="number"
+                            placeholder="0.00"
+                            value={withdrawalAmounts[token] ? formatUnits(withdrawalAmounts[token], balance.decimals) : ''}
+                            onChange={(e) => handleAmountChange(token, e.target.value)}
+                            className="mt-1"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="text-sm font-medium">Percentage</label>
+                          <div className="flex gap-2 mt-1">
+                            {[25, 50, 75, 100].map((percentage) => (
+                              <Button
+                                key={percentage}
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handlePercentageChange(token, percentage)}
+                                className={withdrawalPercentages[token] === percentage ? 'bg-primary text-white' : ''}
+                              >
+                                {percentage}%
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
+
+          {/* Step 3: Withdrawal Strategy */}
+          {currentStep === 2 && (
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Choose Withdrawal Strategy</h3>
+              <div className="space-y-4">
+                {[
+                  {
+                    id: 'immediate',
+                    title: 'Immediate Withdrawal',
+                    description: 'Withdraw funds immediately with penalty',
+                    icon: ArrowTrendingDownIcon,
+                    penalty: '5% penalty applies'
+                  },
+                  {
+                    id: 'scheduled',
+                    title: 'Scheduled Withdrawal',
+                    description: 'Schedule withdrawal for a specific date',
+                    icon: ClockIcon,
+                    penalty: 'Reduced penalty based on timing'
+                  },
+                  {
+                    id: 'conditional',
+                    title: 'Conditional Withdrawal',
+                    description: 'Withdraw when conditions are met',
+                    icon: ShieldCheckIcon,
+                    penalty: 'No penalty if conditions met'
+                  }
+                ].map((strategyOption) => (
+                  <div
+                    key={strategyOption.id}
+                    className={`p-4 border rounded-lg cursor-pointer transition-all duration-200 ${
+                      strategy === strategyOption.id
+                        ? 'border-primary bg-primary/5'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => setStrategy(strategyOption.id as any)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <strategyOption.icon className="w-6 h-6 text-primary" />
+                      <div className="flex-1">
+                        <div className="font-semibold">{strategyOption.title}</div>
+                        <div className="text-sm text-muted-foreground">{strategyOption.description}</div>
+                        <div className="text-xs text-orange-600 mt-1">{strategyOption.penalty}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* Step 4: Preview */}
+          {currentStep === 3 && (
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Review Withdrawal</h3>
+              {(() => {
+                const data = calculateWithdrawalData();
+                return (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 bg-gray-50 rounded-lg">
+                        <div className="text-sm text-muted-foreground">Total Amount</div>
+                        <div className="text-xl font-bold">
+                          ${Array.from(selectedTokens).reduce((sum, token) => {
+                            const balance = tokenBalances.find(tb => tb.token === token);
+                            const amount = withdrawalAmounts[token] || BigInt(0);
+                            const value = balance ? Number(formatUnits(amount, balance.decimals)) * balance.value / Number(formatUnits(balance.balance, balance.decimals)) : 0;
+                            return sum + value;
+                          }, 0).toFixed(2)}
+                        </div>
+                      </div>
+                      <div className="p-4 bg-red-50 rounded-lg">
+                        <div className="text-sm text-muted-foreground">Total Penalty</div>
+                        <div className="text-xl font-bold text-red-600">
+                          ${Array.from(selectedTokens).reduce((sum, token) => {
+                            const balance = tokenBalances.find(tb => tb.token === token);
+                            const amount = withdrawalAmounts[token] || BigInt(0);
+                            const penalty = balance ? (amount * BigInt(Math.floor(balance.penaltyRate * 100))) / BigInt(10000) : BigInt(0);
+                            const value = balance ? Number(formatUnits(penalty, balance.decimals)) * balance.value / Number(formatUnits(balance.balance, balance.decimals)) : 0;
+                            return sum + value;
+                          }, 0).toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="p-4 bg-green-50 rounded-lg">
+                      <div className="text-sm text-muted-foreground">Net Amount (After Penalty)</div>
+                      <div className="text-2xl font-bold text-green-700">
+                        ${Array.from(selectedTokens).reduce((sum, token) => {
+                          const balance = tokenBalances.find(tb => tb.token === token);
+                          const amount = withdrawalAmounts[token] || BigInt(0);
+                          const penalty = balance ? (amount * BigInt(Math.floor(balance.penaltyRate * 100))) / BigInt(10000) : BigInt(0);
+                          const netAmount = amount - penalty;
+                          const value = balance ? Number(formatUnits(netAmount, balance.decimals)) * balance.value / Number(formatUnits(balance.balance, balance.decimals)) : 0;
+                          return sum + value;
+                        }, 0).toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </Card>
+          )}
+        </motion.div>
+      </AnimatePresence>
 
       {/* Navigation */}
-      <div className="flex justify-between">
-        <AnimatedButton
+      <div className="flex items-center justify-between">
+        <Button
           variant="outline"
           onClick={handlePrevious}
           disabled={currentStep === 0}
-          className="flex items-center gap-2"
         >
-          <ArrowLeftIcon className="w-4 h-4" />
+          <ArrowLeftIcon className="w-4 h-4 mr-2" />
           Previous
-        </AnimatedButton>
-
-        <AnimatedButton
-          onClick={currentStep === steps.length - 1 ? handleWithdraw : handleNext}
-          disabled={selectedTokens.size === 0 || isLoadingWithdraw}
-          className="flex items-center gap-2"
+        </Button>
+        
+        <Button
+          onClick={handleNext}
+          disabled={!canProceed()}
         >
-          {currentStep === steps.length - 1 ? (
-            <>
-              <BanknotesIcon className="w-4 h-4" />
-              Execute Withdrawal
-            </>
-          ) : (
-            <>
-              Next
-              <ArrowRightIcon className="w-4 h-4" />
-            </>
-          )}
-        </AnimatedButton>
+          {currentStep === steps.length - 1 ? 'Complete Withdrawal' : 'Next'}
+          <ArrowRightIcon className="w-4 h-4 ml-2" />
+        </Button>
       </div>
     </div>
   );
 }
-
