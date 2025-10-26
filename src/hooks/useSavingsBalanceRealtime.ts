@@ -8,6 +8,7 @@ import { getContractAddress } from '@/contracts/addresses';
 import { SpendSaveStorageABI } from '@/contracts/abis/SpendSaveStorage';
 import { useActiveChainId } from './useActiveChainId';
 import { BASE_SEPOLIA_TOKENS } from '@/config/network';
+import { useBiconomy } from '@/components/BiconomyProvider';
 
 export interface RealtimeSavingsBalance {
   token: string;
@@ -28,10 +29,14 @@ export interface RealtimeSavingsData {
 }
 
 export function useSavingsBalanceRealtime() {
-  const { address } = useAccount();
+  const { address: eoaAddress } = useAccount();
+  const { smartAccountAddress } = useBiconomy();
   const chainId = useActiveChainId();
   const publicClient = usePublicClient();
   const queryClient = useQueryClient();
+
+  // Use Smart Account address if available, fallback to EOA
+  const address = smartAccountAddress || eoaAddress;
 
   // Get contract address
   const storageAddress = getContractAddress(chainId, 'SpendSaveStorage');
@@ -61,7 +66,15 @@ export function useSavingsBalanceRealtime() {
         address: storageAddress as `0x${string}`,
         abi: SpendSaveStorageABI,
         functionName: 'savings',
-        args: [address, tokenAddress as `0x${string}`]
+        args: [address as `0x${string}`, tokenAddress as `0x${string}`]
+      });
+
+      console.log(`💰 Fetched savings for ${tokenAddress}:`, {
+        eoaAddress,
+        smartAccountAddress,
+        addressUsed: address,
+        token: tokenAddress,
+        balance: balance.toString()
       });
 
       return balance as bigint;
@@ -72,7 +85,7 @@ export function useSavingsBalanceRealtime() {
   }, [address, publicClient, storageAddress]);
 
   // Fetch all savings balances with optimized caching
-  const { data: savingsData, isLoading, error } = useQuery<RealtimeSavingsData>({
+  const { data: savingsData, isLoading, error, refetch } = useQuery<RealtimeSavingsData>({
     queryKey: ['realtimeSavingsBalance', address, chainId],
     queryFn: async (): Promise<RealtimeSavingsData> => {
       if (!address || !publicClient || !storageAddress || storageAddress === '0x0000000000000000000000000000000000000000') {
@@ -101,8 +114,22 @@ export function useSavingsBalanceRealtime() {
         const balances = await Promise.all(balancePromises);
         const totalBalance = balances.reduce((sum, balance) => sum + balance.amount, BigInt(0));
 
+        // Debug logging
+        console.log('🔍 Savings data fetched:', {
+          eoaAddress,
+          smartAccountAddress,
+          addressUsed: address,
+          balances: balances.map(b => ({
+            token: b.token,
+            symbol: b.symbol,
+            amount: b.amount.toString(),
+            formatted: b.formatted
+          })),
+          totalBalance: totalBalance.toString()
+        });
+
         return {
-          balances: balances.filter(b => b.amount > BigInt(0)),
+          balances: balances, // Show all balances, including zero ones
           totalBalance,
           totalFormatted: formatUnits(totalBalance, 18), // Use 18 decimals for total
           isLoading: false,
@@ -147,7 +174,7 @@ export function useSavingsBalanceRealtime() {
       abi: SpendSaveStorageABI,
       eventName: 'SavingsIncreased',
       args: {
-        user: address
+        user: address as `0x${string}`
       },
       onLogs: (logs) => {
         console.log('SavingsIncreased event detected:', logs);
@@ -174,17 +201,21 @@ export function useSavingsBalanceRealtime() {
     ...savingsData,
     isLoading: isLoading || savingsData?.isLoading || false,
     error: error?.message || savingsData?.error,
-    refreshSavings,
+    refreshSavings: refetch,
     trackedTokens
   };
 }
 
 // Hook for individual token savings balance
 export function useTokenSavingsBalance(tokenAddress: string) {
-  const { address } = useAccount();
+  const { address: eoaAddress } = useAccount();
+  const { smartAccountAddress } = useBiconomy();
   const chainId = useActiveChainId();
   const publicClient = usePublicClient();
   const storageAddress = getContractAddress(chainId, 'SpendSaveStorage');
+
+  // Use Smart Account address if available, fallback to EOA
+  const address = smartAccountAddress || eoaAddress;
 
   const { data: balance, isLoading, error } = useQuery({
     queryKey: ['tokenSavingsBalance', address, tokenAddress, chainId],
@@ -198,7 +229,7 @@ export function useTokenSavingsBalance(tokenAddress: string) {
           address: storageAddress as `0x${string}`,
           abi: SpendSaveStorageABI,
           functionName: 'savings',
-          args: [address, tokenAddress as `0x${string}`]
+          args: [address as `0x${string}`, tokenAddress as `0x${string}`]
         });
 
         return balance as bigint;
@@ -208,7 +239,7 @@ export function useTokenSavingsBalance(tokenAddress: string) {
       }
     },
     enabled: !!address && !!publicClient && !!storageAddress && storageAddress !== '0x0000000000000000000000000000000000000000',
-    refetchInterval: 5000,
+    refetchInterval: 2000, // Refresh every 2 seconds for real-time updates
     retry: 2,
   });
 

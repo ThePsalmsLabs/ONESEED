@@ -6,10 +6,15 @@ import { SavingsStrategyABI } from '@/contracts/abis/SavingStrategy';
 import { SavingsTokenType } from '@/contracts/types';
 import { useSmartContractWrite } from './useSmartContractWrite';
 import { useActiveChainId } from './useActiveChainId';
+import { useBiconomy } from '@/components/BiconomyProvider';
 
 export function useSavingsStrategy() {
-  const { address } = useAccount();
+  const { address: eoaAddress } = useAccount();
+  const { smartAccountAddress } = useBiconomy();
   const chainId = useActiveChainId();
+
+  // Use Smart Account address if available, fallback to EOA
+  const address = smartAccountAddress || eoaAddress;
 
   // Get contract address for current chain
   const contractAddress = getContractAddress(chainId, 'SavingStrategy');
@@ -19,7 +24,7 @@ export function useSavingsStrategy() {
     address: contractAddress as `0x${string}`,
     abi: SavingsStrategyABI,
     functionName: 'getUserStrategy',
-    args: address ? [address] : undefined,
+    args: address ? [address as `0x${string}`] : undefined,
     query: {
       enabled: !!address && !!contractAddress
     }
@@ -30,7 +35,7 @@ export function useSavingsStrategy() {
     address: contractAddress as `0x${string}`,
     abi: SavingsStrategyABI,
     functionName: 'hasActiveStrategy',
-    args: address ? [address] : undefined,
+    args: address ? [address as `0x${string}`] : undefined,
     query: {
       enabled: !!address && !!contractAddress
     }
@@ -42,7 +47,7 @@ export function useSavingsStrategy() {
       address: contractAddress as `0x${string}`,
       abi: SavingsStrategyABI,
       functionName: 'previewSavings',
-      args: address && swapAmount ? [address, swapAmount] : undefined,
+      args: address && swapAmount ? [address as `0x${string}`, swapAmount] : undefined,
       query: {
         enabled: !!address && !!swapAmount && !!contractAddress
       }
