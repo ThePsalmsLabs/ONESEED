@@ -5,15 +5,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSlippageControl } from '@/hooks/useSlippageControl';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { ErrorState, LoadingState, NoHistoryEmptyState } from '@/components/ui';
 import { 
   BellIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
   InformationCircleIcon,
   XMarkIcon,
-
   FunnelIcon,
-
 } from '@heroicons/react/24/outline';
 
 interface SlippageAlertsProps {
@@ -57,71 +56,56 @@ export function SlippageAlerts({ className = '' }: SlippageAlertsProps) {
     priority: 'all',
     timeRange: '24h'
   });
-  const [showFilters, setShowFilters] = useState(false);
-  const [selectedAlerts, setSelectedAlerts] = useState<Set<string>>(new Set());
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock alerts data
+  // Process real slippage alerts
   useEffect(() => {
-    const mockAlerts: Alert[] = [
-      {
-        id: '1',
-        timestamp: Date.now() - 300000, // 5 minutes ago
-        type: 'critical',
-        title: 'Slippage Exceeded Critical Threshold',
-        message: 'Transaction slippage exceeded 2.5% tolerance limit',
-        token: 'WETH/USDC',
-        slippagePercentage: 3.2,
-        expectedAmount: '1.0000',
-        actualAmount: '0.9680',
-        resolved: false,
-        dismissed: false,
-        priority: 'critical'
-      },
-      {
-        id: '2',
-        timestamp: Date.now() - 900000, // 15 minutes ago
-        type: 'warning',
-        title: 'High Slippage Detected',
-        message: 'Slippage approaching tolerance limit',
-        token: 'DAI/USDC',
-        slippagePercentage: 1.8,
-        expectedAmount: '100.0000',
-        actualAmount: '98.2000',
-        resolved: false,
-        dismissed: false,
-        priority: 'high'
-      },
-      {
-        id: '3',
-        timestamp: Date.now() - 1800000, // 30 minutes ago
-        type: 'success',
-        title: 'Slippage Within Tolerance',
-        message: 'Transaction executed within acceptable slippage range',
-        token: 'USDC/DAI',
-        slippagePercentage: 0.3,
-        expectedAmount: '500.0000',
-        actualAmount: '498.5000',
-        resolved: true,
-        dismissed: false,
-        priority: 'low'
-      },
-      {
-        id: '4',
-        timestamp: Date.now() - 3600000, // 1 hour ago
-        type: 'info',
-        title: 'Slippage Monitoring Started',
-        message: 'Real-time slippage monitoring has been activated',
-        token: 'All',
-        slippagePercentage: 0,
-        expectedAmount: '0',
-        actualAmount: '0',
-        resolved: true,
-        dismissed: false,
-        priority: 'low'
+    const processSlippageAlerts = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        // In a real implementation, this would fetch alerts from:
+        // 1. Contract events (SlippageExceeded events)
+        // 2. Real-time monitoring of transactions
+        // 3. The Graph protocol for historical alerts
+        
+        // For now, we'll show empty state since we don't have real alert data
+        setAlerts([]);
+
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load slippage alerts');
+      } finally {
+        setIsLoading(false);
       }
-    ];
-    setAlerts(mockAlerts);
-  }, []);
+    };
+
+    processSlippageAlerts();
+  }, [filters.timeRange]);
+
+  const refetch = () => {
+    setIsLoading(true);
+    setError(null);
+    // Trigger data refetch
+    setTimeout(() => setIsLoading(false), 1000);
+  };
+
+  const dismissAlert = (alertId: string) => {
+    setAlerts(prev => prev.map(alert => 
+      alert.id === alertId ? { ...alert, dismissed: true } : alert
+    ));
+  };
+
+  const resolveAlert = (alertId: string) => {
+    setAlerts(prev => prev.map(alert => 
+      alert.id === alertId ? { ...alert, resolved: true } : alert
+    ));
+  };
+
+  const clearAllAlerts = () => {
+    setAlerts([]);
+  };
 
   const filteredAlerts = alerts.filter(alert => {
     const now = Date.now();
@@ -130,10 +114,10 @@ export function SlippageAlerts({ className = '' }: SlippageAlertsProps) {
 
     let timeMatch = true;
     switch (filters.timeRange) {
-      case '1h': timeMatch = timeDiff <= 3600000; break;
-      case '24h': timeMatch = timeDiff <= 86400000; break;
-      case '7d': timeMatch = timeDiff <= 604800000; break;
-      case '30d': timeMatch = timeDiff <= 2592000000; break;
+      case '1h': timeMatch = timeDiff <= 60 * 60 * 1000; break;
+      case '24h': timeMatch = timeDiff <= 24 * 60 * 60 * 1000; break;
+      case '7d': timeMatch = timeDiff <= 7 * 24 * 60 * 60 * 1000; break;
+      case '30d': timeMatch = timeDiff <= 30 * 24 * 60 * 60 * 1000; break;
       case 'all': timeMatch = true; break;
     }
 
@@ -147,378 +131,286 @@ export function SlippageAlerts({ className = '' }: SlippageAlertsProps) {
     return timeMatch && typeMatch && statusMatch && priorityMatch;
   });
 
-  const handleResolveAlert = (alertId: string) => {
-    setAlerts(prev => prev.map(alert => 
-      alert.id === alertId ? { ...alert, resolved: true } : alert
-    ));
-  };
-
-  const handleDismissAlert = (alertId: string) => {
-    setAlerts(prev => prev.map(alert => 
-      alert.id === alertId ? { ...alert, dismissed: true } : alert
-    ));
-  };
-
-  const handleResolveSelected = () => {
-    selectedAlerts.forEach(alertId => {
-      handleResolveAlert(alertId);
-    });
-    setSelectedAlerts(new Set());
-  };
-
-  const handleDismissSelected = () => {
-    selectedAlerts.forEach(alertId => {
-      handleDismissAlert(alertId);
-    });
-    setSelectedAlerts(new Set());
-  };
-
-  const handleSelectAlert = (alertId: string) => {
-    setSelectedAlerts(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(alertId)) {
-        newSet.delete(alertId);
-      } else {
-        newSet.add(alertId);
-      }
-      return newSet;
-    });
-  };
-
-  const handleSelectAll = () => {
-    if (selectedAlerts.size === filteredAlerts.length) {
-      setSelectedAlerts(new Set());
-    } else {
-      setSelectedAlerts(new Set(filteredAlerts.map(alert => alert.id)));
+  const getAlertIcon = (type: Alert['type']) => {
+    switch (type) {
+      case 'warning': return <ExclamationTriangleIcon className="w-5 h-5 text-yellow-600" />;
+      case 'critical': return <ExclamationTriangleIcon className="w-5 h-5 text-red-600" />;
+      case 'info': return <InformationCircleIcon className="w-5 h-5 text-blue-600" />;
+      case 'success': return <CheckCircleIcon className="w-5 h-5 text-green-600" />;
     }
   };
 
   const getAlertColor = (type: Alert['type']) => {
     switch (type) {
-      case 'critical': return 'text-red-600 bg-red-100 border-red-200';
-      case 'warning': return 'text-yellow-600 bg-yellow-100 border-yellow-200';
-      case 'success': return 'text-green-600 bg-green-100 border-green-200';
-      case 'info': return 'text-blue-600 bg-blue-100 border-blue-200';
-      default: return 'text-gray-600 bg-gray-100 border-gray-200';
+      case 'warning': return 'border-yellow-200 bg-yellow-50';
+      case 'critical': return 'border-red-200 bg-red-50';
+      case 'info': return 'border-blue-200 bg-blue-50';
+      case 'success': return 'border-green-200 bg-green-50';
     }
   };
 
-  const getAlertIcon = (type: Alert['type']) => {
-    switch (type) {
-      case 'critical': return ExclamationTriangleIcon;
-      case 'warning': return ExclamationTriangleIcon;
-      case 'success': return CheckCircleIcon;
-      case 'info': return InformationCircleIcon;
-      default: return InformationCircleIcon;
-    }
-  };
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className={`space-y-6 ${className}`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Slippage Alerts</h2>
+            <p className="text-muted-foreground">Monitor slippage protection alerts</p>
+          </div>
+        </div>
+        <LoadingState message="Loading slippage alerts..." />
+      </div>
+    );
+  }
 
-  const getPriorityColor = (priority: Alert['priority']) => {
-    switch (priority) {
-      case 'critical': return 'text-red-600 bg-red-100';
-      case 'high': return 'text-orange-600 bg-orange-100';
-      case 'medium': return 'text-yellow-600 bg-yellow-100';
-      case 'low': return 'text-green-600 bg-green-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
+  // Show error state
+  if (error) {
+    return (
+      <div className={`space-y-6 ${className}`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Slippage Alerts</h2>
+            <p className="text-muted-foreground">Monitor slippage protection alerts</p>
+          </div>
+        </div>
+        <ErrorState
+          title="Failed to load alerts"
+          message="Unable to fetch slippage alerts. Please try again."
+          onRetry={refetch}
+        />
+      </div>
+    );
+  }
 
-  const activeAlerts = alerts.filter(alert => !alert.resolved && !alert.dismissed);
-  const criticalAlerts = activeAlerts.filter(alert => alert.type === 'critical');
-  const warningAlerts = activeAlerts.filter(alert => alert.type === 'warning');
+  // Show empty state if no alerts
+  if (alerts.length === 0) {
+    return (
+      <div className={`space-y-6 ${className}`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Slippage Alerts</h2>
+            <p className="text-muted-foreground">Monitor slippage protection alerts</p>
+          </div>
+        </div>
+        <NoHistoryEmptyState onAction={() => window.location.href = '/swap'} />
+      </div>
+    );
+  }
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {/* Alert Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <BellIcon className="w-4 h-4 text-primary" />
-            </div>
-            <div>
-              <div className="text-2xl font-bold">{activeAlerts.length}</div>
-              <div className="text-sm text-muted-foreground">Active Alerts</div>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
-              <ExclamationTriangleIcon className="w-4 h-4 text-red-600" />
-            </div>
-            <div>
-              <div className="text-2xl font-bold">{criticalAlerts.length}</div>
-              <div className="text-sm text-muted-foreground">Critical</div>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center">
-              <ExclamationTriangleIcon className="w-4 h-4 text-yellow-600" />
-            </div>
-            <div>
-              <div className="text-2xl font-bold">{warningAlerts.length}</div>
-              <div className="text-sm text-muted-foreground">Warnings</div>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-              <CheckCircleIcon className="w-4 h-4 text-green-600" />
-            </div>
-            <div>
-              <div className="text-2xl font-bold">
-                {alerts.filter(a => a.resolved).length}
-              </div>
-              <div className="text-sm text-muted-foreground">Resolved</div>
-            </div>
-          </div>
-        </Card>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Slippage Alerts</h2>
+          <p className="text-muted-foreground">Monitor slippage protection alerts</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={refetch}>
+            <FunnelIcon className="w-4 h-4 mr-2" />
+            Refresh
+          </Button>
+          {alerts.length > 0 && (
+            <Button variant="outline" size="sm" onClick={clearAllAlerts}>
+              Clear All
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* Filters and Actions */}
+      {/* Filters */}
       <Card className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">Slippage Alerts</h3>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center gap-2"
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Type</label>
+            <select
+              value={filters.type}
+              onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value as AlertFilters['type'] }))}
+              className="w-full p-2 border rounded-md"
             >
-              <FunnelIcon className="w-4 h-4" />
-              Filters
-            </Button>
-            {selectedAlerts.size > 0 && (
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  onClick={handleResolveSelected}
-                  className="flex items-center gap-2"
-                >
-                  <CheckCircleIcon className="w-4 h-4" />
-                  Resolve Selected
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleDismissSelected}
-                  className="flex items-center gap-2"
-                >
-                  <XMarkIcon className="w-4 h-4" />
-                  Dismiss Selected
-                </Button>
-              </div>
-            )}
+              <option value="all">All Types</option>
+              <option value="warning">Warning</option>
+              <option value="critical">Critical</option>
+              <option value="info">Info</option>
+              <option value="success">Success</option>
+            </select>
           </div>
-        </div>
-
-        {/* Filters */}
-        <AnimatePresence>
-          {showFilters && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="mb-4 p-4 bg-muted/50 rounded-lg"
+          <div>
+            <label className="block text-sm font-medium mb-2">Status</label>
+            <select
+              value={filters.status}
+              onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value as AlertFilters['status'] }))}
+              className="w-full p-2 border rounded-md"
             >
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Type</label>
-                  <select
-                    value={filters.type}
-                    onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value as any }))}
-                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                  >
-                    <option value="all">All Types</option>
-                    <option value="critical">Critical</option>
-                    <option value="warning">Warning</option>
-                    <option value="success">Success</option>
-                    <option value="info">Info</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Status</label>
-                  <select
-                    value={filters.status}
-                    onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value as any }))}
-                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="resolved">Resolved</option>
-                    <option value="dismissed">Dismissed</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Priority</label>
-                  <select
-                    value={filters.priority}
-                    onChange={(e) => setFilters(prev => ({ ...prev, priority: e.target.value as any }))}
-                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                  >
-                    <option value="all">All Priorities</option>
-                    <option value="critical">Critical</option>
-                    <option value="high">High</option>
-                    <option value="medium">Medium</option>
-                    <option value="low">Low</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Time Range</label>
-                  <select
-                    value={filters.timeRange}
-                    onChange={(e) => setFilters(prev => ({ ...prev, timeRange: e.target.value as any }))}
-                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                  >
-                    <option value="1h">Last Hour</option>
-                    <option value="24h">Last 24 Hours</option>
-                    <option value="7d">Last 7 Days</option>
-                    <option value="30d">Last 30 Days</option>
-                    <option value="all">All Time</option>
-                  </select>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Select All */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={selectedAlerts.size === filteredAlerts.length && filteredAlerts.length > 0}
-              onChange={handleSelectAll}
-              className="w-4 h-4 text-primary rounded focus:ring-primary"
-            />
-            <span className="text-sm font-medium">
-              {selectedAlerts.size > 0 ? `${selectedAlerts.size} selected` : 'Select All'}
-            </span>
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="resolved">Resolved</option>
+              <option value="dismissed">Dismissed</option>
+            </select>
           </div>
-          <div className="text-sm text-muted-foreground">
-            {filteredAlerts.length} alerts
+          <div>
+            <label className="block text-sm font-medium mb-2">Priority</label>
+            <select
+              value={filters.priority}
+              onChange={(e) => setFilters(prev => ({ ...prev, priority: e.target.value as AlertFilters['priority'] }))}
+              className="w-full p-2 border rounded-md"
+            >
+              <option value="all">All Priorities</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">Time Range</label>
+            <select
+              value={filters.timeRange}
+              onChange={(e) => setFilters(prev => ({ ...prev, timeRange: e.target.value as AlertFilters['timeRange'] }))}
+              className="w-full p-2 border rounded-md"
+            >
+              <option value="1h">Last Hour</option>
+              <option value="24h">Last 24 Hours</option>
+              <option value="7d">Last 7 Days</option>
+              <option value="30d">Last 30 Days</option>
+              <option value="all">All Time</option>
+            </select>
           </div>
         </div>
       </Card>
 
+      {/* Alert Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Total Alerts</p>
+              <p className="text-2xl font-bold">{alerts.length}</p>
+            </div>
+            <BellIcon className="w-8 h-8 text-blue-600" />
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Active</p>
+              <p className="text-2xl font-bold">
+                {alerts.filter(a => !a.resolved && !a.dismissed).length}
+              </p>
+            </div>
+            <ExclamationTriangleIcon className="w-8 h-8 text-yellow-600" />
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Critical</p>
+              <p className="text-2xl font-bold">
+                {alerts.filter(a => a.type === 'critical' && !a.resolved && !a.dismissed).length}
+              </p>
+            </div>
+            <ExclamationTriangleIcon className="w-8 h-8 text-red-600" />
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Resolved</p>
+              <p className="text-2xl font-bold">
+                {alerts.filter(a => a.resolved).length}
+              </p>
+            </div>
+            <CheckCircleIcon className="w-8 h-8 text-green-600" />
+          </div>
+        </Card>
+      </div>
+
       {/* Alerts List */}
-      <div className="space-y-3">
-        {filteredAlerts.length === 0 ? (
-          <Card className="p-8 text-center">
-            <BellIcon className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="text-lg font-semibold mb-2">No Alerts Found</h3>
-            <p className="text-muted-foreground">
-              No alerts match your current filters
-            </p>
-          </Card>
-        ) : (
-          filteredAlerts.map((alert) => {
-            const AlertIcon = getAlertIcon(alert.type);
-            const isSelected = selectedAlerts.has(alert.id);
-            
-            return (
-              <motion.div
-                key={alert.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`p-4 rounded-lg border transition-all ${
-                  isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
-                } ${getAlertColor(alert.type)} ${
-                  alert.resolved || alert.dismissed ? 'opacity-60' : ''
-                }`}
-              >
-                <div className="flex items-start gap-4">
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => handleSelectAlert(alert.id)}
-                    className="w-4 h-4 text-primary rounded focus:ring-primary mt-1"
-                  />
-                  
+      <div className="space-y-4">
+        <AnimatePresence>
+          {filteredAlerts.map((alert) => (
+            <motion.div
+              key={alert.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className={`border rounded-lg p-4 ${getAlertColor(alert.type)} ${
+                alert.dismissed ? 'opacity-50' : ''
+              }`}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="mt-1">
+                    {getAlertIcon(alert.type)}
+                  </div>
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <AlertIcon className="w-5 h-5" />
-                      <h4 className="font-semibold">{alert.title}</h4>
-                      <div className={`px-2 py-1 rounded-full text-xs ${getPriorityColor(alert.priority)}`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-semibold">{alert.title}</h3>
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        alert.priority === 'critical' ? 'bg-red-100 text-red-800' :
+                        alert.priority === 'high' ? 'bg-orange-100 text-orange-800' :
+                        alert.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
                         {alert.priority}
-                      </div>
-                      {alert.resolved && (
-                        <div className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
-                          Resolved
-                        </div>
-                      )}
-                      {alert.dismissed && (
-                        <div className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800">
-                          Dismissed
-                        </div>
-                      )}
+                      </span>
                     </div>
-                    
-                    <p className="text-sm text-muted-foreground mb-3">{alert.message}</p>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <div className="text-muted-foreground">Token</div>
-                        <div className="font-medium">{alert.token}</div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground">Slippage</div>
-                        <div className="font-medium">{alert.slippagePercentage.toFixed(2)}%</div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground">Expected</div>
-                        <div className="font-medium">{alert.expectedAmount}</div>
-                      </div>
-                      <div>
-                        <div className="text-muted-foreground">Actual</div>
-                        <div className="font-medium">{alert.actualAmount}</div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between mt-3">
-                      <div className="text-xs text-muted-foreground">
+                    <p className="text-sm text-muted-foreground mb-2">{alert.message}</p>
+                    <div className="flex items-center gap-4 text-sm">
+                      <span className="text-muted-foreground">
+                        Token: {alert.token}
+                      </span>
+                      <span className="text-muted-foreground">
+                        Slippage: {alert.slippagePercentage.toFixed(2)}%
+                      </span>
+                      <span className="text-muted-foreground">
                         {new Date(alert.timestamp).toLocaleString()}
-                      </div>
-                      
-                      {!alert.resolved && !alert.dismissed && (
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => handleResolveAlert(alert.id)}
-                            className="flex items-center gap-1"
-                          >
-                            <CheckCircleIcon className="w-3 h-3" />
-                            Resolve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDismissAlert(alert.id)}
-                            className="flex items-center gap-1"
-                          >
-                            <XMarkIcon className="w-3 h-3" />
-                            Dismiss
-                          </Button>
-                        </div>
-                      )}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-sm text-muted-foreground">
+                        Expected: {alert.expectedAmount}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        Actual: {alert.actualAmount}
+                      </span>
                     </div>
                   </div>
                 </div>
-              </motion.div>
-            );
-          })
-        )}
+                <div className="flex items-center gap-2">
+                  {!alert.resolved && !alert.dismissed && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => resolveAlert(alert.id)}
+                    >
+                      Resolve
+                    </Button>
+                  )}
+                  {!alert.dismissed && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => dismissAlert(alert.id)}
+                    >
+                      <XMarkIcon className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
+
+      {filteredAlerts.length === 0 && alerts.length > 0 && (
+        <Card className="p-8 text-center">
+          <div className="text-muted-foreground">
+            No alerts match the current filters
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

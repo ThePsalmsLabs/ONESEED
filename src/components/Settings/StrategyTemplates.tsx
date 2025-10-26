@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { ErrorState, LoadingState, NoStrategiesEmptyState } from '@/components/ui';
+import { useStrategyTemplates } from '@/hooks/useStrategyTemplates';
+import { useAccount } from 'wagmi';
 import { AnimatedCard, AnimatedButton, AnimatedInput } from '@/components/ui/AnimatedComponents';
 import { 
   DocumentDuplicateIcon,
@@ -25,29 +28,7 @@ import { TargetIcon } from 'lucide-react';
 
 interface StrategyTemplatesProps {
   className?: string;
-  onTemplateSelect?: (template: StrategyTemplate) => void;
-}
-
-interface StrategyTemplate {
-  id: string;
-  name: string;
-  description: string;
-  category: 'savings' | 'dca' | 'withdrawal' | 'trading' | 'custom';
-  type: 'daily' | 'weekly' | 'monthly' | 'conditional' | 'optimized';
-  icon: React.ComponentType<any>;
-  parameters: Record<string, any>;
-  performance: {
-    successRate: number;
-    averageReturn: number;
-    riskLevel: 'low' | 'medium' | 'high';
-    popularity: number;
-  };
-  tags: string[];
-  isPublic: boolean;
-  isDefault: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  author: string;
+  onTemplateSelect?: (template: any) => void;
 }
 
 interface TemplateCategory {
@@ -67,172 +48,72 @@ const categories: TemplateCategory[] = [
 ];
 
 export function StrategyTemplates({ className = '', onTemplateSelect }: StrategyTemplatesProps) {
-  const [templates, setTemplates] = useState<StrategyTemplate[]>([]);
+  const { address } = useAccount();
+  const { templates, userStrategies, isLoading, error, refetch } = useStrategyTemplates();
+  
   const [selectedCategory, setSelectedCategory] = useState('savings');
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
 
-  useEffect(() => {
-    const mockTemplates: StrategyTemplate[] = [
-      {
-        id: '1',
-        name: 'Conservative Daily Savings',
-        description: 'Low-risk daily savings with 0.1 ETH per day',
-        category: 'savings',
-        type: 'daily',
-        icon: TargetIcon,
-        parameters: {
-          amount: 0.1,
-          token: 'WETH',
-          frequency: 'daily',
-          slippage: 0.5,
-          autoCompound: true
-        },
-        performance: {
-          successRate: 95,
-          averageReturn: 8.5,
-          riskLevel: 'low',
-          popularity: 85
-        },
-        tags: ['conservative', 'daily', 'low-risk'],
-        isPublic: true,
-        isDefault: true,
-        createdAt: new Date('2024-01-15'),
-        updatedAt: new Date('2024-01-20'),
-        author: 'OneSeed Team'
-      },
-      {
-        id: '2',
-        name: 'Aggressive DCA Strategy',
-        description: 'High-frequency DCA with market timing',
-        category: 'dca',
-        type: 'conditional',
-        icon: ChartBarIcon,
-        parameters: {
-          amount: 100,
-          token: 'USDC',
-          frequency: 'hourly',
-          priceThreshold: 0.05,
-          maxSlippage: 1.0
-        },
-        performance: {
-          successRate: 78,
-          averageReturn: 15.2,
-          riskLevel: 'high',
-          popularity: 62
-        },
-        tags: ['aggressive', 'dca', 'high-risk'],
-        isPublic: true,
-        isDefault: false,
-        createdAt: new Date('2024-01-10'),
-        updatedAt: new Date('2024-01-18'),
-        author: 'CryptoTrader123'
-      },
-      {
-        id: '3',
-        name: 'Smart Withdrawal Optimizer',
-        description: 'AI-powered withdrawal timing optimization',
-        category: 'withdrawal',
-        type: 'optimized',
-        icon: CurrencyDollarIcon,
-        parameters: {
-          gasThreshold: 30,
-          volatilityLimit: 5.0,
-          timeWindow: 24,
-          minSavings: 10
-        },
-        performance: {
-          successRate: 92,
-          averageReturn: 12.8,
-          riskLevel: 'medium',
-          popularity: 73
-        },
-        tags: ['ai', 'optimization', 'withdrawal'],
-        isPublic: true,
-        isDefault: false,
-        createdAt: new Date('2024-01-12'),
-        updatedAt: new Date('2024-01-19'),
-        author: 'DeFiMaster'
-      },
-      {
-        id: '4',
-        name: 'My Custom Strategy',
-        description: 'Personal strategy for weekend savings',
-        category: 'custom',
-        type: 'weekly',
-        icon: PencilIcon,
-        parameters: {
-          amount: 0.05,
-          token: 'DAI',
-          frequency: 'weekly',
-          dayOfWeek: 'sunday'
-        },
-        performance: {
-          successRate: 88,
-          averageReturn: 6.2,
-          riskLevel: 'low',
-          popularity: 0
-        },
-        tags: ['personal', 'weekly', 'custom'],
-        isPublic: false,
-        isDefault: false,
-        createdAt: new Date('2024-01-25'),
-        updatedAt: new Date('2024-01-25'),
-        author: 'You'
-      }
-    ];
-    setTemplates(mockTemplates);
-  }, []);
-
+  // Filter templates based on category and search
   const filteredTemplates = templates.filter(template => {
-    const matchesCategory = template.category === selectedCategory;
+    const matchesCategory = template.category === selectedCategory || selectedCategory === 'all';
     const matchesSearch = template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          template.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          template.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesCategory && matchesSearch;
   });
 
-  const handleTemplateSelect = (template: StrategyTemplate) => {
-    setSelectedTemplate(template.id);
-    onTemplateSelect?.(template);
-  };
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className={`space-y-6 ${className}`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Strategy Templates</h2>
+            <p className="text-muted-foreground">Choose from proven savings strategies</p>
+          </div>
+        </div>
+        <LoadingState message="Loading strategy templates..." />
+      </div>
+    );
+  }
 
-  const handleCreateTemplate = () => {
-    setShowCreateForm(true);
-  };
+  // Show error state
+  if (error) {
+    return (
+      <div className={`space-y-6 ${className}`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Strategy Templates</h2>
+            <p className="text-muted-foreground">Choose from proven savings strategies</p>
+          </div>
+        </div>
+        <ErrorState
+          title="Failed to load strategies"
+          message="Unable to fetch your strategy templates. Please try again."
+          onRetry={refetch}
+        />
+      </div>
+    );
+  }
 
-  const handleDuplicateTemplate = (template: StrategyTemplate) => {
-    const newTemplate = {
-      ...template,
-      id: Date.now().toString(),
-      name: `${template.name} (Copy)`,
-      isPublic: false,
-      isDefault: false,
-      author: 'You',
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    setTemplates(prev => [...prev, newTemplate]);
-  };
-
-  const handleDeleteTemplate = (templateId: string) => {
-    setTemplates(prev => prev.filter(t => t.id !== templateId));
-  };
-
-  const getRiskColor = (risk: 'low' | 'medium' | 'high') => {
-    switch (risk) {
-      case 'low': return 'text-green-600 bg-green-100';
-      case 'medium': return 'text-yellow-600 bg-yellow-100';
-      case 'high': return 'text-red-600 bg-red-100';
-    }
-  };
-
-  const getCategoryIcon = (category: string) => {
-    const categoryData = categories.find(c => c.id === category);
-    return categoryData?.icon || ChartBarIcon;
-  };
+  // Show empty state if no templates
+  if (templates.length === 0) {
+    return (
+      <div className={`space-y-6 ${className}`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Strategy Templates</h2>
+            <p className="text-muted-foreground">Choose from proven savings strategies</p>
+          </div>
+        </div>
+        <NoStrategiesEmptyState onAction={() => setShowCreateForm(true)} />
+      </div>
+    );
+  }
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -240,90 +121,67 @@ export function StrategyTemplates({ className = '', onTemplateSelect }: Strategy
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Strategy Templates</h2>
-          <p className="text-muted-foreground">Discover and manage investment strategies</p>
+          <p className="text-muted-foreground">Choose from proven savings strategies</p>
         </div>
         <div className="flex items-center gap-2">
-          <AnimatedButton
-            variant="outline"
-            onClick={() => setShowCreateForm(true)}
-            className="flex items-center gap-2"
-          >
-            <PlusIcon className="w-4 h-4" />
-            Create Template
-          </AnimatedButton>
+          <Button variant="outline" onClick={() => setShowCreateForm(true)}>
+            <PlusIcon className="w-4 h-4 mr-2" />
+            Create Custom
+          </Button>
         </div>
       </div>
 
-      {/* Search and Filters */}
-      <AnimatedCard className="p-6">
-        <div className="flex items-center gap-4 mb-4">
-          <div className="flex-1">
-            <AnimatedInput
-              placeholder="Search templates..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <AnimatedButton variant="outline" size="sm">
-              <ArrowDownTrayIcon className="w-4 h-4" />
-              Import
-            </AnimatedButton>
-            <AnimatedButton variant="outline" size="sm">
-              <ArrowUpTrayIcon className="w-4 h-4" />
-              Export
-            </AnimatedButton>
-          </div>
-        </div>
+      {/* Categories */}
+      <div className="flex flex-wrap gap-2">
+        {categories.map((category) => (
+          <Button
+            key={category.id}
+            variant={selectedCategory === category.id ? 'default' : 'outline'}
+            onClick={() => setSelectedCategory(category.id)}
+            className="flex items-center gap-2"
+          >
+            <category.icon className="w-4 h-4" />
+            {category.name}
+            <span className="bg-white/20 px-2 py-1 rounded-full text-xs">
+              {filteredTemplates.filter(t => t.category === category.id).length}
+            </span>
+          </Button>
+        ))}
+      </div>
 
-        {/* Category Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto">
-          {categories.map((category) => {
-            const Icon = category.icon;
-            return (
-              <AnimatedButton
-                key={category.id}
-                variant={selectedCategory === category.id ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSelectedCategory(category.id)}
-                className="flex items-center gap-2 whitespace-nowrap"
-              >
-                <Icon className="w-4 h-4" />
-                {category.name}
-                <span className="text-xs opacity-75">({category.count})</span>
-              </AnimatedButton>
-            );
-          })}
-        </div>
-      </AnimatedCard>
+      {/* Search */}
+      <div className="relative">
+        <AnimatedInput
+          type="text"
+          placeholder="Search strategies..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10"
+        />
+        <ChartBarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+      </div>
 
       {/* Templates Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredTemplates.map((template, index) => {
-          const Icon = template.icon;
-          const isSelected = selectedTemplate === template.id;
-          
-          return (
+        <AnimatePresence>
+          {filteredTemplates.map((template) => (
             <motion.div
               key={template.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
             >
-              <div onClick={() => handleTemplateSelect(template)}>
-                <AnimatedCard
-                  className={`p-6 cursor-pointer transition-all ${
-                    isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
-                  }`}
-                >
+              <AnimatedCard className="p-6 hover:shadow-lg transition-all duration-300 cursor-pointer group">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Icon className="w-5 h-5 text-primary" />
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <TargetIcon className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                      <h4 className="font-semibold">{template.name}</h4>
+                      <h3 className="font-semibold text-lg group-hover:text-primary transition-colors">
+                        {template.name}
+                      </h3>
                       <p className="text-sm text-muted-foreground">{template.description}</p>
                     </div>
                   </div>
@@ -337,194 +195,176 @@ export function StrategyTemplates({ className = '', onTemplateSelect }: Strategy
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Success Rate</span>
-                    <span className="font-semibold text-green-600">{template.performance.successRate}%</span>
+                {/* Performance Metrics */}
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="text-center p-3 bg-green-50 rounded-lg">
+                    <div className="text-lg font-bold text-green-700">
+                      {template.performance.successRate}%
+                    </div>
+                    <div className="text-xs text-green-600">Success Rate</div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Avg Return</span>
-                    <span className="font-semibold text-blue-600">{template.performance.averageReturn}%</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Risk Level</span>
-                    <span className={`px-2 py-1 rounded-full text-xs ${getRiskColor(template.performance.riskLevel)}`}>
-                      {template.performance.riskLevel}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Popularity</span>
-                    <span className="font-semibold">{template.performance.popularity}%</span>
+                  <div className="text-center p-3 bg-blue-50 rounded-lg">
+                    <div className="text-lg font-bold text-blue-700">
+                      {template.performance.averageReturn}%
+                    </div>
+                    <div className="text-xs text-blue-600">Avg Return</div>
                   </div>
                 </div>
 
-                <div className="mt-4 pt-4 border-t">
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {template.tags.map((tag, idx) => (
-                      <span key={idx} className="px-2 py-1 bg-muted text-muted-foreground text-xs rounded-full">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                  
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>By {template.author}</span>
-                    <span>{template.updatedAt.toLocaleDateString()}</span>
-                  </div>
+                {/* Risk Level */}
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-sm text-muted-foreground">Risk Level</span>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    template.performance.riskLevel === 'low' ? 'bg-green-100 text-green-800' :
+                    template.performance.riskLevel === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-red-100 text-red-800'
+                  }`}>
+                    {template.performance.riskLevel}
+                  </span>
                 </div>
 
-                <div className="mt-4 flex items-center gap-2">
-                  <AnimatedButton
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleTemplateSelect(template);
-                    }}
-                    className="flex-1"
-                  >
-                    <CheckCircleIcon className="w-4 h-4" />
-                    Use Template
-                  </AnimatedButton>
-                  
-                  <AnimatedButton
-                    size="sm"
-                    variant="outline"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDuplicateTemplate(template);
-                    }}
-                  >
-                    <DocumentDuplicateIcon className="w-4 h-4" />
-                  </AnimatedButton>
-                  
-                  {!template.isDefault && (
-                    <AnimatedButton
-                      size="sm"
-                      variant="outline"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteTemplate(template.id);
-                      }}
-                      className="text-red-600 hover:text-red-700"
+                {/* Tags */}
+                <div className="flex flex-wrap gap-1 mb-4">
+                  {template.tags.slice(0, 3).map((tag) => (
+                    <span
+                      key={tag}
+                      className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full"
                     >
-                      <TrashIcon className="w-4 h-4" />
-                    </AnimatedButton>
-                  )}
+                      {tag}
+                    </span>
+                  ))}
                 </div>
-                </AnimatedCard>
-              </div>
+
+                {/* Actions */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <AnimatedButton
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedTemplate(template.id);
+                        setShowDetails(true);
+                      }}
+                    >
+                      <InformationCircleIcon className="w-4 h-4 mr-1" />
+                      Details
+                    </AnimatedButton>
+                    <AnimatedButton
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onTemplateSelect?.(template)}
+                    >
+                      <DocumentDuplicateIcon className="w-4 h-4 mr-1" />
+                      Use
+                    </AnimatedButton>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    by {template.author}
+                  </div>
+                </div>
+              </AnimatedCard>
             </motion.div>
-          );
-        })}
+          ))}
+        </AnimatePresence>
       </div>
 
-      {/* Create Template Form */}
+      {/* Template Details Modal */}
       <AnimatePresence>
-        {showCreateForm && (
+        {showDetails && selectedTemplate && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-            onClick={() => setShowCreateForm(false)}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowDetails(false)}
           >
             <motion.div
-              initial={{ scale: 0.9 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.9 }}
-              className="w-full max-w-2xl bg-white rounded-lg shadow-xl"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold">Create New Template</h3>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowCreateForm(false)}
-                  >
-                    ×
-                  </Button>
-                </div>
-                
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Template Name</label>
-                    <AnimatedInput placeholder="Enter template name" />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Description</label>
-                    <textarea
-                      placeholder="Describe your strategy"
-                      rows={3}
-                      className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Category</label>
-                      <select className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
-                        <option value="savings">Savings</option>
-                        <option value="dca">DCA</option>
-                        <option value="withdrawal">Withdrawal</option>
-                        <option value="trading">Trading</option>
-                        <option value="custom">Custom</option>
-                      </select>
+              {(() => {
+                const template = templates.find(t => t.id === selectedTemplate);
+                if (!template) return null;
+
+                return (
+                  <>
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-xl font-bold">{template.name}</h3>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowDetails(false)}
+                      >
+                        Close
+                      </Button>
                     </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Type</label>
-                      <select className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
-                        <option value="daily">Daily</option>
-                        <option value="weekly">Weekly</option>
-                        <option value="monthly">Monthly</option>
-                        <option value="conditional">Conditional</option>
-                        <option value="optimized">Optimized</option>
-                      </select>
+
+                    <div className="space-y-6">
+                      <div>
+                        <h4 className="font-semibold mb-2">Description</h4>
+                        <p className="text-muted-foreground">{template.description}</p>
+                      </div>
+
+                      <div>
+                        <h4 className="font-semibold mb-2">Parameters</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          {Object.entries(template.parameters).map(([key, value]) => (
+                            <div key={key} className="p-3 bg-gray-50 rounded-lg">
+                              <div className="text-sm font-medium text-gray-700 capitalize">
+                                {key.replace(/([A-Z])/g, ' $1')}
+                              </div>
+                              <div className="text-lg font-bold">
+                                {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : value}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="font-semibold mb-2">Performance</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="p-3 bg-green-50 rounded-lg text-center">
+                            <div className="text-2xl font-bold text-green-700">
+                              {template.performance.successRate}%
+                            </div>
+                            <div className="text-sm text-green-600">Success Rate</div>
+                          </div>
+                          <div className="p-3 bg-blue-50 rounded-lg text-center">
+                            <div className="text-2xl font-bold text-blue-700">
+                              {template.performance.averageReturn}%
+                            </div>
+                            <div className="text-sm text-blue-600">Average Return</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => {
+                            onTemplateSelect?.(template);
+                            setShowDetails(false);
+                          }}
+                          className="flex-1"
+                        >
+                          Use This Strategy
+                        </Button>
+                        <Button variant="outline">
+                          <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
+                          Export
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <input type="checkbox" id="isPublic" className="w-4 h-4 text-primary rounded" />
-                    <label htmlFor="isPublic" className="text-sm">Make this template public</label>
-                  </div>
-                </div>
-                
-                <div className="flex justify-end gap-2 mt-6">
-                  <AnimatedButton
-                    variant="outline"
-                    onClick={() => setShowCreateForm(false)}
-                  >
-                    Cancel
-                  </AnimatedButton>
-                  <AnimatedButton>
-                    <CheckCircleIcon className="w-4 h-4" />
-                    Create Template
-                  </AnimatedButton>
-                </div>
-              </div>
+                  </>
+                );
+              })()}
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Empty State */}
-      {filteredTemplates.length === 0 && (
-        <AnimatedCard className="p-8 text-center">
-          <ChartBarIcon className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-          <h3 className="text-lg font-semibold mb-2">No Templates Found</h3>
-          <p className="text-muted-foreground mb-4">
-            {searchQuery ? 'No templates match your search' : 'No templates in this category'}
-          </p>
-          <AnimatedButton onClick={handleCreateTemplate}>
-            <PlusIcon className="w-4 h-4" />
-            Create Your First Template
-          </AnimatedButton>
-        </AnimatedCard>
-      )}
     </div>
   );
 }
-

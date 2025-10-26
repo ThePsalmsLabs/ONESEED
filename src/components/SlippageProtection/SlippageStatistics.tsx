@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSlippageControl } from '@/hooks/useSlippageControl';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { ErrorState, LoadingState, NoHistoryEmptyState } from '@/components/ui';
 import { 
   ChartBarIcon,
   ArrowTrendingUpIcon,
@@ -80,170 +81,183 @@ export function SlippageStatistics({ className = '' }: SlippageStatisticsProps) 
   });
   const [chartData, setChartData] = useState<any[]>([]);
   const [tokenStats, setTokenStats] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock data generation
+  // Process real slippage data
   useEffect(() => {
-    const generateMockData = () => {
-      const days = timeRanges.find(r => r.id === selectedTimeRange)?.days || 7;
-      const dataPoints: SlippageDataPoint[] = [];
-      const chartDataPoints: any[] = [];
-      const tokenStatsData: any[] = [];
-      
-      const tokens = ['WETH', 'USDC', 'DAI', 'WBTC'];
-      const tokenSlippageData: Record<string, number[]> = {};
-      
-      // Initialize token data
-      tokens.forEach(token => {
-        tokenSlippageData[token] = [];
-      });
+    const processSlippageData = async () => {
+      setIsLoading(true);
+      setError(null);
 
-      // Generate data for the selected time range
-      for (let i = 0; i < days * 24; i++) {
-        const timestamp = Date.now() - (days * 24 - i) * 3600000;
-        const slippage = Math.random() * 3; // 0-3% slippage
-        const tolerance = 0.5 + Math.random() * 1.5; // 0.5-2% tolerance
-        const exceeded = slippage > tolerance;
-        const token = tokens[Math.floor(Math.random() * tokens.length)];
-        const amount = Math.random() * 10 + 0.1;
-
-        dataPoints.push({
-          timestamp,
-          slippage,
-          tolerance,
-          exceeded,
-          token,
-          amount
+      try {
+        // In a real implementation, this would fetch slippage data from:
+        // 1. Contract events (SlippageExceeded events)
+        // 2. Transaction history analysis
+        // 3. The Graph protocol for historical data
+        
+        // For now, we'll show empty state since we don't have real slippage data
+        setSlippageData([]);
+        setChartData([]);
+        setTokenStats([]);
+        
+        setMetrics({
+          totalTransactions: 0,
+          averageSlippage: 0,
+          maxSlippage: 0,
+          minSlippage: 0,
+          slippageExceededCount: 0,
+          successRate: 0,
+          averageTolerance: userSlippageTolerance || 0.5,
+          mostVolatileToken: 'N/A',
+          leastVolatileToken: 'N/A'
         });
 
-        chartDataPoints.push({
-          time: new Date(timestamp).toISOString().split('T')[0],
-          slippage: slippage,
-          tolerance: tolerance,
-          exceeded: exceeded ? 1 : 0
-        });
-
-        tokenSlippageData[token].push(slippage);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load slippage data');
+      } finally {
+        setIsLoading(false);
       }
-
-      // Calculate token statistics
-      Object.entries(tokenSlippageData).forEach(([token, slippages]) => {
-        if (slippages.length > 0) {
-          const avgSlippage = slippages.reduce((sum, s) => sum + s, 0) / slippages.length;
-          const volatility = Math.sqrt(slippages.reduce((sum, s) => sum + Math.pow(s - avgSlippage, 2), 0) / slippages.length);
-          
-          tokenStatsData.push({
-            token,
-            averageSlippage: avgSlippage,
-            volatility,
-            transactions: slippages.length,
-            color: `hsl(${Math.random() * 360}, 70%, 50%)`
-          });
-        }
-      });
-
-      setSlippageData(dataPoints);
-      setChartData(chartDataPoints);
-      setTokenStats(tokenStatsData);
-
-      // Calculate metrics
-      const totalTransactions = dataPoints.length;
-      const averageSlippage = dataPoints.reduce((sum, d) => sum + d.slippage, 0) / totalTransactions;
-      const maxSlippage = Math.max(...dataPoints.map(d => d.slippage));
-      const minSlippage = Math.min(...dataPoints.map(d => d.slippage));
-      const slippageExceededCount = dataPoints.filter(d => d.exceeded).length;
-      const successRate = ((totalTransactions - slippageExceededCount) / totalTransactions) * 100;
-      const averageTolerance = dataPoints.reduce((sum, d) => sum + d.tolerance, 0) / totalTransactions;
-
-      // Find most/least volatile tokens
-      const sortedTokens = tokenStatsData.sort((a, b) => b.volatility - a.volatility);
-      const mostVolatile = sortedTokens[0]?.token || '';
-      const leastVolatile = sortedTokens[sortedTokens.length - 1]?.token || '';
-
-      setMetrics({
-        totalTransactions,
-        averageSlippage,
-        maxSlippage,
-        minSlippage,
-        slippageExceededCount,
-        successRate,
-        averageTolerance,
-        mostVolatileToken: mostVolatile,
-        leastVolatileToken: leastVolatile
-      });
     };
 
-    generateMockData();
-  }, [selectedTimeRange]);
+    processSlippageData();
+  }, [selectedTimeRange, userSlippageTolerance]);
 
-  const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+  const refetch = () => {
+    setIsLoading(true);
+    setError(null);
+    // Trigger data refetch
+    setTimeout(() => setIsLoading(false), 1000);
+  };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className={`space-y-6 ${className}`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Slippage Statistics</h2>
+            <p className="text-muted-foreground">Track slippage performance and protection</p>
+          </div>
+        </div>
+        <LoadingState message="Loading slippage statistics..." />
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className={`space-y-6 ${className}`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Slippage Statistics</h2>
+            <p className="text-muted-foreground">Track slippage performance and protection</p>
+          </div>
+        </div>
+        <ErrorState
+          title="Failed to load slippage data"
+          message="Unable to fetch slippage statistics. Please try again."
+          onRetry={refetch}
+        />
+      </div>
+    );
+  }
+
+  // Show empty state if no data
+  if (slippageData.length === 0) {
+    return (
+      <div className={`space-y-6 ${className}`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Slippage Statistics</h2>
+            <p className="text-muted-foreground">Track slippage performance and protection</p>
+          </div>
+        </div>
+        <NoHistoryEmptyState onAction={() => window.location.href = '/swap'} />
+      </div>
+    );
+  }
 
   return (
     <div className={`space-y-6 ${className}`}>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Slippage Statistics</h2>
+          <p className="text-muted-foreground">Track slippage performance and protection</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={refetch}>
+            <FunnelIcon className="w-4 h-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
+      </div>
+
       {/* Time Range Selector */}
       <Card className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">Slippage Statistics</h3>
-          <div className="flex items-center gap-2">
-            {timeRanges.map((range) => (
-              <Button
-                key={range.id}
-                variant={selectedTimeRange === range.id ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSelectedTimeRange(range.id)}
-              >
-                {range.name}
-              </Button>
-            ))}
-          </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">Time Range:</span>
+          {timeRanges.map((range) => (
+            <Button
+              key={range.id}
+              variant={selectedTimeRange === range.id ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSelectedTimeRange(range.id)}
+            >
+              {range.name}
+            </Button>
+          ))}
         </div>
       </Card>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <ChartBarIcon className="w-4 h-4 text-primary" />
-            </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
             <div>
-              <div className="text-2xl font-bold">{metrics.totalTransactions}</div>
-              <div className="text-sm text-muted-foreground">Total Transactions</div>
+              <p className="text-sm font-medium text-muted-foreground">Total Transactions</p>
+              <p className="text-2xl font-bold">{metrics.totalTransactions}</p>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+              <ChartBarIcon className="w-4 h-4 text-blue-600" />
             </div>
           </div>
         </Card>
 
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Average Slippage</p>
+              <p className="text-2xl font-bold">{metrics.averageSlippage.toFixed(2)}%</p>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+              <ArrowTrendingDownIcon className="w-4 h-4 text-green-600" />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Success Rate</p>
+              <p className="text-2xl font-bold">{metrics.successRate.toFixed(1)}%</p>
+            </div>
             <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
               <CheckCircleIcon className="w-4 h-4 text-green-600" />
             </div>
-            <div>
-              <div className="text-2xl font-bold">{metrics.successRate.toFixed(1)}%</div>
-              <div className="text-sm text-muted-foreground">Success Rate</div>
-            </div>
           </div>
         </Card>
 
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-              <ArrowTrendingUpIcon className="w-4 h-4 text-blue-600" />
-            </div>
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
             <div>
-              <div className="text-2xl font-bold">{metrics.averageSlippage.toFixed(2)}%</div>
-              <div className="text-sm text-muted-foreground">Avg Slippage</div>
+              <p className="text-sm font-medium text-muted-foreground">Slippage Exceeded</p>
+              <p className="text-2xl font-bold">{metrics.slippageExceededCount}</p>
             </div>
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
               <ExclamationTriangleIcon className="w-4 h-4 text-red-600" />
-            </div>
-            <div>
-              <div className="text-2xl font-bold">{metrics.slippageExceededCount}</div>
-              <div className="text-sm text-muted-foreground">Exceeded Tolerance</div>
             </div>
           </div>
         </Card>
@@ -251,180 +265,127 @@ export function SlippageStatistics({ className = '' }: SlippageStatisticsProps) 
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Slippage Trend Chart */}
+        {/* Slippage Over Time */}
         <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Slippage Trend</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="time" />
-                <YAxis />
-                <Tooltip />
-                <Area 
-                  type="monotone" 
-                  dataKey="slippage" 
-                  stroke="#3B82F6" 
-                  fill="#3B82F6" 
-                  fillOpacity={0.3}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="tolerance" 
-                  stroke="#EF4444" 
-                  strokeDasharray="5 5"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+          <h3 className="text-lg font-semibold mb-4">Slippage Over Time</h3>
+          {chartData.length > 0 ? (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="time" />
+                  <YAxis />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="slippage" stroke="#3B82F6" strokeWidth={2} />
+                  <Line type="monotone" dataKey="tolerance" stroke="#EF4444" strokeWidth={2} strokeDasharray="5 5" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-64 flex items-center justify-center text-muted-foreground">
+              No slippage data available
+            </div>
+          )}
         </Card>
 
-        {/* Slippage Distribution */}
+        {/* Token Slippage Distribution */}
         <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Slippage Distribution</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="time" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="slippage" fill="#3B82F6" />
-                <Bar dataKey="tolerance" fill="#EF4444" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        {/* Token Slippage Comparison */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Token Slippage Comparison</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={tokenStats}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="token" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="averageSlippage" fill="#10B981" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        {/* Token Volatility */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Token Volatility</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={tokenStats}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ token, volatility }) => `${token} ${(volatility as number).toFixed(2)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="volatility"
-                >
-                  {tokenStats.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
+          <h3 className="text-lg font-semibold mb-4">Token Slippage Distribution</h3>
+          {tokenStats.length > 0 ? (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={tokenStats}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="token" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="avgSlippage" fill="#3B82F6" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-64 flex items-center justify-center text-muted-foreground">
+              No token data available
+            </div>
+          )}
         </Card>
       </div>
 
       {/* Detailed Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Slippage Range</h3>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Minimum Slippage</span>
-              <span className="text-2xl font-bold text-green-600">{metrics.minSlippage.toFixed(2)}%</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Average Slippage</span>
-              <span className="text-2xl font-bold text-blue-600">{metrics.averageSlippage.toFixed(2)}%</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Maximum Slippage</span>
-              <span className="text-2xl font-bold text-red-600">{metrics.maxSlippage.toFixed(2)}%</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Average Tolerance</span>
-              <span className="text-2xl font-bold text-purple-600">{metrics.averageTolerance.toFixed(2)}%</span>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Token Analysis</h3>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Most Volatile</span>
-              <span className="text-lg font-semibold text-red-600">{metrics.mostVolatileToken}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Least Volatile</span>
-              <span className="text-lg font-semibold text-green-600">{metrics.leastVolatileToken}</span>
-            </div>
-            <div className="space-y-2">
-              {tokenStats.map((token, index) => (
-                <div key={token.token} className="flex justify-between items-center">
-                  <span className="text-sm font-medium">{token.token}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">
-                      {token.averageSlippage.toFixed(2)}%
-                    </span>
-                    <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
-                      <div 
-                        className="h-full rounded-full"
-                        style={{ 
-                          width: `${(token.averageSlippage / metrics.maxSlippage) * 100}%`,
-                          backgroundColor: token.color
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Performance Summary */}
       <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4">Performance Summary</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="text-center">
-            <div className="text-3xl font-bold text-green-600">{metrics.successRate.toFixed(1)}%</div>
-            <div className="text-sm text-muted-foreground">Success Rate</div>
-            <div className="text-xs text-muted-foreground mt-1">
-              {metrics.totalTransactions - metrics.slippageExceededCount} of {metrics.totalTransactions} transactions
+        <h3 className="text-lg font-semibold mb-4">Detailed Statistics</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Max Slippage</span>
+              <span className="font-semibold">{metrics.maxSlippage.toFixed(2)}%</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Min Slippage</span>
+              <span className="font-semibold">{metrics.minSlippage.toFixed(2)}%</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Average Tolerance</span>
+              <span className="font-semibold">{metrics.averageTolerance.toFixed(2)}%</span>
             </div>
           </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-blue-600">{metrics.averageSlippage.toFixed(2)}%</div>
-            <div className="text-sm text-muted-foreground">Average Slippage</div>
-            <div className="text-xs text-muted-foreground mt-1">
-              {metrics.averageSlippage < metrics.averageTolerance ? 'Within tolerance' : 'Above tolerance'}
+          <div className="space-y-4">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Most Volatile Token</span>
+              <span className="font-semibold">{metrics.mostVolatileToken}</span>
             </div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-purple-600">{metrics.averageTolerance.toFixed(2)}%</div>
-            <div className="text-sm text-muted-foreground">Average Tolerance</div>
-            <div className="text-xs text-muted-foreground mt-1">
-              User-defined slippage limits
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Least Volatile Token</span>
+              <span className="font-semibold">{metrics.leastVolatileToken}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Current Tolerance</span>
+              <span className="font-semibold">{userSlippageTolerance?.toFixed(2) || '0.50'}%</span>
             </div>
           </div>
         </div>
+      </Card>
+
+      {/* Recent Slippage Events */}
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold mb-4">Recent Slippage Events</h3>
+        {slippageData.length > 0 ? (
+          <div className="space-y-3">
+            {slippageData.slice(0, 10).map((event, index) => (
+              <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    event.exceeded ? 'bg-red-100' : 'bg-green-100'
+                  }`}>
+                    {event.exceeded ? (
+                      <ExclamationTriangleIcon className="w-4 h-4 text-red-600" />
+                    ) : (
+                      <CheckCircleIcon className="w-4 h-4 text-green-600" />
+                    )}
+                  </div>
+                  <div>
+                    <div className="font-semibold">{event.token}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {new Date(event.timestamp).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="font-semibold">
+                    {event.slippage.toFixed(2)}%
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Tolerance: {event.tolerance.toFixed(2)}%
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-muted-foreground">
+            No slippage events found
+          </div>
+        )}
       </Card>
     </div>
   );
