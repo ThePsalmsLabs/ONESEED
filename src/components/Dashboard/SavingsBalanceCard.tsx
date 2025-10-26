@@ -152,7 +152,7 @@ export function SavingsBalanceCard({ className = '', onWithdraw }: SavingsBalanc
         </div>
         <p className="text-red-600 mb-4">{error}</p>
         <Button
-          onClick={refreshSavings}
+          onClick={() => refreshSavings()}
           variant="outline"
           size="sm"
           className="border-red-300 text-red-600 hover:bg-red-50"
@@ -189,7 +189,7 @@ export function SavingsBalanceCard({ className = '', onWithdraw }: SavingsBalanc
           </div>
           
           <Button
-            onClick={refreshSavings}
+            onClick={() => refreshSavings()}
             variant="outline"
             size="sm"
             className="border-primary-300 text-primary-600 hover:bg-primary-50"

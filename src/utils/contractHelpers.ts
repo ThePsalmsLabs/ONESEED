@@ -99,7 +99,9 @@ export function useContractDeployments() {
     'UniswapV4PositionManager',
     'UniswapV4Quoter',
     'UniswapV4StateView',
-    'SwapRouter'
+    'UniversalRouter',
+    'UniswapV4PoolSwapTest',
+    'UniswapV4PoolModifyLiquidityTest',
   ];
 
   const deploymentStatus = contracts.map(contractName => {
