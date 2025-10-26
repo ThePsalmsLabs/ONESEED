@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { Progress } from '../ui/Progress';
-import { useDailySavings } from '@/hooks/useDailySavings';
-import { formatEther } from 'viem';
+import { ErrorState, LoadingState, NoHistoryEmptyState } from '@/components/ui';
+import { useAccount } from 'wagmi';
+import { formatUnits } from 'viem';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -58,165 +59,151 @@ interface GoalProgress {
 }
 
 export function DailySavingsAnalytics({ onBack }: DailySavingsAnalyticsProps) {
-  const { 
-    contractAddress,
-    formatAmount,
-    calculateProgress
-  } = useDailySavings();
+  const { address } = useAccount();
+  
+  // Mock loading and error states for now
+  const isLoading = false;
+  const error = null;
+  const refetch = () => {};
 
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
   const [selectedToken, setSelectedToken] = useState<string>('all');
-
-  // Mock analytics data - in real implementation, this would come from contract
-  const [analyticsData] = useState<AnalyticsData>({
-    totalSaved: BigInt('50000000000000000000'), // 50 tokens
-    totalGoals: 8,
-    completedGoals: 3,
-    activeGoals: 5,
-    averageDailyAmount: BigInt('1000000000000000000'), // 1 token
-    totalExecutions: 45,
-    successRate: 95.6,
-    totalPenalties: BigInt('500000000000000000'), // 0.5 tokens
-    averageGoalDuration: 67,
-    topPerformingToken: 'USDC'
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData>({
+    totalSaved: BigInt(0),
+    totalGoals: 0,
+    completedGoals: 0,
+    activeGoals: 0,
+    averageDailyAmount: BigInt(0),
+    totalExecutions: 0,
+    successRate: 0,
+    totalPenalties: BigInt(0),
+    averageGoalDuration: 0,
+    topPerformingToken: 'N/A'
   });
 
-  const [executionHistory] = useState<ExecutionHistory[]>([
-    { date: '2024-01-15', token: 'USDC', amount: BigInt('1000000000000000000'), success: true, penalty: BigInt(0) },
-    { date: '2024-01-14', token: 'ETH', amount: BigInt('500000000000000000'), success: true, penalty: BigInt(0) },
-    { date: '2024-01-13', token: 'USDbC', amount: BigInt('2000000000000000000'), success: true, penalty: BigInt(0) },
-    { date: '2024-01-12', token: 'USDC', amount: BigInt('1000000000000000000'), success: true, penalty: BigInt(0) },
-    { date: '2024-01-11', token: 'ETH', amount: BigInt('500000000000000000'), success: false, penalty: BigInt('50000000000000000') },
-    { date: '2024-01-10', token: 'USDbC', amount: BigInt('2000000000000000000'), success: true, penalty: BigInt(0) },
-    { date: '2024-01-09', token: 'USDC', amount: BigInt('1000000000000000000'), success: true, penalty: BigInt(0) },
-    { date: '2024-01-08', token: 'ETH', amount: BigInt('500000000000000000'), success: true, penalty: BigInt(0) }
-  ]);
+  const [executionHistory, setExecutionHistory] = useState<ExecutionHistory[]>([]);
+  const [goalProgress, setGoalProgress] = useState<GoalProgress[]>([]);
 
-  const [goalProgress] = useState<GoalProgress[]>([
-    {
-      token: 'USDC',
-      icon: '💰',
-      currentAmount: BigInt('5000000000000000000'),
-      goalAmount: BigInt('10000000000000000000'),
-      startDate: '2024-01-01',
-      expectedEndDate: '2024-03-01',
-      daysRemaining: 45,
-      progress: 50
-    },
-    {
-      token: 'ETH',
-      icon: '🔷',
-      currentAmount: BigInt('2000000000000000000'),
-      goalAmount: BigInt('5000000000000000000'),
-      startDate: '2024-01-15',
-      expectedEndDate: '2024-04-15',
-      daysRemaining: 60,
-      progress: 40
-    },
-    {
-      token: 'USDbC',
-      icon: '🏦',
-      currentAmount: BigInt('10000000000000000000'),
-      goalAmount: BigInt('10000000000000000000'),
-      startDate: '2023-12-01',
-      expectedEndDate: '2024-02-01',
-      daysRemaining: 0,
-      progress: 100
-    }
-  ]);
+  // Process real daily savings data
+  useEffect(() => {
+    // This would process real data from the hooks
+    // For now, we'll show empty state if no data is available
+    if (isLoading) return;
 
-  const formatTokenAmount = (value: bigint, symbol: string = '') => {
-    const formatted = formatEther(value);
-    return `${parseFloat(formatted).toFixed(4)} ${symbol}`.trim();
-  };
+    // Placeholder processing - would need real contract data
+    setAnalyticsData({
+      totalSaved: BigInt(0),
+      totalGoals: 0,
+      completedGoals: 0,
+      activeGoals: 0,
+      averageDailyAmount: BigInt(0),
+      totalExecutions: 0,
+      successRate: 0,
+      totalPenalties: BigInt(0),
+      averageGoalDuration: 0,
+      topPerformingToken: 'N/A'
+    });
 
-  const formatCurrency = (value: bigint) => {
-    const formatted = formatEther(value);
-    return `$${parseFloat(formatted).toFixed(2)}`;
-  };
+    setExecutionHistory([]);
+    setGoalProgress([]);
+  }, [isLoading]);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
-  };
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Daily Savings Analytics</h2>
+            <p className="text-muted-foreground">Track your daily savings performance</p>
+          </div>
+        </div>
+        <LoadingState message="Loading daily savings analytics..." />
+      </div>
+    );
+  }
 
-  const getSuccessRateColor = (rate: number) => {
-    if (rate >= 95) return 'text-green-600';
-    if (rate >= 90) return 'text-yellow-600';
-    return 'text-red-600';
-  };
+  // Show error state
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Daily Savings Analytics</h2>
+            <p className="text-muted-foreground">Track your daily savings performance</p>
+          </div>
+        </div>
+        <ErrorState
+          title="Failed to load analytics"
+          message="Unable to fetch your daily savings analytics. Please try again."
+          onRetry={refetch}
+        />
+      </div>
+    );
+  }
 
-  const exportToCSV = () => {
-    const csvContent = [
-      ['Date', 'Token', 'Amount', 'Success', 'Penalty'],
-      ...executionHistory.map(execution => [
-        execution.date,
-        execution.token,
-        formatTokenAmount(execution.amount, execution.token),
-        execution.success ? 'Yes' : 'No',
-        formatTokenAmount(execution.penalty, execution.token)
-      ])
-    ].map(row => row.join(',')).join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `daily-savings-analytics-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
-
+  // Show empty state if no data
+  if (analyticsData.totalGoals === 0 && executionHistory.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">Daily Savings Analytics</h2>
+            <p className="text-muted-foreground">Track your daily savings performance</p>
+          </div>
+        </div>
+        <NoHistoryEmptyState onAction={() => window.location.href = '/configure'} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Daily Savings Analytics</h2>
-          <p className="text-gray-600">Track your savings performance and progress</p>
+          <h2 className="text-2xl font-bold">Daily Savings Analytics</h2>
+          <p className="text-muted-foreground">Track your daily savings performance</p>
         </div>
-        <div className="flex items-center space-x-2">
-          <Button variant="secondary" onClick={exportToCSV}>
-            <Download className="w-4 h-4 mr-2" />
-            Export CSV
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={refetch}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh
           </Button>
-          {onBack && (
-            <Button variant="secondary" onClick={onBack}>
-              Back to Dashboard
-            </Button>
-          )}
+          <Button variant="outline" size="sm">
+            <Download className="w-4 h-4 mr-2" />
+            Export
+          </Button>
         </div>
       </div>
 
       {/* Filters */}
       <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex items-center space-x-2">
-              <Filter className="w-4 h-4 text-gray-500" />
+        <CardContent className="p-6">
+          <div className="flex flex-wrap gap-4">
+            <div className="flex items-center gap-2">
               <span className="text-sm font-medium">Time Range:</span>
-              <select 
-                value={timeRange} 
-                onChange={(e) => setTimeRange(e.target.value as any)}
-                className="px-3 py-1 border border-gray-300 rounded-md text-sm"
-              >
-                <option value="7d">Last 7 days</option>
-                <option value="30d">Last 30 days</option>
-                <option value="90d">Last 90 days</option>
-                <option value="1y">Last year</option>
-              </select>
+              {['7d', '30d', '90d', '1y'].map((range) => (
+                <Button
+                  key={range}
+                  variant={timeRange === range ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setTimeRange(range as any)}
+                >
+                  {range}
+                </Button>
+              ))}
             </div>
-            <div className="flex items-center space-x-2">
+            
+            <div className="flex items-center gap-2">
               <span className="text-sm font-medium">Token:</span>
-              <select 
-                value={selectedToken} 
-                onChange={(e) => setSelectedToken(e.target.value)}
-                className="px-3 py-1 border border-gray-300 rounded-md text-sm"
+              <Button
+                variant={selectedToken === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSelectedToken('all')}
               >
-                <option value="all">All tokens</option>
-                <option value="USDC">USDC</option>
-                <option value="ETH">ETH</option>
-                <option value="USDbC">USDbC</option>
-              </select>
+                All
+              </Button>
             </div>
           </div>
         </CardContent>
@@ -225,103 +212,58 @@ export function DailySavingsAnalytics({ onBack }: DailySavingsAnalyticsProps) {
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-3xl font-bold text-blue-600">
-              {formatCurrency(analyticsData.totalSaved)}
-            </div>
-            <div className="text-sm text-gray-600">Total Saved</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-3xl font-bold text-green-600">
-              {analyticsData.completedGoals}
-            </div>
-            <div className="text-sm text-gray-600">Goals Completed</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className={`text-3xl font-bold ${getSuccessRateColor(analyticsData.successRate)}`}>
-              {analyticsData.successRate}%
-            </div>
-            <div className="text-sm text-gray-600">Success Rate</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-3xl font-bold text-purple-600">
-              {analyticsData.totalExecutions}
-            </div>
-            <div className="text-sm text-gray-600">Total Executions</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Detailed Analytics */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Goals Overview */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Target className="w-5 h-5" />
-              <span>Goals Overview</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-gray-900">{analyticsData.totalGoals}</div>
-                <div className="text-sm text-gray-600">Total Goals</div>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Saved</p>
+                <p className="text-2xl font-bold">
+                  {Number(formatUnits(analyticsData.totalSaved, 18)).toFixed(2)}
+                </p>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{analyticsData.activeGoals}</div>
-                <div className="text-sm text-gray-600">Active Goals</div>
+              <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                <DollarSign className="w-4 h-4 text-green-600" />
               </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Completion Rate</span>
-                <span>{((analyticsData.completedGoals / analyticsData.totalGoals) * 100).toFixed(1)}%</span>
-              </div>
-              <Progress value={(analyticsData.completedGoals / analyticsData.totalGoals) * 100} className="h-2" />
-            </div>
-            <div className="text-center">
-              <div className="text-lg font-semibold text-gray-900">
-                {analyticsData.averageGoalDuration} days
-              </div>
-              <div className="text-sm text-gray-600">Average Goal Duration</div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Performance Metrics */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <TrendingUp className="w-5 h-5" />
-              <span>Performance Metrics</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Average Daily Amount:</span>
-                <span className="font-medium">{formatTokenAmount(analyticsData.averageDailyAmount)}</span>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Active Goals</p>
+                <p className="text-2xl font-bold">{analyticsData.activeGoals}</p>
               </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Top Performing Token:</span>
-                <Badge>{analyticsData.topPerformingToken}</Badge>
+              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                <Target className="w-4 h-4 text-blue-600" />
               </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Total Penalties:</span>
-                <span className="font-medium text-red-600">{formatCurrency(analyticsData.totalPenalties)}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Success Rate</p>
+                <p className="text-2xl font-bold">{analyticsData.successRate.toFixed(1)}%</p>
               </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Success Rate:</span>
-                <span className={`font-medium ${getSuccessRateColor(analyticsData.successRate)}`}>
-                  {analyticsData.successRate}%
-                </span>
+              <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                <CheckCircle className="w-4 h-4 text-green-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Executions</p>
+                <p className="text-2xl font-bold">{analyticsData.totalExecutions}</p>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
+                <BarChart3 className="w-4 h-4 text-purple-600" />
               </div>
             </div>
           </CardContent>
@@ -331,122 +273,132 @@ export function DailySavingsAnalytics({ onBack }: DailySavingsAnalyticsProps) {
       {/* Goal Progress */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <BarChart3 className="w-5 h-5" />
-            <span>Current Goals Progress</span>
+          <CardTitle className="flex items-center gap-2">
+            <Target className="w-5 h-5" />
+            Goal Progress
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {goalProgress.map((goal, index) => (
-              <div key={index} className="border rounded-lg p-4">
-                <div className="space-y-4">
-                  {/* Header */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
+          {goalProgress.length > 0 ? (
+            <div className="space-y-4">
+              {goalProgress.map((goal, index) => (
+                <div key={index} className="p-4 border rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
                       <span className="text-2xl">{goal.icon}</span>
-                      <div>
-                        <div className="font-medium text-gray-900">{goal.token} Savings Goal</div>
-                        <div className="text-sm text-gray-600">
-                          Started {formatDate(goal.startDate)}
-                        </div>
-                      </div>
+                      <span className="font-semibold">{goal.token}</span>
                     </div>
-                    <div className="text-right">
-                      <div className="text-lg font-bold text-gray-900">
-                        {goal.progress.toFixed(1)}%
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        {goal.daysRemaining} days left
-                      </div>
-                    </div>
+                    <Badge variant={goal.progress >= 100 ? 'default' : 'secondary'}>
+                      {goal.progress.toFixed(1)}%
+                    </Badge>
                   </div>
-
-                  {/* Progress Bar */}
-                  <div className="space-y-2">
-                    <Progress value={goal.progress} className="h-3" />
-                    <div className="flex justify-between text-sm text-gray-600">
-                      <span>{formatTokenAmount(goal.currentAmount, goal.token)}</span>
-                      <span>{formatTokenAmount(goal.goalAmount, goal.token)}</span>
-                    </div>
-                  </div>
-
-                  {/* Details */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-600">Start Date:</span>
-                      <div className="font-medium">{formatDate(goal.startDate)}</div>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Expected End:</span>
-                      <div className="font-medium">{formatDate(goal.expectedEndDate)}</div>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Days Remaining:</span>
-                      <div className="font-medium">{goal.daysRemaining}</div>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Status:</span>
-                      <div className="font-medium">
-                        {goal.progress === 100 ? (
-                          <Badge>Completed</Badge>
-                        ) : (
-                          <Badge>In Progress</Badge>
-                        )}
-                      </div>
-                    </div>
+                  <Progress value={goal.progress} className="mb-2" />
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>
+                      {Number(formatUnits(goal.currentAmount, 18)).toFixed(2)} / {Number(formatUnits(goal.goalAmount, 18)).toFixed(2)}
+                    </span>
+                    <span>{goal.daysRemaining} days remaining</span>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              No active goals found
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Execution History */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
+          <CardTitle className="flex items-center gap-2">
             <Calendar className="w-5 h-5" />
-            <span>Execution History</span>
+            Execution History
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {executionHistory.map((execution, index) => (
-              <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center space-x-2">
-                    {execution.success ? (
-                      <CheckCircle className="w-5 h-5 text-green-600" />
-                    ) : (
-                      <AlertTriangle className="w-5 h-5 text-red-600" />
-                    )}
+          {executionHistory.length > 0 ? (
+            <div className="space-y-3">
+              {executionHistory.map((execution, index) => (
+                <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      execution.success ? 'bg-green-100' : 'bg-red-100'
+                    }`}>
+                      {execution.success ? (
+                        <CheckCircle className="w-4 h-4 text-green-600" />
+                      ) : (
+                        <AlertTriangle className="w-4 h-4 text-red-600" />
+                      )}
+                    </div>
                     <div>
-                      <div className="font-medium text-gray-900">
-                        {formatTokenAmount(execution.amount, execution.token)}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        {formatDate(execution.date)}
-                      </div>
+                      <div className="font-semibold">{execution.token}</div>
+                      <div className="text-sm text-muted-foreground">{execution.date}</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-semibold">
+                      {Number(formatUnits(execution.amount, 18)).toFixed(2)}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {execution.success ? 'Success' : 'Failed'}
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <div className="text-right">
-                    <div className="font-medium text-gray-900">{execution.token}</div>
-                    {execution.penalty > 0 && (
-                      <div className="text-sm text-red-600">
-                        Penalty: {formatTokenAmount(execution.penalty, execution.token)}
-                      </div>
-                    )}
-                  </div>
-                  <Badge>
-                    {execution.success ? 'Success' : 'Failed'}
-                  </Badge>
-                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              No execution history available
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Performance Summary */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5" />
+            Performance Summary
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Average Daily Amount</span>
+                <span className="font-semibold">
+                  {Number(formatUnits(analyticsData.averageDailyAmount, 18)).toFixed(2)}
+                </span>
               </div>
-            ))}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Total Penalties</span>
+                <span className="font-semibold text-red-600">
+                  {Number(formatUnits(analyticsData.totalPenalties, 18)).toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Average Goal Duration</span>
+                <span className="font-semibold">{analyticsData.averageGoalDuration} days</span>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Completed Goals</span>
+                <span className="font-semibold">{analyticsData.completedGoals}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Top Performing Token</span>
+                <span className="font-semibold">{analyticsData.topPerformingToken}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Total Goals</span>
+                <span className="font-semibold">{analyticsData.totalGoals}</span>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

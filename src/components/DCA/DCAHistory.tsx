@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useDCA } from '@/hooks/useDCA';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { ErrorState, LoadingState, NoHistoryEmptyState } from '@/components/ui';
 import { 
   ChartBarIcon,
   ArrowTrendingUpIcon,
@@ -16,7 +17,7 @@ import {
   EyeIcon,
   FunnelIcon
 } from '@heroicons/react/24/outline';
-import { formatEther, parseEther } from 'viem';
+import { formatUnits } from 'viem';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 
 interface DCAHistoryProps {
@@ -46,7 +47,7 @@ interface TokenStats {
 }
 
 export function DCAHistory({ className = '' }: DCAHistoryProps) {
-  const { history, isLoadingHistory } = useDCA();
+  const { history, isLoadingHistory, refetchHistory } = useDCA();
   
   const [filters, setFilters] = useState<HistoryFilters>({
     timeRange: '30d',
@@ -58,24 +59,73 @@ export function DCAHistory({ className = '' }: DCAHistoryProps) {
   const [tokenStats, setTokenStats] = useState<TokenStats[]>([]);
   const [selectedTimeRange, setSelectedTimeRange] = useState<'7d' | '30d' | '90d' | '1y' | 'all'>('30d');
 
-  // Mock chart data for demonstration
+  // Process real DCA history data
   useEffect(() => {
-    const mockData: ChartData[] = Array.from({ length: 30 }, (_, i) => ({
-      date: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      executions: Math.floor(Math.random() * 10) + 1,
-      volume: Math.random() * 5 + 1,
-      successRate: Math.random() * 20 + 80,
-      avgPrice: 2000 + Math.sin(i * 0.3) * 100 + Math.random() * 50
-    }));
-    setChartData(mockData);
+    if (!history || history.length === 0) {
+      setChartData([]);
+      setTokenStats([]);
+      return;
+    }
 
-    const mockTokenStats: TokenStats[] = [
-      { token: 'USDC', executions: 45, volume: 12.5, successRate: 95, color: '#3B82F6' },
-      { token: 'DAI', executions: 32, volume: 8.2, successRate: 88, color: '#10B981' },
-      { token: 'WETH', executions: 28, volume: 15.8, successRate: 92, color: '#F59E0B' }
-    ];
-    setTokenStats(mockTokenStats);
-  }, []);
+    // Group executions by date
+    const executionsByDate = new Map<string, any[]>();
+    history.forEach(execution => {
+      const date = new Date(Number(execution.timestamp) * 1000).toISOString().split('T')[0];
+      if (!executionsByDate.has(date)) {
+        executionsByDate.set(date, []);
+      }
+      executionsByDate.get(date)!.push(execution);
+    });
+
+    // Generate chart data from real executions
+    const processedChartData: ChartData[] = Array.from(executionsByDate.entries()).map(([date, executions]) => {
+      const totalVolume = executions.reduce((sum, exec) => sum + Number(formatUnits(exec.amount, 18)), 0);
+      const successfulExecutions = executions.filter(exec => exec.executedPrice > BigInt(0));
+      const successRate = executions.length > 0 ? (successfulExecutions.length / executions.length) * 100 : 0;
+      const avgPrice = successfulExecutions.length > 0 
+        ? successfulExecutions.reduce((sum, exec) => sum + Number(formatUnits(exec.executedPrice, 18)), 0) / successfulExecutions.length
+        : 0;
+
+      return {
+        date,
+        executions: executions.length,
+        volume: totalVolume,
+        successRate,
+        avgPrice
+      };
+    }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    setChartData(processedChartData);
+
+    // Generate token statistics
+    const tokenMap = new Map<string, { executions: any[], volume: number }>();
+    history.forEach(execution => {
+      const token = execution.toToken;
+      if (!tokenMap.has(token)) {
+        tokenMap.set(token, { executions: [], volume: 0 });
+      }
+      const tokenData = tokenMap.get(token)!;
+      tokenData.executions.push(execution);
+      tokenData.volume += Number(formatUnits(execution.amount, 18));
+    });
+
+    const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+    const processedTokenStats: TokenStats[] = Array.from(tokenMap.entries()).map(([token, data], index) => {
+      const successfulExecutions = data.executions.filter(exec => exec.executedPrice > BigInt(0));
+      const successRate = data.executions.length > 0 ? (successfulExecutions.length / data.executions.length) * 100 : 0;
+
+      return {
+        token: token.slice(0, 6) + '...', // Truncate token address
+        executions: data.executions.length,
+        volume: data.volume,
+        successRate,
+        color: colors[index % colors.length]
+      };
+    });
+
+    setTokenStats(processedTokenStats);
+
+  }, [history]);
 
   const filteredHistory = history?.filter(item => {
     const date = new Date(Number(item.timestamp) * 1000);
@@ -100,124 +150,97 @@ export function DCAHistory({ className = '' }: DCAHistoryProps) {
     return timeMatch && statusMatch && tokenMatch;
   }) || [];
 
-  const totalExecutions = filteredHistory.length;
-  const successfulExecutions = filteredHistory.filter(item => item.executedPrice > 0).length;
-  const totalVolume = filteredHistory.reduce((sum, item) => sum + Number(item.amount), 0);
-  const averagePrice = filteredHistory.length > 0 
-    ? filteredHistory.reduce((sum, item) => sum + Number(item.executedPrice), 0) / filteredHistory.length
-    : 0;
-  const successRate = totalExecutions > 0 ? (successfulExecutions / totalExecutions) * 100 : 0;
+  // Show loading state
+  if (isLoadingHistory) {
+    return (
+      <div className={`space-y-6 ${className}`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">DCA History</h2>
+            <p className="text-muted-foreground">Track your dollar-cost averaging performance</p>
+          </div>
+        </div>
+        <LoadingState message="Loading DCA execution history..." />
+      </div>
+    );
+  }
 
-  const handleFilterChange = (key: keyof HistoryFilters, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-  };
+  // Show error state
+  if (false) { // No error property available
+    return (
+      <div className={`space-y-6 ${className}`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">DCA History</h2>
+            <p className="text-muted-foreground">Track your dollar-cost averaging performance</p>
+          </div>
+        </div>
+        <ErrorState
+          title="Failed to load DCA history"
+          message="Unable to fetch your DCA execution history. Please try again."
+          onRetry={refetchHistory}
+        />
+      </div>
+    );
+  }
 
-  const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
+  // Show empty state if no history
+  if (!history || history.length === 0) {
+    return (
+      <div className={`space-y-6 ${className}`}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">DCA History</h2>
+            <p className="text-muted-foreground">Track your dollar-cost averaging performance</p>
+          </div>
+        </div>
+        <NoHistoryEmptyState onAction={() => window.location.href = '/configure'} />
+      </div>
+    );
+  }
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <ChartBarIcon className="w-4 h-4 text-primary" />
-            </div>
-            <div>
-              <div className="text-2xl font-bold">{totalExecutions}</div>
-              <div className="text-sm text-muted-foreground">Total Executions</div>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-              <CheckCircleIcon className="w-4 h-4 text-green-600" />
-            </div>
-            <div>
-              <div className="text-2xl font-bold">{successRate.toFixed(1)}%</div>
-              <div className="text-sm text-muted-foreground">Success Rate</div>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-              <CurrencyDollarIcon className="w-4 h-4 text-blue-600" />
-            </div>
-            <div>
-              <div className="text-2xl font-bold">{formatEther(parseEther(totalVolume.toString()))}</div>
-              <div className="text-sm text-muted-foreground">Total Volume</div>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
-              <ArrowTrendingUpIcon className="w-4 h-4 text-purple-600" />
-            </div>
-            <div>
-              <div className="text-2xl font-bold">${averagePrice.toFixed(2)}</div>
-              <div className="text-sm text-muted-foreground">Avg Price</div>
-            </div>
-          </div>
-        </Card>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">DCA History</h2>
+          <p className="text-muted-foreground">Track your dollar-cost averaging performance</p>
+        </div>
+        <div className="text-sm text-muted-foreground">
+          {filteredHistory.length} execution{filteredHistory.length !== 1 ? 's' : ''}
+        </div>
       </div>
 
       {/* Filters */}
       <Card className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">History Filters</h3>
+        <div className="flex flex-wrap gap-4">
           <div className="flex items-center gap-2">
-            <FunnelIcon className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Filter Results</span>
+            <span className="text-sm font-medium">Time Range:</span>
+            {['7d', '30d', '90d', '1y', 'all'].map((range) => (
+              <Button
+                key={range}
+                variant={filters.timeRange === range ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilters(prev => ({ ...prev, timeRange: range as any }))}
+              >
+                {range}
+              </Button>
+            ))}
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">Time Range</label>
-            <select
-              value={filters.timeRange}
-              onChange={(e) => handleFilterChange('timeRange', e.target.value)}
-              className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-            >
-              <option value="7d">Last 7 days</option>
-              <option value="30d">Last 30 days</option>
-              <option value="90d">Last 90 days</option>
-              <option value="1y">Last year</option>
-              <option value="all">All time</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">Status</label>
-            <select
-              value={filters.status}
-              onChange={(e) => handleFilterChange('status', e.target.value)}
-              className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-            >
-              <option value="all">All executions</option>
-              <option value="success">Successful only</option>
-              <option value="failed">Failed only</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">Token</label>
-            <select
-              value={filters.token}
-              onChange={(e) => handleFilterChange('token', e.target.value)}
-              className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-            >
-              <option value="all">All tokens</option>
-              <option value="0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913">USDC</option>
-              <option value="0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb">DAI</option>
-              <option value="0x4200000000000000000000000000000000000006">WETH</option>
-            </select>
+          
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">Status:</span>
+            {['all', 'success', 'failed'].map((status) => (
+              <Button
+                key={status}
+                variant={filters.status === status ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilters(prev => ({ ...prev, status: status as any }))}
+              >
+                {status}
+              </Button>
+            ))}
           </div>
         </div>
       </Card>
@@ -227,176 +250,169 @@ export function DCAHistory({ className = '' }: DCAHistoryProps) {
         {/* Execution Volume Chart */}
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4">Execution Volume</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Line 
-                  type="monotone" 
-                  dataKey="volume" 
-                  stroke="#3B82F6" 
-                  strokeWidth={2}
-                  dot={{ fill: '#3B82F6', strokeWidth: 2, r: 4 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        {/* Success Rate Chart */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Success Rate Trend</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis domain={[0, 100]} />
-                <Tooltip formatter={(value) => [`${value}%`, 'Success Rate']} />
-                <Line 
-                  type="monotone" 
-                  dataKey="successRate" 
-                  stroke="#10B981" 
-                  strokeWidth={2}
-                  dot={{ fill: '#10B981', strokeWidth: 2, r: 4 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          {chartData.length > 0 ? (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="volume" stroke="#3B82F6" strokeWidth={2} />
+                  <Line type="monotone" dataKey="executions" stroke="#10B981" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-64 flex items-center justify-center text-muted-foreground">
+              No execution data available
+            </div>
+          )}
         </Card>
 
         {/* Token Distribution */}
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4">Token Distribution</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={tokenStats.map(stat => ({
-                    name: stat.token,
-                    value: stat.executions,
-                    fill: stat.color
-                  }))}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent as number).toFixed(1)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="executions"
-                >
-                  {tokenStats.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+          {tokenStats.length > 0 ? (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={tokenStats as any}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={(entry: any) => `${entry.token} (${entry.executions})`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="executions"
+                  >
+                    {tokenStats.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-64 flex items-center justify-center text-muted-foreground">
+              No token data available
+            </div>
+          )}
+        </Card>
+      </div>
+
+      {/* Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Total Executions</p>
+              <p className="text-2xl font-bold">{filteredHistory.length}</p>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+              <ChartBarIcon className="w-4 h-4 text-blue-600" />
+            </div>
           </div>
         </Card>
 
-        {/* Execution Count */}
         <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Daily Executions</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="executions" fill="#8B5CF6" />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Success Rate</p>
+              <p className="text-2xl font-bold">
+                {filteredHistory.length > 0 
+                  ? Math.round((filteredHistory.filter(h => h.executedPrice > BigInt(0)).length / filteredHistory.length) * 100)
+                  : 0}%
+              </p>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+              <CheckCircleIcon className="w-4 h-4 text-green-600" />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Total Volume</p>
+              <p className="text-2xl font-bold">
+                {filteredHistory.reduce((sum, h) => sum + Number(formatUnits(h.amount, 18)), 0).toFixed(2)}
+              </p>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
+              <CurrencyDollarIcon className="w-4 h-4 text-purple-600" />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Avg Price</p>
+              <p className="text-2xl font-bold">
+                {(() => {
+                  const successfulExecutions = filteredHistory.filter(h => h.executedPrice > BigInt(0));
+                  return successfulExecutions.length > 0
+                    ? (successfulExecutions.reduce((sum, h) => sum + Number(formatUnits(h.executedPrice, 18)), 0) / successfulExecutions.length).toFixed(2)
+                    : '0.00';
+                })()}
+              </p>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
+              <ArrowTrendingUpIcon className="w-4 h-4 text-orange-600" />
+            </div>
           </div>
         </Card>
       </div>
 
-      {/* Execution History Table */}
+      {/* Recent Executions */}
       <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4">Execution History</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="text-left py-3 px-4 font-medium">Date</th>
-                <th className="text-left py-3 px-4 font-medium">From Token</th>
-                <th className="text-left py-3 px-4 font-medium">To Token</th>
-                <th className="text-left py-3 px-4 font-medium">Amount</th>
-                <th className="text-left py-3 px-4 font-medium">Price</th>
-                <th className="text-left py-3 px-4 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredHistory.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="text-center py-8 text-muted-foreground">
-                    <ClockIcon className="w-8 h-8 mx-auto mb-2" />
-                    <p>No executions found</p>
-                  </td>
-                </tr>
-              ) : (
-                filteredHistory.map((item, index) => (
-                  <motion.tr
-                    key={index}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="border-b border-border hover:bg-muted/50"
-                  >
-                    <td className="py-3 px-4">
-                      {new Date(Number(item.timestamp) * 1000).toLocaleString()}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
-                          <CurrencyDollarIcon className="w-3 h-3 text-primary" />
-                        </div>
-                        <span className="text-sm font-medium">WETH</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
-                          <CurrencyDollarIcon className="w-3 h-3 text-green-600" />
-                        </div>
-                        <span className="text-sm font-medium">USDC</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="font-medium">
-                        {formatEther(item.amount)} ETH
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="font-medium">
-                        ${Number(item.executedPrice).toFixed(2)}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
-                        item.executedPrice > 0 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {item.executedPrice > 0 ? (
-                          <CheckCircleIcon className="w-3 h-3" />
-                        ) : (
-                          <ExclamationTriangleIcon className="w-3 h-3" />
-                        )}
-                        {item.executedPrice > 0 ? 'Success' : 'Failed'}
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <h3 className="text-lg font-semibold mb-4">Recent Executions</h3>
+        {filteredHistory.length > 0 ? (
+          <div className="space-y-3">
+            {filteredHistory.slice(0, 10).map((execution, index) => (
+              <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    execution.executedPrice > BigInt(0) ? 'bg-green-100' : 'bg-red-100'
+                  }`}>
+                    {execution.executedPrice > BigInt(0) ? (
+                      <CheckCircleIcon className="w-4 h-4 text-green-600" />
+                    ) : (
+                      <ExclamationTriangleIcon className="w-4 h-4 text-red-600" />
+                    )}
+                  </div>
+                  <div>
+                    <div className="font-semibold">
+                      {formatUnits(execution.amount, 18)} → {execution.toToken.slice(0, 6)}...
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {new Date(Number(execution.timestamp) * 1000).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="font-semibold">
+                    {execution.executedPrice > BigInt(0) 
+                      ? `${formatUnits(execution.executedPrice, 18)}`
+                      : 'Failed'
+                    }
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {execution.executedPrice > BigInt(0) ? 'Executed' : 'Failed'}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-muted-foreground">
+            No executions found for the selected filters
+          </div>
+        )}
       </Card>
-
     </div>
   );
 }
