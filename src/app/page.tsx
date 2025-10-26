@@ -1,9 +1,5 @@
 'use client';
 
-import { useAccount } from "wagmi";
-import { useSavingsStrategy } from "@/hooks/useSavingsStrategy";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 import {
   HeroSection,
   SocialProof,
@@ -14,16 +10,6 @@ import {
 } from "@/components/Landing";
 
 export default function Home() {
-  const { isConnected } = useAccount();
-  const { hasStrategy, isLoading } = useSavingsStrategy();
-  const router = useRouter();
-
-  // Redirect to dashboard if user has strategy configured
-  useEffect(() => {
-    if (isConnected && !isLoading && hasStrategy) {
-      router.push('/dashboard');
-    }
-  }, [isConnected, hasStrategy, isLoading, router]);
 
   return (
     <div className="min-h-screen relative overflow-hidden">

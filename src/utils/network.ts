@@ -4,7 +4,11 @@ import {
   getActiveNetworkConfig,
   isSupportedChainId as isSupportedChainIdFromConfig,
   getNetworkFromChainId,
-  CHAIN_IDS as CONFIG_CHAIN_IDS
+  CHAIN_IDS as CONFIG_CHAIN_IDS,
+  getPreferredNetwork,
+  isPreferredNetwork,
+  getBaseSepoliaConfig,
+  SupportedNetwork
 } from '@/config/network';
 
 // Re-export from centralized config for backward compatibility
@@ -115,6 +119,49 @@ export function validateNetwork(chainId: number): boolean {
   return isSupportedChain(chainId);
 }
 
+// Strict network validation with error details
+export function validateNetworkStrict(chainId: number): {
+  isValid: boolean;
+  isSupported: boolean;
+  networkName: string;
+  error?: string;
+} {
+  const supportedChains = [CHAIN_IDS.BASE_MAINNET, CHAIN_IDS.BASE_SEPOLIA];
+  
+  if (supportedChains.includes(chainId as SupportedChainId)) {
+    const networkName = chainId === CHAIN_IDS.BASE_MAINNET ? 'Base Mainnet' : 'Base Sepolia';
+    return {
+      isValid: true,
+      isSupported: true,
+      networkName
+    };
+  }
+  
+  if (chainId === 31337) {
+    return {
+      isValid: false,
+      isSupported: false,
+      networkName: 'Localhost',
+      error: 'Localhost is not supported. Please switch to Base Sepolia or Base Mainnet.'
+    };
+  }
+  
+  return {
+    isValid: false,
+    isSupported: false,
+    networkName: `Chain ${chainId}`,
+    error: `Chain ${chainId} is not supported. Please switch to Base Sepolia (${CHAIN_IDS.BASE_SEPOLIA}) or Base Mainnet (${CHAIN_IDS.BASE_MAINNET}).`
+  };
+}
+
+// Auto-reject unsupported networks
+export function rejectUnsupportedNetwork(chainId: number): void {
+  const validation = validateNetworkStrict(chainId);
+  if (!validation.isValid) {
+    throw new Error(validation.error || 'Unsupported network');
+  }
+}
+
 // Get network display name
 export function getNetworkDisplayName(chainId: number): string {
   const chainInfo = getChainInfo(chainId);
@@ -129,4 +176,19 @@ export function isTestnet(chainId: number): boolean {
 // Check if network is mainnet
 export function isMainnet(chainId: number): boolean {
   return chainId === CHAIN_IDS.BASE_MAINNET;
+}
+
+// Get preferred network for testing (Base Sepolia)
+export function getPreferredNetworkForTesting(): SupportedNetwork {
+  return getPreferredNetwork();
+}
+
+// Check if chain ID is the preferred testing network
+export function isPreferredTestingNetwork(chainId: number): boolean {
+  return isPreferredNetwork(chainId);
+}
+
+// Get Base Sepolia configuration
+export function getBaseSepoliaNetworkConfig() {
+  return getBaseSepoliaConfig();
 }
