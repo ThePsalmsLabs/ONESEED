@@ -22,10 +22,31 @@ export const NETWORK_TO_CHAIN_ID = {
   'base-sepolia': CHAIN_IDS.BASE_SEPOLIA,
 } as const;
 
-// Default RPC URLs (fallback)
+// Default RPC URLs (fallback) - Base Sepolia prioritized for testing
 const DEFAULT_RPC_URLS = {
   'base': 'https://mainnet.base.org',
   'base-sepolia': 'https://sepolia.base.org',
+} as const;
+
+// Base Sepolia RPC endpoints with multiple fallbacks for reliability
+export const BASE_SEPOLIA_RPC_URLS = [
+  'https://sepolia.base.org',
+  'https://base-sepolia.g.alchemy.com/v2/demo',
+  'https://base-sepolia.infura.io/v3/demo',
+  'https://base-sepolia.publicnode.com',
+] as const;
+
+// Faucet URLs for Base Sepolia
+export const FAUCET_URLS = {
+  ETH: 'https://www.coinbase.com/faucets/base-sepolia-faucet',
+  USDC: 'https://faucet.circle.com/',
+  ALTERNATIVE: 'https://www.alchemy.com/faucets/base-sepolia',
+} as const;
+
+// Token addresses for Base Sepolia
+export const BASE_SEPOLIA_TOKENS = {
+  USDC: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+  WETH: '0x4200000000000000000000000000000000000006',
 } as const;
 
 /**
@@ -204,5 +225,36 @@ export function getActiveNetworkConfig() {
     isTestnet: isTestnet(),
     isMainnet: isMainnet(),
     displayName: getNetworkDisplayName(network),
+  };
+}
+
+/**
+ * Get preferred network for testing (Base Sepolia)
+ */
+export function getPreferredNetwork(): SupportedNetwork {
+  return 'base-sepolia';
+}
+
+/**
+ * Check if a chain ID is the preferred testing network
+ */
+export function isPreferredNetwork(chainId: number): boolean {
+  return chainId === CHAIN_IDS.BASE_SEPOLIA;
+}
+
+/**
+ * Get Base Sepolia network configuration
+ */
+export function getBaseSepoliaConfig() {
+  return {
+    chainId: CHAIN_IDS.BASE_SEPOLIA,
+    name: 'Base Sepolia',
+    isTestnet: true,
+    rpcUrls: BASE_SEPOLIA_RPC_URLS,
+    blockExplorer: 'https://sepolia.basescan.org',
+    faucets: FAUCET_URLS,
+    tokens: BASE_SEPOLIA_TOKENS,
+    displayName: 'Base Sepolia (Testing Network)',
+    description: 'Active testing network with proven savings extraction',
   };
 }
