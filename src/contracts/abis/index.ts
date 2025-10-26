@@ -15,4 +15,5 @@ export { SpendSaveStorageABI } from './SpendSaveStorage';
 export { SlippageEnhancedABI } from './SlippageEnhanced';
 export { SpendSaveMulticallABI } from './SpendSaveMulticall';
 export { SpendSaveQuoterABI } from './SpendSaveQuoter';
+export { SpendSaveAnalyticsABI } from './SpendSaveAnalytics';
 
