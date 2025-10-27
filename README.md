@@ -2,6 +2,13 @@
 
 A personal savings protocol built on Uniswap V4 that automatically saves a portion of every transaction you make.
 
+## 🎥 Video Demonstration
+
+**For judges and reviewers:** Watch the complete protocol demonstration and walkthrough:
+**[📺 OneSeed Protocol Demo Video](https://www.loom.com/share/0f10c094824945dfa45a9ae421494a1b)**
+
+This video showcases the full functionality, user interface, and technical implementation of the OneSeed protocol.
+
 ## What is This?
 
 OneSeed is my exploration into automated savings through DeFi. The idea is simple: **every time you swap tokens, a percentage automatically goes into savings**. No manual transfers, no forgetting to save - it just happens.
