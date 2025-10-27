@@ -26,6 +26,10 @@ export function SavingsControl({ percentage, onChange, tradeValueUSD }: SavingsC
 
       <p className="text-sm text-gray-300 mb-4">
         Choose how much of each trade to automatically save
+        <br />
+        <span className="text-xs text-yellow-400">
+          ⚠️ This will override your configured strategy from the Configure page
+        </span>
       </p>
 
       {/* Slider */}
