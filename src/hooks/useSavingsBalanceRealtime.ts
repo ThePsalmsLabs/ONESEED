@@ -59,10 +59,22 @@ export function useSavingsBalanceRealtime() {
   // Fetch individual token savings balance
   const fetchTokenSavings = useCallback(async (tokenAddress: string) => {
     if (!address || !publicClient || !storageAddress || storageAddress === '0x0000000000000000000000000000000000000000') {
+      console.log('❌ Missing requirements for savings fetch:', {
+        address: !!address,
+        publicClient: !!publicClient,
+        storageAddress: !!storageAddress,
+        storageAddressValid: storageAddress !== '0x0000000000000000000000000000000000000000'
+      });
       return null;
     }
 
     try {
+      console.log('🔍 Fetching savings from contract:', {
+        storageAddress,
+        user: address,
+        token: tokenAddress
+      });
+
       const balance = await publicClient.readContract({
         address: storageAddress as `0x${string}`,
         abi: SpendSaveStorageABI,
@@ -75,15 +87,16 @@ export function useSavingsBalanceRealtime() {
         smartAccountAddress,
         addressUsed: address,
         token: tokenAddress,
-        balance: balance.toString()
+        balance: balance.toString(),
+        balanceFormatted: (Number(balance) / 1e6).toFixed(6) + ' USDC'
       });
 
       return balance as bigint;
     } catch (error) {
-      console.error(`Error fetching savings for token ${tokenAddress}:`, error);
+      console.error(`❌ Error fetching savings for token ${tokenAddress}:`, error);
       return BigInt(0);
     }
-  }, [address, publicClient, storageAddress]);
+  }, [address, publicClient, storageAddress, eoaAddress, smartAccountAddress]);
 
   // Fetch all savings balances with optimized caching
   const { data: savingsData, isLoading, error, refetch } = useQuery<RealtimeSavingsData>({
@@ -170,44 +183,14 @@ export function useSavingsBalanceRealtime() {
       });
     };
 
-    // Set up multiple event listeners for different savings events
-    const unwatchSavingsIncreased = publicClient.watchContractEvent({
-      address: storageAddress as `0x${string}`,
-      abi: SpendSaveStorageABI,
-      eventName: 'SavingsIncreased',
-      args: {
-        user: address as `0x${string}`
-      },
-      onLogs: (logs) => {
-        console.log('💰 SavingsIncreased event detected:', logs);
-        handleSavingsUpdate();
-      },
-      onError: (error) => {
-        console.error('Error watching SavingsIncreased events:', error);
-      }
-    });
-
-    // Also listen for AfterSwapExecuted events from SpendSaveHook
-    const spendSaveHookAddress = getContractAddress(chainId, 'SpendSaveHook');
-    const unwatchAfterSwap = publicClient.watchContractEvent({
-      address: spendSaveHookAddress as `0x${string}`,
-      abi: SpendSaveHookABI,
-      eventName: 'AfterSwapExecuted',
-      args: {
-        user: address as `0x${string}`
-      },
-      onLogs: (logs) => {
-        console.log('🔄 AfterSwapExecuted event detected:', logs);
-        handleSavingsUpdate();
-      },
-      onError: (error) => {
-        console.error('Error watching AfterSwapExecuted events:', error);
-      }
-    });
+    // Use polling only to avoid RPC filter issues completely
+    const pollInterval = setInterval(() => {
+      // Trigger a refresh every 5 seconds for more responsive updates
+      handleSavingsUpdate();
+    }, 5000);
 
     return () => {
-      unwatchSavingsIncreased();
-      unwatchAfterSwap();
+      clearInterval(pollInterval);
     };
   }, [address, publicClient, storageAddress, chainId, queryClient]);
 
