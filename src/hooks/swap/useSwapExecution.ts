@@ -12,12 +12,15 @@ import { useActiveChainId } from '@/hooks/useActiveChainId';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { UniswapV4PoolSwapTestABI } from '@/contracts/abis/UniswapV4PoolSwapTest';
+import { SavingsStrategyABI } from '@/contracts/abis/SavingStrategy';
 import { usePublicClient } from 'wagmi';
+import { useSavingsStrategy } from './useSavingsStrategy';
 
 export type SwapStatus =
   | 'idle'
   | 'checking_approval'
   | 'approving'
+  | 'setting_strategy'
   | 'building'
   | 'executing'
   | 'confirming'
@@ -61,10 +64,11 @@ const NATIVE_ETH = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE' as Address;
  */
 export function useSwapExecution(params?: SwapParams) {
   const { smartAccountAddress, smartAccount } = useBiconomy();
-  const { sendTransaction, userOpHash, transactionHash } = useBiconomyTransaction();
+  const { sendTransaction, sendBatchTransaction, userOpHash, transactionHash } = useBiconomyTransaction();
   const chainId = useActiveChainId();
   const queryClient = useQueryClient();
   const publicClient = usePublicClient();
+  const { strategy: configuredStrategy } = useSavingsStrategy();
   const [status, setStatus] = useState<SwapStatus>('idle');
   const [txHash, setTxHash] = useState<string | null>(null);
   const [userOpHashState, setUserOpHashState] = useState<string | null>(null);
@@ -243,6 +247,61 @@ export function useSwapExecution(params?: SwapParams) {
         }
       }
 
+      // CRITICAL: Set savings strategy if percentage > 0
+      // The SpendSaveHook reads the user's strategy from the contract, so we must set it first
+      // Check if we need to update the strategy
+      // Only set strategy if it's different from what's already configured
+      const configuredPercentage = configuredStrategy?.percentage ? Number(configuredStrategy.percentage) : 0;
+      const needsStrategyUpdate = swapParams.savingsPercentage > 0 && 
+        swapParams.savingsPercentage !== configuredPercentage;
+      
+      console.log('🔍 Strategy comparison:', {
+        uiSliderPercentage: swapParams.savingsPercentage,
+        configuredPercentage: configuredPercentage,
+        needsUpdate: needsStrategyUpdate,
+        configuredStrategy: configuredStrategy
+      });
+      
+      // Prepare transactions for batching
+      const transactions = [];
+      
+      if (needsStrategyUpdate) {
+        console.log('🔧 Adding strategy setting to batch:', {
+          percentage: swapParams.savingsPercentage,
+          smartAccount: smartAccountAddress,
+          note: 'Will batch strategy update with swap transaction'
+        });
+        
+        const strategyAddress = getContractAddress(chainId, 'SavingStrategy');
+        
+        // Encode the setSavingStrategy call
+        const strategyCalldata = encodeFunctionData({
+          abi: SavingsStrategyABI,
+          functionName: 'setSavingStrategy',
+          args: [
+            smartAccountAddress as `0x${string}`,
+            BigInt(swapParams.savingsPercentage * 100), // Convert to basis points
+            BigInt(0), // autoIncrement
+            BigInt(100 * 100), // maxPercentage (100%)
+            false, // roundUpSavings
+            0, // tokenType (0 = input token)
+            '0x0000000000000000000000000000000000000000' as `0x${string}` // specificToken
+          ]
+        });
+        
+        // Add strategy setting to batch
+        transactions.push({
+          to: strategyAddress,
+          data: strategyCalldata,
+          value: BigInt(0)
+        });
+      } else {
+        console.log('✅ Using configured strategy, no update needed:', {
+          configuredPercentage: configuredPercentage,
+          uiSliderPercentage: swapParams.savingsPercentage
+        });
+      }
+
       setStatus('building');
 
       /**
@@ -342,22 +401,33 @@ export function useSwapExecution(params?: SwapParams) {
         minOutput: swapParams.minOutputAmount.toString(),
       });
 
-      // Execute gasless transaction via Biconomy Smart Account
-      const hash = await sendTransaction(
-        poolSwapTestAddress,  // Send to PoolSwapTest for V4 swaps (matching CompleteProtocolTest.s.sol)
-        swapCalldata,
-        isNativeETH ? inputAmountBigInt : BigInt(0),
-        {
-          onSuccess: (txHash: Hash) => {
-            setTxHash(txHash);
-            setStatus('confirming');
-            toast.success('Swap executing with automatic savings!');
-          },
-          onError: (err: Error) => {
-            throw err;
-          },
-        }
-      );
+      // Add swap transaction to batch
+      transactions.push({
+        to: poolSwapTestAddress,
+        data: swapCalldata,
+        value: isNativeETH ? inputAmountBigInt : BigInt(0)
+      });
+
+      console.log('🔄 Executing batched transaction:', {
+        transactionCount: transactions.length,
+        transactions: transactions.map(tx => ({
+          to: tx.to,
+          value: tx.value.toString(),
+          dataLength: tx.data.length
+        }))
+      });
+
+      // Execute batched transaction via Biconomy Smart Account
+      const hash = await sendBatchTransaction(transactions, {
+        onSuccess: (txHash: Hash) => {
+          setTxHash(txHash);
+          setStatus('confirming');
+          toast.success(transactions.length > 1 ? 'Batched transaction executing with automatic savings!' : 'Swap executing with automatic savings!');
+        },
+        onError: (err: Error) => {
+          throw err;
+        },
+      });
 
       // Update state with both hash types
       setTxHash(hash);
@@ -389,10 +459,20 @@ export function useSwapExecution(params?: SwapParams) {
       // Refresh savings balance after successful swap
       console.log('🔄 Refreshing savings balance after swap...');
       
-      // Immediate refresh (in case event listener works)
+      // Immediate refresh of all balances
       queryClient.invalidateQueries({
         queryKey: ['realtimeSavingsBalance', smartAccountAddress, chainId]
       });
+      
+      queryClient.invalidateQueries({
+        queryKey: ['balance']
+      });
+      
+      queryClient.invalidateQueries({
+        queryKey: ['readContract']
+      });
+      
+      console.log('✅ Immediate balance refresh triggered');
       
       // Add a delayed refresh to ensure blockchain has processed the savings
       setTimeout(() => {
@@ -409,20 +489,21 @@ export function useSwapExecution(params?: SwapParams) {
           queryKey: ['savingsBalance']
         });
         
+        // Invalidate all balance-related queries
         queryClient.invalidateQueries({
-          queryKey: ['tokenBalances', smartAccountAddress, chainId]
+          queryKey: ['balance']
         });
         
         queryClient.invalidateQueries({
-          queryKey: ['tokenBalances']
+          queryKey: ['readContract']
         });
         
-        // CRITICAL: Refresh savings balance after swap
-        queryClient.invalidateQueries({
+        // CRITICAL: Force immediate refresh of savings balance
+        queryClient.refetchQueries({
           queryKey: ['realtimeSavingsBalance', smartAccountAddress, chainId]
         });
         
-        console.log('✅ Savings balance refresh triggered for all queries');
+        console.log('✅ Forced immediate refresh of all balances');
       }, 2000); // 2 second delay to allow blockchain processing
 
       return {
