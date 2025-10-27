@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Token } from '@/hooks/swap/useTokenList';
 import { SwapQuote } from '@/utils/quoteHelpers';
 import { formatUnits, parseUnits } from 'viem';
+import { useTokenBalance } from '@/hooks/swap/useTokenBalance';
 import { 
   ArrowRightIcon,
   ExclamationTriangleIcon,
@@ -19,6 +20,7 @@ interface SwapRangeCalculatorProps {
   outputAmount: string;
   quote: SwapQuote | null;
   isLoadingQuote: boolean;
+  savingsPercentage?: number;
   className?: string;
 }
 
@@ -40,8 +42,15 @@ export function SwapRangeCalculator({
   outputAmount,
   quote,
   isLoadingQuote,
+  savingsPercentage = 5,
   className = ''
 }: SwapRangeCalculatorProps) {
+  
+  // Fetch real balance
+  const { formatted: balance, isLoading: isLoadingBalance } = useTokenBalance({
+    tokenAddress: inputToken?.address,
+    decimals: inputToken?.decimals,
+  });
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Calculate swap range based on available liquidity
@@ -104,14 +113,14 @@ export function SwapRangeCalculator({
   const savingsAmount = useMemo(() => {
     if (!inputToken || !inputAmount) return '0';
     const amount = parseFloat(inputAmount);
-    return (amount * 0.05).toFixed(6); // 5% default savings
-  }, [inputToken, inputAmount]);
+    return (amount * (savingsPercentage / 100)).toFixed(6);
+  }, [inputToken, inputAmount, savingsPercentage]);
 
   const swapAmount = useMemo(() => {
     if (!inputAmount) return '0';
     const amount = parseFloat(inputAmount);
-    return (amount * 0.95).toFixed(6); // 95% for swap
-  }, [inputAmount]);
+    return (amount * (1 - savingsPercentage / 100)).toFixed(6);
+  }, [inputAmount, savingsPercentage]);
 
   if (!inputToken || !outputToken) {
     return null;
@@ -143,7 +152,9 @@ export function SwapRangeCalculator({
         <div className="glass-subtle rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-gray-400">You&apos;re swapping</span>
-            <span className="text-sm text-gray-400">Balance: 0.00 {inputToken.symbol}</span>
+            <span className="text-sm text-gray-400">
+              Balance: {isLoadingBalance ? 'Loading...' : `${parseFloat(balance).toFixed(inputToken.decimals === 6 ? 2 : 4)} ${inputToken.symbol}`}
+            </span>
           </div>
           <div className="text-xl font-bold text-white">
             {inputAmount || '0'} {inputToken.symbol}
@@ -330,14 +341,14 @@ export function SwapRangeCalculator({
 
           {/* Savings Breakdown */}
           <div className="glass-subtle rounded-lg p-4">
-            <div className="text-sm text-gray-400 mb-3">Savings Breakdown (5% default)</div>
+            <div className="text-sm text-gray-400 mb-3">Savings Breakdown ({savingsPercentage}% default)</div>
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span className="text-sm text-gray-300">Total Input</span>
                 <span className="text-sm font-medium text-white">{inputAmount} {inputToken.symbol}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-300">Savings (5%)</span>
+                <span className="text-sm text-gray-300">Savings ({savingsPercentage}%)</span>
                 <span className="text-sm font-medium text-primary-400">{savingsAmount} {inputToken.symbol}</span>
               </div>
               <div className="flex justify-between border-t border-white/10 pt-2">
