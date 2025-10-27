@@ -86,6 +86,7 @@ export function SwapButton({
         idle: 'Preparing...',
         checking_approval: 'Checking approval...',
         approving: 'Approving token...',
+        setting_strategy: 'Setting savings strategy...',
         building: 'Building transaction...',
         executing: 'Executing swap...',
         confirming: 'Confirming...',
