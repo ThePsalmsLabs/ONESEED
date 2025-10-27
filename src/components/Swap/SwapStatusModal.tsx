@@ -235,7 +235,7 @@ export function SwapStatusModal({
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-300">Savings Rate</span>
-                        <span className="text-primary-400 font-medium">5%</span>
+                        <span className="text-primary-400 font-medium">{savingsPercentage}%</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-300">Hook Status</span>
