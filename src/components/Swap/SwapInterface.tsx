@@ -144,7 +144,10 @@ export function SwapInterface() {
       />
       
       {/* Header */}
-      <SwapHeader />
+        <SwapHeader 
+          settings={settings}
+          onToggleAdvanced={() => updateSettings({ showAdvanced: !settings.showAdvanced })}
+        />
       
       {/* Network Warning */}
       {isUnsupportedNetwork && (
