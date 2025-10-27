@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Address } from 'viem';
+import { Address, formatUnits } from 'viem';
 import { usePublicClient } from 'wagmi';
 import { useActiveChainId } from '@/hooks/useActiveChainId';
 import { Token } from './useTokenList';
@@ -13,6 +13,7 @@ import {
   estimateSwapGas 
 } from '@/utils/quoteHelpers';
 import { SpendSaveQuoterABI } from '@/contracts/abis/SpendSaveQuoter';
+import { UniswapV4QuoterABI } from '@/contracts/abis/UniswapV4Quoter';
 import { getContractAddress } from '@/contracts/addresses';
 
 // Define PoolKey type
@@ -63,6 +64,38 @@ async function getDCAQuote(
   return result as [bigint, bigint];
 }
 
+// Use official UniswapV4Quoter for real market quotes
+async function getUniswapV4Quote(
+  publicClient: NonNullable<ReturnType<typeof usePublicClient>>,
+  quoterAddress: Address,
+  poolKey: PoolKey,
+  zeroForOne: boolean,
+  amountIn: bigint
+): Promise<[bigint, bigint]> {
+  console.log('🔍 Calling UniswapV4Quoter:', {
+    quoterAddress,
+    poolKey,
+    zeroForOne,
+    amountIn: amountIn.toString()
+  });
+  
+  // Use the official UniswapV4Quoter for real market prices
+  const result = await publicClient.readContract({
+    address: quoterAddress,
+    abi: UniswapV4QuoterABI,
+    functionName: 'quoteExactInputSingle',
+    args: [{
+      poolKey,
+      zeroForOne,
+      exactAmount: amountIn,
+      hookData: '0x' // Empty hook data for basic quotes
+    }],
+  } as Parameters<typeof publicClient.readContract>[0]);
+  
+  console.log('✅ UniswapV4Quoter result:', result);
+  return result as [bigint, bigint];
+}
+
 // Uniswap V4 fee tiers (basis points)
 const FEE_TIERS = [500, 3000, 10000]; // 0.05%, 0.3%, 1%
 const TICK_SPACINGS = [10, 60, 200]; // Corresponding tick spacings for each fee tier
@@ -104,6 +137,14 @@ export function useSwapQuote({
   const fetchQuote = useCallback(async () => {
     // Validation checks
     if (!enabled || !inputToken || !outputToken || swapAmount <= BigInt(0) || !publicClient) {
+      console.log('⚠️ Quote disabled:', {
+        enabled,
+        inputToken: !!inputToken,
+        outputToken: !!outputToken,
+        swapAmount: swapAmount?.toString(),
+        publicClient: !!publicClient,
+        reason: !enabled ? 'disabled' : !inputToken ? 'no input token' : !outputToken ? 'no output token' : swapAmount <= BigInt(0) ? 'swap amount <= 0' : 'no public client'
+      });
       setQuote(null);
       setIsLoading(false);
       return;
@@ -121,11 +162,26 @@ export function useSwapQuote({
     setError(null);
     
     try {
-      // Get SpendSaveQuoter address
-      const quoterAddress = getContractAddress(chainId, 'Quoter');
+      // Try UniswapV4Quoter first (official quoter for real market prices)
+      const uniswapV4QuoterAddress = getContractAddress(chainId, 'UniswapV4Quoter');
+      const spendSaveQuoterAddress = getContractAddress(chainId, 'Quoter');
       
-      // Check if quoter is deployed
-      if (!quoterAddress || quoterAddress === '0x0000000000000000000000000000000000000000') {
+    console.log('🔍 Quote process started:', {
+      chainId,
+      uniswapV4QuoterAddress,
+      spendSaveQuoterAddress,
+      inputToken: inputToken?.symbol,
+      outputToken: outputToken?.symbol,
+      swapAmount: swapAmount.toString(),
+      swapAmountFormatted: swapAmount > BigInt(0) ? formatUnits(swapAmount, inputToken?.decimals || 18) : '0',
+      savingsPercentage,
+      inputPrice,
+      outputPrice
+    });
+      
+      // Check if UniswapV4Quoter is deployed
+      if (!uniswapV4QuoterAddress || uniswapV4QuoterAddress === '0x0000000000000000000000000000000000000000') {
+        console.log('⚠️ UniswapV4Quoter not deployed, using fallback calculation');
         const fallbackQuote = calculateFallbackQuote(
           swapAmount,
           inputToken,
@@ -133,6 +189,11 @@ export function useSwapQuote({
           inputPrice,
           outputPrice
         );
+        console.log('📊 Fallback quote calculated:', {
+          outputAmount: fallbackQuote.outputAmount.toString(),
+          priceImpact: fallbackQuote.priceImpact,
+          fee: fallbackQuote.fee.toString()
+        });
         setQuote(fallbackQuote);
         setLastFetchTime(Date.now());
         return;
@@ -145,11 +206,20 @@ export function useSwapQuote({
       const [currency0, currency1] = sortTokens(inputToken.address, outputToken.address);
       const zeroForOne = inputToken.address.toLowerCase() === currency0.toLowerCase();
       
-      // Real SpendSaveQuoter integration
+      console.log('🔍 Pool configuration:', {
+        hookAddress,
+        inputTokenAddress: inputToken.address,
+        outputTokenAddress: outputToken.address,
+        currency0,
+        currency1,
+        zeroForOne
+      });
+      
+      // Try UniswapV4Quoter first for real market prices
       let bestQuote: SwapQuote | null = null;
       let bestOutputAmount = BigInt(0);
       
-      // Try different fee tiers to find best quote
+      // Try different fee tiers to find best quote using UniswapV4Quoter
       for (let i = 0; i < FEE_TIERS.length; i++) {
         const fee = FEE_TIERS[i];
         const tickSpacing = TICK_SPACINGS[i];
@@ -160,37 +230,30 @@ export function useSwapQuote({
             currency1,
             fee,
             tickSpacing,
-            hooks: hookAddress,
+            hooks: '0x0000000000000000000000000000000000000000' as `0x${string}`, // No hooks for basic quotes
           };
           
-          // Use savings impact quote if savings percentage > 0, otherwise use DCA quote
-          let amountOut: bigint;
-          let gasEstimate: bigint;
-          let savedAmount: bigint = BigInt(0);
+          console.log('🔍 Attempting UniswapV4Quoter quote:', {
+            uniswapV4QuoterAddress,
+            poolKey,
+            zeroForOne,
+            swapAmount: swapAmount.toString(),
+            fee,
+            tickSpacing
+          });
           
-          if (savingsPercentage > 0) {
-            const [swapOutput, saved, netOutput] = await getSavingsImpactQuote(
-              publicClient,
-              quoterAddress,
-              poolKey,
-              zeroForOne,
-              BigInt(swapAmount),
-              savingsPercentage
-            );
-            amountOut = swapOutput; // Amount user receives from swap
-            savedAmount = saved; // Amount saved
-            gasEstimate = BigInt(0); // Gas estimate not available from this function
-          } else {
-            const [output, gas] = await getDCAQuote(
-              publicClient,
-              quoterAddress,
-              poolKey,
-              zeroForOne,
-              BigInt(swapAmount)
-            );
-            amountOut = output;
-            gasEstimate = gas;
-          }
+          const [amountOut, gasEstimate] = await getUniswapV4Quote(
+            publicClient,
+            uniswapV4QuoterAddress,
+            poolKey,
+            zeroForOne,
+            BigInt(swapAmount)
+          );
+          
+          console.log('✅ UniswapV4Quoter quote successful:', {
+            amountOut: amountOut.toString(),
+            gasEstimate: gasEstimate.toString()
+          });
           
           if (amountOut > bestOutputAmount) {
             bestOutputAmount = amountOut;
@@ -204,6 +267,11 @@ export function useSwapQuote({
               outputPrice
             );
             
+            // Calculate savings amount if savings percentage > 0
+            const savedAmount = savingsPercentage > 0 ? 
+              (BigInt(swapAmount) * BigInt(savingsPercentage * 100)) / BigInt(10000) : 
+              BigInt(0);
+            
             bestQuote = {
               outputAmount: amountOut,
               priceImpact,
@@ -214,15 +282,34 @@ export function useSwapQuote({
               savedAmount: savedAmount > BigInt(0) ? savedAmount : undefined,
             };
           }
-        } catch (feeError) {
-          console.warn(`No liquidity for fee tier ${fee}:`, feeError);
+        } catch (uniswapQuoteError) {
+          console.error(`❌ UniswapV4Quoter failed for fee ${fee}:`, {
+            error: uniswapQuoteError,
+            uniswapV4QuoterAddress,
+            poolKey: {
+              currency0,
+              currency1,
+              fee,
+              tickSpacing,
+              hooks: '0x0000000000000000000000000000000000000000' as `0x${string}`
+            },
+            zeroForOne,
+            swapAmount: swapAmount.toString()
+          });
         }
       }
       
       if (bestQuote) {
+        console.log('✅ Best quote found:', {
+          outputAmount: bestQuote.outputAmount.toString(),
+          priceImpact: bestQuote.priceImpact,
+          fee: bestQuote.fee.toString(),
+          savedAmount: bestQuote.savedAmount?.toString()
+        });
         setQuote(bestQuote);
         setLastFetchTime(Date.now());
       } else {
+        console.log('⚠️ No quotes succeeded, using fallback calculation');
         const fallbackQuote = calculateFallbackQuote(
           swapAmount,
           inputToken,
@@ -230,6 +317,11 @@ export function useSwapQuote({
           inputPrice,
           outputPrice
         );
+        console.log('📊 Final fallback quote:', {
+          outputAmount: fallbackQuote.outputAmount.toString(),
+          priceImpact: fallbackQuote.priceImpact,
+          fee: fallbackQuote.fee.toString()
+        });
         setQuote(fallbackQuote);
         setLastFetchTime(Date.now());
       }
