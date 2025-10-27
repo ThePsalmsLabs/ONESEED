@@ -85,6 +85,7 @@ SWAP_IMPLEMENTATION_GAP_ANALYSIS.md
 env.example
 
 frontend integration/*
+scripts/*
 
 # Backup files
 *.bak
