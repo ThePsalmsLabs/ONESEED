@@ -38,6 +38,14 @@ export function SavingsPreview({
     tokenAddress: inputToken?.address as `0x${string}` 
   });
 
+  // Format USD value with appropriate precision
+  const formatUSDValue = (value: number) => {
+    if (value >= 1) return value.toFixed(2);
+    if (value >= 0.01) return value.toFixed(4);
+    if (value >= 0.001) return value.toFixed(6);
+    return value.toFixed(8);
+  };
+
   const savingsCalculation = useMemo(() => {
     if (!inputAmount || !inputToken || !strategy || !hasStrategy || parseFloat(inputAmount) === 0) {
       return {
@@ -57,6 +65,14 @@ export function SavingsPreview({
       const inputAmountBigInt = parseUnits(inputAmount, inputToken.decimals);
       const percentage = Number(strategy.percentage) / 100; // Convert basis points to percentage
       
+      console.log('🔍 SavingsPreview calculation:', {
+        inputAmount,
+        strategyPercentage: strategy.percentage,
+        calculatedPercentage: percentage,
+        inputTokenPrice,
+        inputAmountBigInt: inputAmountBigInt.toString()
+      });
+      
       // Calculate savings amount
       const savingsAmountBigInt = (inputAmountBigInt * BigInt(Math.floor(percentage * 100))) / BigInt(10000);
       const swapAmountBigInt = inputAmountBigInt - savingsAmountBigInt;
@@ -69,6 +85,14 @@ export function SavingsPreview({
       const inputAmountNum = parseFloat(inputAmount);
       const savingsUSD = inputAmountNum * percentage * inputTokenPrice;
       const swapUSD = inputAmountNum * (1 - percentage) * inputTokenPrice;
+
+      console.log('💰 USD calculations:', {
+        inputAmountNum,
+        percentage,
+        inputTokenPrice,
+        savingsUSD,
+        swapUSD
+      });
 
       return {
         inputAmount: inputAmountNum,
@@ -229,10 +253,10 @@ export function SavingsPreview({
           <div className="text-xs text-gray-500 space-y-1">
             <div className="flex justify-between">
               <span>
-                Savings: {priceLoading ? '...' : `~$${savingsCalculation.savingsUSD.toFixed(2)}`}
+                Savings: {priceLoading ? '...' : `~$${formatUSDValue(savingsCalculation.savingsUSD)}`}
               </span>
               <span>
-                Swap: {priceLoading ? '...' : `~$${savingsCalculation.swapUSD.toFixed(2)}`}
+                Swap: {priceLoading ? '...' : `~$${formatUSDValue(savingsCalculation.swapUSD)}`}
               </span>
             </div>
           </div>
