@@ -29,7 +29,7 @@ export function HeroSection() {
       <div className="max-w-7xl mx-auto w-full relative z-10">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           {/* Left Side - Content */}
-          <div className={`space-y-8 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10'}`}>
+          <div className={`space-y-8 transition-all duration-1000 delay-100 ${isVisible ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 -translate-x-10 scale-95'}`}>
             {/* Badge */}
             <div className="inline-flex items-center gap-2 glass-subtle rounded-full px-4 py-2 text-sm">
               <span className="relative flex h-2 w-2">
@@ -63,7 +63,10 @@ export function HeroSection() {
               ].map((prop, index) => (
                 <div
                   key={index}
-                  className="flex items-center gap-2 glass-subtle px-4 py-2 rounded-lg hover:glass-medium transition-all duration-300"
+                  className={`flex items-center gap-2 glass-subtle px-4 py-2 rounded-lg hover:glass-medium transition-all duration-300 hover:scale-105 ${
+                    isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+                  }`}
+                  style={{ transitionDelay: `${200 + index * 100}ms` }}
                 >
                   <span className="text-lg">{prop.icon}</span>
                   <span className="text-text-secondary">{prop.text}</span>
@@ -153,13 +156,14 @@ export function HeroSection() {
           </div>
 
           {/* Right Side - Product Demo */}
-          <div className={`transition-all duration-1000 delay-300 ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10'}`}>
+          <div className={`transition-all duration-1000 delay-300 ${isVisible ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 translate-x-10 scale-95'}`}>
             <div className="relative">
-              {/* Glow effect behind demo */}
-              <div className="absolute inset-0 bg-gradient-to-br from-primary-500/20 to-accent-cyan/20 blur-3xl transform scale-110" />
+              {/* Enhanced glow effect behind demo */}
+              <div className="absolute inset-0 bg-gradient-to-br from-primary-500/20 to-accent-cyan/20 blur-3xl transform scale-110 animate-pulse" />
+              <div className="absolute inset-0 bg-gradient-to-tr from-accent-purple/10 to-primary-500/10 blur-2xl transform scale-105 animate-pulse" style={{ animationDelay: '1s' }} />
               
-              {/* Demo container */}
-              <div className="relative">
+              {/* Demo container with enhanced animations */}
+              <div className="relative transform transition-all duration-1000 hover:scale-105">
                 <ProductDemo />
               </div>
             </div>
