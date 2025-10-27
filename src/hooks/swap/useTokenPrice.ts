@@ -31,13 +31,25 @@ export function useTokenPrice({ tokenAddress, amount, enabled = true }: UseToken
       try {
         // For stablecoins, return 1.00
         const isStablecoin = tokenAddress && (
-          tokenAddress.toLowerCase() === '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913' || // USDC
+          tokenAddress.toLowerCase() === '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913' || // USDC (Base Mainnet)
+          tokenAddress.toLowerCase() === '0x036cbd53842c5426634e7929541ec2318f3dcf7e' || // USDC (Base Sepolia)
           tokenAddress.toLowerCase() === '0xd9aaec86b65d86f6a7b5b1b0c42ffa531710b6ca' || // USDbC
           tokenAddress.toLowerCase() === '0x50c5725949a6f0c72e6c4a641f24049a917db0cb'    // DAI
         );
         
         if (isStablecoin) {
           setPriceUSD(1.00);
+          setIsLoading(false);
+          return;
+        }
+        
+        // For WETH, use a realistic price
+        const isWETH = tokenAddress && (
+          tokenAddress.toLowerCase() === '0x4200000000000000000000000000000000000006' // WETH
+        );
+        
+        if (isWETH) {
+          setPriceUSD(3000.00); // Approximate ETH price
           setIsLoading(false);
           return;
         }
