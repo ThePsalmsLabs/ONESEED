@@ -53,8 +53,20 @@ export function SwapInterface() {
   const [inputAmount, setInputAmount] = useState('');
   const [outputAmount, setOutputAmount] = useState('');
   
-  // Savings state
-  const [savingsPercentage, setSavingsPercentage] = useState(5);
+  // Get configured strategy
+  const { strategy } = useSavingsStrategy();
+  
+  // Savings state - initialize from configured strategy
+  const [savingsPercentage, setSavingsPercentage] = useState(
+    strategy?.percentage ? Number(strategy.percentage) : 5
+  );
+  
+  // Update local state when strategy changes
+  useEffect(() => {
+    if (strategy?.percentage) {
+      setSavingsPercentage(Number(strategy.percentage));
+    }
+  }, [strategy?.percentage]);
   
   // Modal states
   const [showConfigModal, setShowConfigModal] = useState(false);
@@ -237,8 +249,8 @@ export function SwapInterface() {
               </div>
             )}
 
-            {/* Pool Status Check */}
-            {inputToken && outputToken && (
+            {/* Pool Status Check - HIDDEN */}
+            {/* {inputToken && outputToken && (
               <div className="mt-4">
                 <PoolStatusCard
                   token0Address={inputToken.address}
@@ -246,7 +258,7 @@ export function SwapInterface() {
                   showDetails={false}
                 />
               </div>
-            )}
+            )} */}
 
             {/* Savings Control */}
             <div className="mt-6">
@@ -311,24 +323,24 @@ export function SwapInterface() {
 
         {/* Analytics Panel */}
         <div className="space-y-6">
-          {/* Pool Information */}
-          <PoolLiquidityCard 
+          {/* Pool Information - HIDDEN */}
+          {/* <PoolLiquidityCard 
             token0Address={inputToken?.address}
             token1Address={outputToken?.address}
-          />
+          /> */}
 
           {/* Total Savings */}
           <TotalSavingsCard showDetails={true} />
 
-          {/* Liquidity Analysis */}
-          <LiquidityAnalysisCard />
+          {/* Liquidity Analysis - HIDDEN */}
+          {/* <LiquidityAnalysisCard /> */}
 
-          {/* Price Chart */}
-          <MiniPriceChart 
+          {/* Price Chart - HIDDEN */}
+          {/* <MiniPriceChart 
             token0Symbol={inputToken?.symbol}
             token1Symbol={outputToken?.symbol}
             currentPrice={1.0} // Would get from actual pool data
-          />
+          /> */}
 
           {/* Swap Calculator */}
           <SwapRangeCalculator
@@ -338,6 +350,7 @@ export function SwapInterface() {
             outputAmount={outputAmountFormatted}
             quote={quote}
             isLoadingQuote={isLoadingQuote}
+            savingsPercentage={savingsPercentage}
           />
 
           {/* Savings Summary */}
