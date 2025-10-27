@@ -5,7 +5,7 @@ import { useAccount } from 'wagmi';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSavingsStrategy } from '@/hooks/useSavingsStrategy';
+import { useSavingsStrategy } from '@/hooks/swap/useSavingsStrategy';
 import { SavingsTokenType } from '@/contracts/types';
 import { ConfigPreview } from '@/components/Configure/ConfigPreview';
 import { PercentageSlider } from '@/components/Configure/PercentageSlider';
@@ -13,14 +13,22 @@ import { PercentageSlider } from '@/components/Configure/PercentageSlider';
 export default function ConfigurePage() {
   const router = useRouter();
   const { isConnected } = useAccount();
-  const { strategy, setSavingStrategy, isPending } = useSavingsStrategy();
+  const { strategy, setStrategy, isSettingStrategy } = useSavingsStrategy();
+  
+  // Debug logging
+  console.log('🔍 ConfigurePage Debug:', {
+    isConnected,
+    strategy,
+    isSettingStrategy,
+    setStrategy: typeof setStrategy
+  });
   
   // Form state
   const [percentage, setPercentage] = useState(
-    strategy?.percentage ? Number(strategy.percentage) / 100 : 500
+    strategy?.percentage ? Number(strategy.percentage) : 5
   );
   const [tokenType, setTokenType] = useState<SavingsTokenType>(
-    strategy?.savingsTokenType || SavingsTokenType.INPUT
+    strategy?.tokenType || SavingsTokenType.INPUT
   );
   const [autoIncrement, setAutoIncrement] = useState(
     strategy?.autoIncrement ? Number(strategy.autoIncrement) / 100 : 0
@@ -43,21 +51,50 @@ export default function ConfigurePage() {
   }
 
   const handleSave = async () => {
+    console.log('🔧 Attempting to save strategy:', {
+      percentage,
+      tokenType,
+      autoIncrement,
+      maxPercentage,
+      roundUp,
+      isSettingStrategy,
+      strategy,
+      percentageType: typeof percentage,
+      percentageValue: percentage
+    });
+    
     try {
-      await setSavingStrategy({
-        percentage: BigInt(percentage),
-        savingsTokenType: tokenType,
-        specificSavingsToken: '0x0000000000000000000000000000000000000000',
-        autoIncrement: BigInt(autoIncrement),
-        maxPercentage: BigInt(maxPercentage),
+      const result = await setStrategy({
+        percentage: percentage,
+        tokenType: tokenType as 0 | 1,
+        specificToken: '0x0000000000000000000000000000000000000000',
+        autoIncrement: autoIncrement,
+        maxPercentage: maxPercentage,
         roundUpSavings: roundUp,
       });
-      setShowSuccess(true);
-      setTimeout(() => {
-        router.push('/dashboard');
-      }, 2000);
+      
+      console.log('✅ Strategy saved successfully:', result);
+      console.log('🔍 Result details:', {
+        success: result?.success,
+        txHash: result?.txHash,
+        error: result?.error,
+        fullResult: result
+      });
+      
+      // Only show success if the transaction actually succeeded
+      if (result && result.success) {
+        console.log('🎉 Transaction succeeded, showing success message');
+        setShowSuccess(true);
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 2000);
+      } else {
+        console.log('❌ Transaction failed, throwing error');
+        throw new Error(`Transaction failed: ${result?.error || 'Unknown error'}`);
+      }
     } catch (error) {
-      console.error('Failed to save strategy:', error);
+      console.error('❌ Failed to save strategy:', error);
+      alert(`Failed to save strategy: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -250,24 +287,52 @@ export default function ConfigurePage() {
                 </div>
               </div>
 
+              {/* Test Button */}
+              <div className="mb-4">
+                <button
+                  onClick={() => alert('Test button works!')}
+                  className="w-full px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors"
+                >
+                  TEST BUTTON - Click Me!
+                </button>
+              </div>
+              
+              {/* Reset Button (if stuck) */}
+              {isSettingStrategy && (
+                <div className="mb-4">
+                  <button
+                    onClick={() => {
+                      console.log('🔄 Manual reset clicked');
+                      window.location.reload();
+                    }}
+                    className="w-full px-6 py-3 bg-orange-600 text-white rounded-xl font-semibold hover:bg-orange-700 transition-colors"
+                  >
+                    🔄 RESET (If Stuck)
+                  </button>
+                </div>
+              )}
+
               {/* Action Buttons */}
               <div className="flex gap-4">
                 <motion.button
                   onClick={() => router.push('/dashboard')}
-                  className="flex-1 px-6 py-3 bg-bg-tertiary text-text-primary rounded-xl font-semibold hover:bg-bg-tertiary/70 transition-colors"
+                  className="flex-1 px-6 py-3 bg-gray-600 text-white rounded-xl font-semibold hover:bg-gray-700 transition-colors"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
                   Cancel
                 </motion.button>
                 <motion.button
-                  onClick={handleSave}
-                  disabled={isPending}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-primary-400 to-accent-cyan text-white rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-glow transition-shadow"
+                  onClick={() => {
+                    console.log('🔴 Save Strategy button clicked!');
+                    handleSave();
+                  }}
+                  disabled={isSettingStrategy}
+                  className="flex-1 px-6 py-3 bg-green-600 text-white rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-green-700 transition-colors"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  {isPending ? (
+                  {isSettingStrategy ? (
                     <span className="flex items-center justify-center gap-2">
                       <motion.div
                         className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
