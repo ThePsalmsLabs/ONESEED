@@ -162,11 +162,11 @@ export function useSavingsBalanceRealtime() {
       }
     },
     enabled: !!address && !!publicClient && !!storageAddress && storageAddress !== '0x0000000000000000000000000000000000000000',
-    refetchInterval: 5000, // Reduced to 5 seconds for faster updates
+    refetchInterval: 30000, // Refetch every 30 seconds
     refetchIntervalInBackground: false, // Only refetch when tab is active
     retry: 2,
-    staleTime: 2000, // Consider data stale after 2 seconds
-    gcTime: 10000, // Keep in cache for 10 seconds
+    staleTime: 20000, // Consider data stale after 20 seconds
+    gcTime: 60000, // Keep in cache for 60 seconds
   });
 
   // Subscribe to multiple events for real-time updates
@@ -185,9 +185,9 @@ export function useSavingsBalanceRealtime() {
 
     // Use polling only to avoid RPC filter issues completely
     const pollInterval = setInterval(() => {
-      // Trigger a refresh every 5 seconds for more responsive updates
+      // Trigger a refresh every 30 seconds for better performance
       handleSavingsUpdate();
-    }, 5000);
+    }, 30000);
 
     return () => {
       clearInterval(pollInterval);
