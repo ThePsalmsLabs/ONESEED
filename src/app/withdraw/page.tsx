@@ -87,13 +87,46 @@ export default function WithdrawPage() {
   if (!tokenBalances || tokenBalances.length === 0) {
     return (
       <div className="min-h-screen bg-bg-primary relative">
+        {/* Animated Background Orbs - Matching Dashboard */}
         <div className="fixed inset-0 -z-10 overflow-hidden">
           <motion.div
             className="absolute top-20 right-20 w-96 h-96 bg-primary-400/10 rounded-full blur-3xl"
-            animate={{ y: [0, -30, 0], scale: [1, 1.1, 1] }}
-            transition={{ duration: 8, repeat: Infinity }}
+            animate={{
+              y: [0, -30, 0],
+              scale: [1, 1.1, 1],
+            }}
+            transition={{
+              duration: 8,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+          />
+          <motion.div
+            className="absolute bottom-20 left-20 w-80 h-80 bg-accent-purple/10 rounded-full blur-3xl"
+            animate={{
+              y: [0, 30, 0],
+              scale: [1, 1.2, 1],
+            }}
+            transition={{
+              duration: 10,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+          />
+          <motion.div
+            className="absolute top-1/2 left-1/2 w-64 h-64 bg-accent-cyan/10 rounded-full blur-3xl"
+            animate={{
+              x: [-30, 30, -30],
+              y: [-30, 30, -30],
+            }}
+            transition={{
+              duration: 12,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
           />
         </div>
+
         <Layout>
           <div className="max-w-2xl mx-auto text-center py-20">
             <motion.div
@@ -127,17 +160,43 @@ export default function WithdrawPage() {
 
   return (
     <div className="min-h-screen bg-bg-primary relative">
-      {/* Animated Background */}
+      {/* Animated Background Orbs - Matching Dashboard Exactly */}
       <div className="fixed inset-0 -z-10 overflow-hidden">
         <motion.div
           className="absolute top-20 right-20 w-96 h-96 bg-primary-400/10 rounded-full blur-3xl"
-          animate={{ y: [0, -30, 0], scale: [1, 1.1, 1] }}
-          transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+          animate={{
+            y: [0, -30, 0],
+            scale: [1, 1.1, 1],
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
         />
         <motion.div
           className="absolute bottom-20 left-20 w-80 h-80 bg-accent-purple/10 rounded-full blur-3xl"
-          animate={{ y: [0, 30, 0], scale: [1, 1.2, 1] }}
-          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
+          animate={{
+            y: [0, 30, 0],
+            scale: [1, 1.2, 1],
+          }}
+          transition={{
+            duration: 10,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+        />
+        <motion.div
+          className="absolute top-1/2 left-1/2 w-64 h-64 bg-accent-cyan/10 rounded-full blur-3xl"
+          animate={{
+            x: [-30, 30, -30],
+            y: [-30, 30, -30],
+          }}
+          transition={{
+            duration: 12,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
         />
       </div>
 
@@ -146,31 +205,50 @@ export default function WithdrawPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="max-w-4xl mx-auto"
+          className="space-y-8"
         >
-          {/* Header */}
-          <div className="text-center mb-12">
-            <motion.h1
-              className="text-4xl md:text-5xl font-black text-text-primary mb-4"
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-            >
-              Withdraw Your <span className="gradient-text">Savings</span>
-            </motion.h1>
-            <motion.p
-              className="text-lg text-text-secondary"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+          {/* Hero Section - Matching Dashboard Style */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
             >
-              Access your hard-earned savings anytime
-            </motion.p>
+              <h1 className="text-4xl md:text-5xl font-black text-text-primary mb-2">
+                Withdraw <span className="gradient-text">Savings</span>
+              </h1>
+              <p className="text-text-secondary text-lg">
+                Access your hard-earned savings anytime
+              </p>
+            </motion.div>
+
+            {/* Right side button - Matching Dashboard */}
+            <div className="flex items-center gap-3">
+              <motion.button
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.4, delay: 0.3 }}
+                onClick={() => router.push('/dashboard')}
+                className="glass-solid-dark rounded-full px-4 py-2 border border-border hover:border-primary-400/30 transition-colors flex items-center gap-2"
+              >
+                <svg
+                  className="w-4 h-4 text-primary-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                <span className="text-sm font-medium text-text-secondary">
+                  Back to Dashboard
+                </span>
+              </motion.button>
+            </div>
           </div>
 
-          {/* Total Balance Card */}
+          {/* Total Balance Card - Matching Dashboard Glass Style */}
           <motion.div
-            className="glass-effect-dark rounded-2xl p-8 mb-8 border border-primary-400/30"
+            className="glass-solid-dark rounded-2xl p-8 border border-primary-400/30"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, delay: 0.3 }}
@@ -189,13 +267,14 @@ export default function WithdrawPage() {
             </div>
           </motion.div>
 
-          {/* Withdraw Interface */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Withdraw Interface - Matching Dashboard Grid Style */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Left: Token Selection */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.4 }}
+              className="glass-solid-dark rounded-2xl p-6 border border-border"
             >
               <h3 className="text-lg font-semibold text-text-primary mb-4">
                 Select Token
@@ -221,113 +300,177 @@ export default function WithdrawPage() {
               </div>
             </motion.div>
 
-            {/* Right: Withdraw Form */}
+            {/* Right: Withdraw Form - Matching Dashboard Card Style */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.4 }}
+              className="glass-solid-dark rounded-2xl p-6 border border-border space-y-6"
             >
               <h3 className="text-lg font-semibold text-text-primary mb-4">
                 Withdraw Amount
               </h3>
-              
-              <div className="glass-solid-dark rounded-2xl p-6 border border-border space-y-6">
-                {/* Amount Input */}
-                <div>
-                  <label className="block text-sm font-medium text-text-secondary mb-2">
-                    Amount to Withdraw
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      placeholder="0.00"
-                      disabled={!selectedToken}
-                      className="w-full px-4 py-4 bg-bg-tertiary border border-border rounded-xl text-text-primary text-2xl font-bold focus:outline-none focus:border-primary-400 transition-colors disabled:opacity-50"
-                    />
-                    {selectedBalance && (
-                      <motion.button
-                        onClick={setMaxAmount}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 px-3 py-1 bg-primary-400 text-white text-sm font-medium rounded-lg hover:bg-primary-500 transition-colors"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        MAX
-                      </motion.button>
-                    )}
-                  </div>
+
+              {/* Amount Input */}
+              <div>
+                <label className="block text-sm font-medium text-text-muted mb-2">
+                  Amount to Withdraw
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder="0.00"
+                    disabled={!selectedToken}
+                    className="w-full px-4 py-4 bg-bg-tertiary border border-border rounded-xl text-text-primary text-2xl font-bold focus:outline-none focus:border-primary-400 transition-colors disabled:opacity-50"
+                  />
                   {selectedBalance && (
-                    <div className="mt-2 text-sm text-text-muted">
-                      Available: {parseFloat(formatUnits(selectedBalance.amount, selectedBalance.decimals || 18)).toFixed(4)} {selectedBalance.symbol}
-                    </div>
+                    <motion.button
+                      onClick={setMaxAmount}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 px-3 py-1 bg-primary-400 text-white text-sm font-medium rounded-lg hover:bg-primary-500 transition-colors"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      MAX
+                    </motion.button>
                   )}
                 </div>
-
-                {/* Quick Percentages */}
-                {selectedToken && (
-                  <div className="flex gap-2">
-                    {[25, 50, 75, 100].map((percent) => (
-                      <motion.button
-                        key={percent}
-                        onClick={() => setPercentage(percent)}
-                        className="flex-1 px-3 py-2 bg-bg-tertiary hover:bg-primary-400 text-text-secondary hover:text-white rounded-lg text-sm font-medium transition-colors"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        {percent}%
-                      </motion.button>
-                    ))}
+                {selectedBalance && (
+                  <div className="mt-2 text-sm text-text-muted">
+                    Available: {parseFloat(formatUnits(selectedBalance.amount, selectedBalance.decimals || 18)).toFixed(4)} {selectedBalance.symbol}
                   </div>
                 )}
+              </div>
 
-                {/* Preview */}
-                {preview && amount && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="space-y-3 p-4 bg-bg-tertiary/50 rounded-xl"
-                  >
-                    <div className="flex justify-between text-sm">
-                      <span className="text-text-muted">You will receive:</span>
-                      <span className="text-text-primary font-semibold">{parseFloat(actualAmount).toFixed(4)} {selectedBalance?.symbol}</span>
-                    </div>
-                    {hasPenalty && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-warning">Early withdrawal penalty:</span>
-                        <span className="text-warning font-semibold">-{parseFloat(penaltyAmount).toFixed(4)} {selectedBalance?.symbol}</span>
-                      </div>
-                    )}
-                  </motion.div>
-                )}
+              {/* Quick Percentages - Matching Dashboard Button Style */}
+              {selectedToken && (
+                <div className="flex gap-2">
+                  {[25, 50, 75, 100].map((percent) => (
+                    <motion.button
+                      key={percent}
+                      onClick={() => setPercentage(percent)}
+                      className="flex-1 px-3 py-2 bg-bg-tertiary hover:bg-primary-400 text-text-muted hover:text-white rounded-lg text-sm font-medium transition-colors border border-border hover:border-primary-400/30"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      {percent}%
+                    </motion.button>
+                  ))}
+                </div>
+              )}
 
-                {/* Withdraw Button */}
-                <motion.button
-                  onClick={handleWithdraw}
-                  disabled={!selectedToken || !amount || isPending || parseFloat(amount) <= 0}
-                  className="w-full px-6 py-4 bg-gradient-to-r from-primary-400 to-accent-cyan text-white rounded-xl font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-glow transition-shadow"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+              {/* Preview - Matching Dashboard Info Card Style */}
+              {preview && amount && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-3 p-4 bg-bg-tertiary/50 border border-border rounded-xl"
                 >
-                  {isPending ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <motion.div
-                        className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                      />
-                      Withdrawing...
-                    </span>
-                  ) : (
-                    'Withdraw Savings'
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-text-muted">You will receive</span>
+                    <span className="text-sm text-text-primary font-semibold">{parseFloat(actualAmount).toFixed(4)} {selectedBalance?.symbol}</span>
+                  </div>
+                  {hasPenalty && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-warning">Early withdrawal penalty</span>
+                      <span className="text-sm text-warning font-semibold">-{parseFloat(penaltyAmount).toFixed(4)} {selectedBalance?.symbol}</span>
+                    </div>
                   )}
-                </motion.button>
+                </motion.div>
+              )}
+
+              {/* Withdraw Button - Matching Dashboard Gradient */}
+              <motion.button
+                onClick={handleWithdraw}
+                disabled={!selectedToken || !amount || isPending || parseFloat(amount) <= 0}
+                className="w-full px-6 py-4 bg-gradient-to-r from-primary-400 to-accent-cyan text-white rounded-xl font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-glow transition-shadow"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                {isPending ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <motion.div
+                      className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                    />
+                    Withdrawing...
+                  </span>
+                ) : (
+                  'Withdraw Savings'
+                )}
+              </motion.button>
+            </motion.div>
+          </div>
+
+          {/* Info Cards - Matching Dashboard Style */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Withdrawal Info Card */}
+            <motion.div
+              className="glass-solid-dark rounded-2xl p-6 border border-border"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.6 }}
+            >
+              <h3 className="text-lg font-semibold text-text-primary mb-4">
+                Withdrawal Details
+              </h3>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-text-muted">Timelock Period</span>
+                  <span className="text-sm font-semibold text-text-primary">
+                    None
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-text-muted">Early Withdrawal Fee</span>
+                  <span className="text-sm font-semibold text-text-primary">
+                    2%
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-text-muted">Available Tokens</span>
+                  <span className="text-sm font-semibold text-text-primary">
+                    {tokenBalances.length}
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Safety Tips Card */}
+            <motion.div
+              className="glass-solid-dark rounded-2xl p-6 border border-border"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.7 }}
+            >
+              <h3 className="text-lg font-semibold text-text-primary mb-4">
+                Important Notes
+              </h3>
+              <div className="space-y-3">
+                {[
+                  { icon: '⚡', text: 'Instant withdrawals available' },
+                  { icon: '🔒', text: 'Your funds, your control' },
+                  { icon: '💎', text: 'No hidden fees' },
+                  { icon: '✅', text: 'Gasless transactions via Biconomy' },
+                ].map((item, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-3 p-3 rounded-lg bg-primary-400/10 border border-primary-400/20"
+                  >
+                    <span className="text-2xl">{item.icon}</span>
+                    <span className="text-sm font-medium text-text-primary">
+                      {item.text}
+                    </span>
+                  </div>
+                ))}
               </div>
             </motion.div>
           </div>
         </motion.div>
 
-        {/* Success Modal */}
+        {/* Success Modal - Matching Dashboard Style */}
         <AnimatePresence>
           {showSuccess && (
             <motion.div
@@ -337,13 +480,13 @@ export default function WithdrawPage() {
               exit={{ opacity: 0 }}
             >
               <motion.div
-                className="glass-effect-dark rounded-2xl p-8 max-w-md w-full text-center border border-primary-400/30"
+                className="glass-solid-dark rounded-2xl p-8 max-w-md w-full text-center border border-primary-400/30"
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
               >
                 <motion.div
-                  className="w-20 h-20 bg-success rounded-full flex items-center justify-center mx-auto mb-6"
+                  className="w-20 h-20 bg-primary-400 rounded-full flex items-center justify-center mx-auto mb-6"
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ delay: 0.2, type: 'spring' }}
