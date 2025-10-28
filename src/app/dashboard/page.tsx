@@ -5,11 +5,16 @@ import { StatsCard } from '@/components/Dashboard/StatsCard';
 import { QuickActions } from '@/components/Dashboard/QuickActions';
 import { SavingsRadialProgress } from '@/components/Dashboard/SavingsRadialProgress';
 import { ActivityTimeline } from '@/components/Dashboard/ActivityTimeline';
+import { SavingsGoalSetter } from '@/components/Dashboard/SavingsGoalSetter';
 import { useSavingsBalance } from '@/hooks/useSavingsBalance';
 import { useSavingsStrategy } from '@/hooks/useSavingsStrategy';
+import { useActivityFeed } from '@/hooks/useActivityFeed';
+import { useDashboardStats } from '@/hooks/useDashboardStats';
+import { useSavingsTrend } from '@/hooks/useSavingsTrend';
+import { useSavingsGoal } from '@/hooks/useSavingsGoal';
 import { useAccount } from 'wagmi';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { formatUnits } from 'viem';
 
@@ -18,6 +23,10 @@ export default function DashboardPage() {
   const { isConnected } = useAccount();
   const savingsBalance = useSavingsBalance();
   const { hasStrategy, strategy, isLoading: isLoadingStrategy } = useSavingsStrategy();
+  const { activities, isLoading: isLoadingActivities, refetch: refetchActivities } = useActivityFeed();
+  const { goal, setSavingsGoal, isLoading: isLoadingGoal } = useSavingsGoal();
+  const { thisMonth, thisMonthChange, totalSwaps, totalSwapsChange, gasSaved, gasSavedChange, isLoading: isLoadingStats } = useDashboardStats();
+  const { savingsTrend, swapsTrend } = useSavingsTrend();
 
   // Redirect to home if not connected
   useEffect(() => {
@@ -25,6 +34,21 @@ export default function DashboardPage() {
       router.push('/');
     }
   }, [isConnected, router]);
+
+  // Map activity feed to ActivityTimeline format
+  const recentActivities = useMemo(() => {
+    return activities.slice(0, 10).map(activity => ({
+      id: activity.id,
+      type: activity.type === 'strategy' ? 'config' as const : 
+            activity.type === 'dca' ? 'swap' as const : 
+            activity.type as 'save' | 'withdraw' | 'config' | 'swap',
+      description: activity.description,
+      amount: activity.type === 'save' ? `+$${parseFloat(activity.amountFormatted).toFixed(2)}` : undefined,
+      timestamp: new Date(activity.timestamp * 1000),
+      status: activity.status,
+      txHash: activity.hash
+    }));
+  }, [activities]);
 
   if (!isConnected || isLoadingStrategy) {
     return null;
@@ -35,39 +59,8 @@ export default function DashboardPage() {
   const totalSaved = savingsBalance.totalBalance 
     ? parseFloat(formatUnits(savingsBalance.totalBalance, 18))
     : 0;
-  const savingsGoal = 10000; // Example goal, can be made configurable
-  
-  // Mock activity data (replace with real data from blockchain)
-  const recentActivities = [
-    {
-      id: '1',
-      type: 'swap' as const,
-      description: 'Swapped ETH for USDC',
-      amount: '+$12.50',
-      timestamp: new Date(Date.now() - 1000 * 60 * 30),
-      status: 'success' as const,
-      txHash: '0x...',
-    },
-    {
-      id: '2',
-      type: 'save' as const,
-      description: 'Auto-saved from transaction',
-      amount: '+$5.25',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
-      status: 'success' as const,
-    },
-    {
-      id: '3',
-      type: 'config' as const,
-      description: 'Updated savings strategy',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24),
-      status: 'success' as const,
-    },
-  ];
 
-  // Trend data for sparklines
-  const savingsTrend = [30, 45, 35, 55, 40, 65, 50, 75, 60, 80, 70, 85];
-  const swapsTrend = [10, 15, 12, 18, 22, 19, 25, 28, 23, 30, 27, 32];
+  const isLoading = isLoadingStrategy || isLoadingActivities || isLoadingStats;
 
   return (
     <div className="min-h-screen bg-bg-primary relative">
@@ -136,31 +129,55 @@ export default function DashboardPage() {
               </p>
             </motion.div>
 
-            {/* Strategy Status Badge */}
-            {hasStrategy && (
-              <motion.div
+            {/* Right side buttons */}
+            <div className="flex items-center gap-3">
+              <motion.button
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.4, delay: 0.3 }}
-                className="glass-solid-dark rounded-full px-6 py-3 border border-primary-400/30 flex items-center gap-3"
+                onClick={() => refetchActivities()}
+                disabled={isLoading}
+                className="glass-solid-dark rounded-full px-4 py-2 border border-border hover:border-primary-400/30 transition-colors flex items-center gap-2"
               >
-                <motion.div
-                  className="w-3 h-3 bg-primary-400 rounded-full"
-                  animate={{
-                    scale: [1, 1.2, 1],
-                    opacity: [1, 0.7, 1],
-                  }}
-                  transition={{
-                    duration: 2,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                />
-                <span className="text-sm font-medium text-primary-400">
-                  Strategy Active
+                <svg 
+                  className={`w-4 h-4 text-primary-400 ${isLoading ? 'animate-spin' : ''}`}
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span className="text-sm font-medium text-text-secondary">
+                  Refresh
                 </span>
-              </motion.div>
-            )}
+              </motion.button>
+
+              {/* Strategy Status Badge */}
+              {hasStrategy && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.4, delay: 0.3 }}
+                  className="glass-solid-dark rounded-full px-6 py-3 border border-primary-400/30 flex items-center gap-3"
+                >
+                  <motion.div
+                    className="w-3 h-3 bg-primary-400 rounded-full"
+                    animate={{
+                      scale: [1, 1.2, 1],
+                      opacity: [1, 0.7, 1],
+                    }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                    }}
+                  />
+                  <span className="text-sm font-medium text-primary-400">
+                    Strategy Active
+                  </span>
+                </motion.div>
+              )}
+            </div>
           </div>
 
           {/* Stats Grid */}
@@ -168,51 +185,51 @@ export default function DashboardPage() {
             <StatsCard
               title="Total Saved"
               value={`$${totalSaved.toFixed(2)}`}
-              change={{ value: '+12.5%', positive: true }}
+              change={{ value: `$${thisMonth.toFixed(2)} this month`, positive: true }}
               icon={
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               }
               trend={savingsTrend}
-              isLoading={isLoadingStrategy}
+              isLoading={isLoading}
             />
 
             <StatsCard
               title="This Month"
-              value="$287.50"
-              change={{ value: '+8.2%', positive: true }}
+              value={`$${thisMonth.toFixed(2)}`}
+              change={thisMonthChange}
               icon={
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
               }
-              isLoading={isLoadingStrategy}
+              isLoading={isLoading}
             />
 
             <StatsCard
               title="Total Swaps"
-              value="127"
-              change={{ value: '+5', positive: true }}
+              value={totalSwaps.toString()}
+              change={totalSwapsChange}
               icon={
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                 </svg>
               }
               trend={swapsTrend}
-              isLoading={isLoadingStrategy}
+              isLoading={isLoading}
             />
 
             <StatsCard
               title="Gas Saved"
-              value="$45.32"
-              change={{ value: '+$12.10', positive: true }}
+              value={`$${gasSaved.toFixed(2)}`}
+              change={gasSavedChange}
               icon={
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
               }
-              isLoading={isLoadingStrategy}
+              isLoading={isLoading}
             />
           </div>
 
@@ -225,17 +242,24 @@ export default function DashboardPage() {
             <div className="lg:col-span-1">
               <SavingsRadialProgress
                 current={totalSaved}
-                goal={savingsGoal}
+                goal={goal}
                 currency="$"
-                isLoading={isLoadingStrategy}
+                isLoading={isLoading}
               />
+              <div className="mt-4">
+                <SavingsGoalSetter 
+                  goal={goal} 
+                  onUpdate={setSavingsGoal}
+                  isLoading={isLoadingGoal}
+                />
+              </div>
             </div>
 
             {/* Activity Timeline - Spans 2 columns */}
             <div className="lg:col-span-2">
               <ActivityTimeline
                 activities={recentActivities}
-                isLoading={isLoadingStrategy}
+                isLoading={isLoading}
               />
             </div>
           </div>
