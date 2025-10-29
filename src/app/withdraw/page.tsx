@@ -5,23 +5,61 @@ import { useAccount } from 'wagmi';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSavingsBalance } from '@/hooks/useSavingsBalance';
+import { useSavingsBalanceRealtime } from '@/hooks/useSavingsBalanceRealtime';
 import { useWithdraw } from '@/hooks/useWithdraw';
 import { formatUnits, parseUnits } from 'viem';
 import { WithdrawBalanceCard } from '@/components/Withdraw/WithdrawBalanceCard';
+import { useActiveChainId } from '@/hooks/useActiveChainId';
+import { getBlockExplorerUrl, getNetworkFromChainId } from '@/config/network';
 
 export default function WithdrawPage() {
   const router = useRouter();
   const { isConnected } = useAccount();
-  const { tokenBalances, isLoading: isLoadingBalances } = useSavingsBalance();
-  const { withdraw, useCalculateWithdrawal, isPending } = useWithdraw();
+  const chainId = useActiveChainId();
+  const { balances, isLoading: isLoadingBalances, totalFormatted, totalBalance, refreshSavings } = useSavingsBalanceRealtime();
+  const { withdraw, useCalculateWithdrawal, isPending, isSuccess, transactionHash } = useWithdraw();
+
+  // Convert realtime balances to the format expected by withdrawal components
+  const tokenBalances = balances?.filter(b => b.amount > BigInt(0)).map(b => ({
+    token: b.token as `0x${string}`,
+    amount: b.amount,
+    decimals: b.decimals,
+    symbol: b.symbol,
+    name: b.symbol
+  })) || [];
 
   const [selectedToken, setSelectedToken] = useState<`0x${string}` | ''>('');
   const [amount, setAmount] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
+  const [successTxHash, setSuccessTxHash] = useState<`0x${string}` | undefined>(undefined);
 
   const selectedBalance = tokenBalances?.find(b => b.token === selectedToken);
-  const amountBigInt = amount && selectedBalance ? parseUnits(amount, selectedBalance.decimals || 18) : BigInt(0);
+  
+  // Helper function to safely parse units with validation
+  const safeParseUnits = (value: string, decimals: number): bigint => {
+    try {
+      // Check if the value is a valid number and not in scientific notation
+      const numValue = Number(value);
+      if (isNaN(numValue) || !isFinite(numValue) || numValue <= 0) {
+        return BigInt(0);
+      }
+      
+      // Convert scientific notation to fixed decimal if needed
+      const fixedValue = numValue.toFixed(decimals);
+      
+      // Validate the fixed value is reasonable
+      if (fixedValue.includes('e') || fixedValue.includes('E')) {
+        return BigInt(0);
+      }
+      
+      return parseUnits(fixedValue, decimals);
+    } catch (error) {
+      console.warn('Error parsing units:', error);
+      return BigInt(0);
+    }
+  };
+  
+  const amountBigInt = amount && selectedBalance ? safeParseUnits(amount, selectedBalance.decimals || 18) : BigInt(0);
 
   const { preview, isLoading: isCalculating } = useCalculateWithdrawal(
     selectedToken || undefined,
@@ -35,6 +73,30 @@ export default function WithdrawPage() {
     }
   }, [isConnected, router]);
 
+  // Show success modal when transaction is confirmed on-chain
+  useEffect(() => {
+    if (isSuccess && transactionHash) {
+      console.log('✅ Withdrawal confirmed on-chain, showing success modal', {
+        transactionHash,
+        isSuccess
+      });
+      setSuccessTxHash(transactionHash);
+      setShowSuccess(true);
+
+      // Note: Balance refresh is handled automatically in useWithdraw hook
+      console.log('🔄 Balance refresh will be handled by useWithdraw hook');
+
+      // Clear form after 5 seconds
+      setTimeout(() => {
+        setShowSuccess(false);
+        setSelectedToken('');
+        setAmount('');
+        setSuccessTxHash(undefined);
+        console.log('🔄 Form cleared');
+      }, 5000);
+    }
+  }, [isSuccess, transactionHash]);
+
   if (!isConnected) {
     return null;
   }
@@ -43,15 +105,18 @@ export default function WithdrawPage() {
     if (!selectedToken || !amount) return;
 
     try {
-      await withdraw(selectedToken, amountBigInt, false);
-      setShowSuccess(true);
-      setTimeout(() => {
-        setShowSuccess(false);
-        setSelectedToken('');
-        setAmount('');
-      }, 3000);
+      console.log('🔓 Starting withdrawal process...', {
+        selectedToken,
+        amount,
+        amountBigInt: amountBigInt.toString()
+      });
+      const hash = await withdraw(selectedToken, amountBigInt, false);
+      console.log('📝 Withdrawal transaction submitted:', hash);
     } catch (error) {
-      console.error('Withdrawal error:', error);
+      console.error('❌ Withdrawal error:', error);
+      // Reset form on error
+      setSelectedToken('');
+      setAmount('');
     }
   };
 
@@ -64,13 +129,17 @@ export default function WithdrawPage() {
   const setPercentage = (percent: number) => {
     if (selectedBalance) {
       const maxAmount = parseFloat(formatUnits(selectedBalance.amount, selectedBalance.decimals || 18));
-      setAmount((maxAmount * percent / 100).toString());
+      const percentageAmount = maxAmount * percent / 100;
+      
+      // Convert to fixed decimal to avoid scientific notation
+      const fixedAmount = percentageAmount.toFixed(selectedBalance.decimals || 18);
+      setAmount(fixedAmount);
     }
   };
 
   if (isLoadingBalances) {
     return (
-      <div className="min-h-screen bg-bg-primary">
+      <div className="min-h-screen" style={{ background: 'rgb(10, 10, 15)' }}>
         <Layout>
           <div className="max-w-4xl mx-auto py-20">
             <div className="space-y-6">
@@ -86,7 +155,7 @@ export default function WithdrawPage() {
 
   if (!tokenBalances || tokenBalances.length === 0) {
     return (
-      <div className="min-h-screen bg-bg-primary relative">
+      <div className="min-h-screen relative" style={{ background: 'rgb(10, 10, 15)' }}>
         {/* Animated Background Orbs - Matching Dashboard */}
         <div className="fixed inset-0 -z-10 overflow-hidden">
           <motion.div
@@ -136,8 +205,8 @@ export default function WithdrawPage() {
             >
               🌱
             </motion.div>
-            <h1 className="text-4xl font-bold text-text-primary mb-4">No Savings Yet</h1>
-            <p className="text-text-secondary mb-8">
+            <h1 className="text-4xl font-bold mb-4" style={{ color: 'rgb(248, 248, 252)' }}>No Savings Yet</h1>
+            <p className="mb-8" style={{ color: 'rgb(203, 213, 225)' }}>
               Start saving by making your first swap!
             </p>
             <motion.button
@@ -159,7 +228,7 @@ export default function WithdrawPage() {
   const actualAmount = preview && selectedBalance ? formatUnits(preview.actualAmount, selectedBalance.decimals || 18) : '0';
 
   return (
-    <div className="min-h-screen bg-bg-primary relative">
+    <div className="min-h-screen relative" style={{ background: 'rgb(10, 10, 15)' }}>
       {/* Animated Background Orbs - Matching Dashboard Exactly */}
       <div className="fixed inset-0 -z-10 overflow-hidden">
         <motion.div
@@ -214,10 +283,10 @@ export default function WithdrawPage() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
             >
-              <h1 className="text-4xl md:text-5xl font-black text-text-primary mb-2">
+              <h1 className="text-4xl md:text-5xl font-black mb-2" style={{ color: 'rgb(248, 248, 252)' }}>
                 Withdraw <span className="gradient-text">Savings</span>
               </h1>
-              <p className="text-text-secondary text-lg">
+              <p className="text-lg" style={{ color: 'rgb(203, 213, 225)' }}>
                 Access your hard-earned savings anytime
               </p>
             </motion.div>
@@ -239,7 +308,7 @@ export default function WithdrawPage() {
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
-                <span className="text-sm font-medium text-text-secondary">
+                <span className="text-sm font-medium" style={{ color: 'rgb(203, 213, 225)' }}>
                   Back to Dashboard
                 </span>
               </motion.button>
@@ -254,16 +323,17 @@ export default function WithdrawPage() {
             transition={{ duration: 0.6, delay: 0.3 }}
           >
             <div className="text-center">
-              <p className="text-sm text-text-muted mb-2">Total Savings Balance</p>
+              <p className="text-sm mb-2" style={{ color: 'rgb(148, 163, 184)' }}>Total Savings Balance</p>
               <motion.h2
-                className="text-5xl font-black text-text-primary mb-2"
+                className="text-5xl font-black mb-2"
+                style={{ color: 'rgb(248, 248, 252)' }}
                 key="total-balance"
                 initial={{ scale: 1.1 }}
                 animate={{ scale: 1 }}
               >
-                ${tokenBalances.length > 0 ? '--.--' : '0.00'}
+                {totalFormatted || '0.00'}
               </motion.h2>
-              <p className="text-text-secondary">Across {tokenBalances.length} token{tokenBalances.length !== 1 ? 's' : ''}</p>
+              <p style={{ color: 'rgb(203, 213, 225)' }}>Across {tokenBalances.length} token{tokenBalances.length !== 1 ? 's' : ''}</p>
             </div>
           </motion.div>
 
@@ -276,7 +346,7 @@ export default function WithdrawPage() {
               transition={{ duration: 0.6, delay: 0.4 }}
               className="glass-solid-dark rounded-2xl p-6 border border-border"
             >
-              <h3 className="text-lg font-semibold text-text-primary mb-4">
+              <h3 className="text-lg font-semibold mb-4" style={{ color: 'rgb(248, 248, 252)' }}>
                 Select Token
               </h3>
               <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
@@ -307,7 +377,7 @@ export default function WithdrawPage() {
               transition={{ duration: 0.6, delay: 0.4 }}
               className="glass-solid-dark rounded-2xl p-6 border border-border space-y-6"
             >
-              <h3 className="text-lg font-semibold text-text-primary mb-4">
+              <h3 className="text-lg font-semibold mb-4" style={{ color: 'rgb(248, 248, 252)' }}>
                 Withdraw Amount
               </h3>
 
@@ -320,7 +390,13 @@ export default function WithdrawPage() {
                   <input
                     type="number"
                     value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // Only allow valid decimal numbers
+                      if (value === '' || /^\d*\.?\d*$/.test(value)) {
+                        setAmount(value);
+                      }
+                    }}
                     placeholder="0.00"
                     disabled={!selectedToken}
                     className="w-full px-4 py-4 bg-bg-tertiary border border-border rounded-xl text-text-primary text-2xl font-bold focus:outline-none focus:border-primary-400 transition-colors disabled:opacity-50"
@@ -385,8 +461,8 @@ export default function WithdrawPage() {
                 onClick={handleWithdraw}
                 disabled={!selectedToken || !amount || isPending || parseFloat(amount) <= 0}
                 className="w-full px-6 py-4 bg-gradient-to-r from-primary-400 to-accent-cyan text-white rounded-xl font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-glow transition-shadow"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: isPending ? 1 : 1.02 }}
+                whileTap={{ scale: isPending ? 1 : 0.98 }}
               >
                 {isPending ? (
                   <span className="flex items-center justify-center gap-2">
@@ -395,12 +471,35 @@ export default function WithdrawPage() {
                       animate={{ rotate: 360 }}
                       transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
                     />
-                    Withdrawing...
+                    {transactionHash ? 'Confirming Transaction...' : 'Waiting for Signature...'}
                   </span>
                 ) : (
                   'Withdraw Savings'
                 )}
               </motion.button>
+
+              {/* Transaction Status Indicator */}
+              {isPending && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-center text-sm"
+                  style={{ color: 'rgb(148, 163, 184)' }}
+                >
+                  {transactionHash ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <motion.div
+                        className="w-2 h-2 bg-primary-400 rounded-full"
+                        animate={{ scale: [1, 1.5, 1] }}
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                      />
+                      <span>Transaction submitted, waiting for confirmation...</span>
+                    </div>
+                  ) : (
+                    <span>Please confirm the transaction in your wallet</span>
+                  )}
+                </motion.div>
+              )}
             </motion.div>
           </div>
 
@@ -413,7 +512,7 @@ export default function WithdrawPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.6 }}
             >
-              <h3 className="text-lg font-semibold text-text-primary mb-4">
+              <h3 className="text-lg font-semibold mb-4" style={{ color: 'rgb(248, 248, 252)' }}>
                 Withdrawal Details
               </h3>
               <div className="space-y-4">
@@ -445,7 +544,7 @@ export default function WithdrawPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.7 }}
             >
-              <h3 className="text-lg font-semibold text-text-primary mb-4">
+              <h3 className="text-lg font-semibold mb-4" style={{ color: 'rgb(248, 248, 252)' }}>
                 Important Notes
               </h3>
               <div className="space-y-3">
@@ -472,7 +571,7 @@ export default function WithdrawPage() {
 
         {/* Success Modal - Matching Dashboard Style */}
         <AnimatePresence>
-          {showSuccess && (
+          {showSuccess && successTxHash && (
             <motion.div
               className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
               initial={{ opacity: 0 }}
@@ -495,12 +594,39 @@ export default function WithdrawPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </motion.div>
-                <h3 className="text-2xl font-bold text-text-primary mb-2">
+                <h3 className="text-2xl font-bold mb-2" style={{ color: 'rgb(248, 248, 252)' }}>
                   Withdrawal Successful!
                 </h3>
-                <p className="text-text-muted">
+                <p className="mb-4" style={{ color: 'rgb(148, 163, 184)' }}>
                   Your savings have been transferred to your wallet
                 </p>
+
+                {/* Transaction Hash Link */}
+                <motion.a
+                  href={`${getBlockExplorerUrl(getNetworkFromChainId(chainId) || undefined)}/tx/${successTxHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-bg-tertiary hover:bg-primary-400/10 border border-border hover:border-primary-400/30 rounded-lg transition-all text-sm font-medium"
+                  style={{ color: 'rgb(203, 213, 225)' }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  <span>View Transaction</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </motion.a>
+
+                {/* Transaction Hash Display */}
+                <div className="mt-4 p-3 bg-bg-tertiary/50 rounded-lg border border-border">
+                  <p className="text-xs mb-1" style={{ color: 'rgb(148, 163, 184)' }}>Transaction Hash</p>
+                  <p className="text-xs font-mono break-all" style={{ color: 'rgb(203, 213, 225)' }}>
+                    {successTxHash}
+                  </p>
+                </div>
               </motion.div>
             </motion.div>
           )}
