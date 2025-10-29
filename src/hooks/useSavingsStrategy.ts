@@ -26,7 +26,11 @@ export function useSavingsStrategy() {
     functionName: 'getUserStrategy',
     args: address ? [address as `0x${string}`] : undefined,
     query: {
-      enabled: !!address && !!contractAddress
+      enabled: !!address && !!contractAddress,
+      staleTime: 180000, // Consider data fresh for 3 minutes (strategy changes rarely)
+      refetchInterval: 300000, // Refetch every 5 minutes (strategy rarely changes)
+      refetchOnWindowFocus: false,
+      refetchOnMount: false
     }
   });
 
@@ -37,7 +41,11 @@ export function useSavingsStrategy() {
     functionName: 'hasActiveStrategy',
     args: address ? [address as `0x${string}`] : undefined,
     query: {
-      enabled: !!address && !!contractAddress
+      enabled: !!address && !!contractAddress,
+      staleTime: 180000, // Consider data fresh for 3 minutes
+      refetchInterval: 300000, // Refetch every 5 minutes
+      refetchOnWindowFocus: false,
+      refetchOnMount: false
     }
   });
 

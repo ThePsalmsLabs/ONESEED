@@ -20,9 +20,14 @@ export function WalletProvider({ children }: WalletProviderProps) {
       clearWalletConnectExpirer()
     }
     
+    // Initialize AppKit with error handling
+    try {
+      initializeAppKit()
+    } catch (error) {
+      console.warn('AppKit initialization warning (non-critical):', error)
+    }
+    
     setMounted(true)
-    // Ensure AppKit is initialized
-    initializeAppKit()
   }, [])
 
   if (!mounted) {

@@ -50,7 +50,10 @@ export function clearWalletConnectExpirer(): void {
       const key = localStorage.key(i)
       if (key && (
         key.includes('expirer') ||
-        key.includes('pairing')
+        key.includes('pairing') ||
+        key.includes('session') ||
+        key.includes('history') ||
+        key.includes('restore')
       )) {
         keysToRemove.push(key)
       }
@@ -60,7 +63,9 @@ export function clearWalletConnectExpirer(): void {
       localStorage.removeItem(key)
     })
 
-    console.log(`Cleared ${keysToRemove.length} WalletConnect expirer/pairing items`)
+    if (keysToRemove.length > 0) {
+      console.log(`Cleared ${keysToRemove.length} WalletConnect storage items to prevent restore warnings`)
+    }
   } catch (error) {
     console.error('Error clearing WalletConnect expirer:', error)
   }
