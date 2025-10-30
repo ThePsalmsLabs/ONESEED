@@ -36,26 +36,26 @@ export const CONTRACT_ADDRESSES = {
   // Base Sepolia (testnet)
   84532: {
     // Core Contracts
-    SpendSaveStorage: '0x12256e69595E5949E05ba48Ab0926032e1e85484',
-    SpendSaveHook: '0xB149651E7C60E561148AbD5a31a6ad6ba25c40cc',
-    StateView: '0xf6a15a395cc62477f37ebfefac71dd7224296482',
-    Analytics: '0xD718d5A27a29FF1cD22403426084bA0d479869a0',
+    SpendSaveStorage: '0x39d4f8457f874310973abd1450d01a1e08d52dd2',
+    SpendSaveHook: '0x158a7f998f14930fcb3e3f9cb57cf99bdf0940cc',
+    StateView: '0x6ba3859954995aec70b77d3946a7743eec5f52f2',
+    Analytics: '0xa69c93ce3f3dedd8d9b24913aee902d55ff1ad40',
     
     // Core Modules
-    SavingStrategy: '0x023EaC31560eBdD6304d6EB5d3D95994c8256d04',
-    Savings: '0x8339b29c63563E2Da73f3F4238b9C602F9aaE14F',
-    DCA: '0x7d40bf9338dfbf71be85ed10bcef18da8944df44',
-    Token: '0x445e062d21b2c9c8f95501cdb5235b7c5c2dba1e',
-    SlippageControl: '0x6843c57c75ef9408ddabf744d8e7e9fae849b92e',
-    DailySavings: '0xfeeec143f5fe25c076c588981d91b1e8622361b9',
+    SavingStrategy: '0x3dd1c60cba1843fec09d11d2aea2245bf597b8b9',
+    Savings: '0x3aac8be395df877bd4170c34419c234d6adc7712',
+    DCA: '0xa50ce1646c2a9086e27211e57f96ec056ed2633c',
+    Token: '0x0e930f98613a8010fbba835bed5ce9755d4139b7',
+    SlippageControl: '0x3ffd29c190745ff301b4dddc3587ae0b3867c65d',
+    DailySavings: '0x819a758656a6ecbe9b96c6d694e7643b9df039c8',
     
     // Phase 2 Enhancement Contracts
-    DCARouter: '0x8ae02ee0f17a5c1db1672164b20162a24be28b9a',
-    LiquidityManager: '0x58f397f42c8a73714c9a55067c6abad73b8f4af4',
-    ModuleRegistry: '0xe3333ee0952dcefd24e0eea2b8bb840041f8f27b',
-    Multicall: '0xe1b2d1ad4a1ea6d036a0873a83c7065f123f53be',
-    Quoter: '0xc29712bff80eea6136c4c51058ef8567c812a5aa',
-    SlippageEnhanced: '0x1dd10dde3e77313bb58530f31d36ecbbcbaad311',
+    DCARouter: '0xe336b833f778adf9b5e423e26af139786b660f20',
+    LiquidityManager: '0x1d101e950ac49fb67c4e5d06ea6dc17275d1bb14',
+    ModuleRegistry: '0x32a9590935845cf8ad0f5e70ae44af913a2324d5',
+    Multicall: '0xde4a1e976969ea19b31e45787a1e3e9167022ea6',
+    Quoter: '0x339eb78d2532aa1810153682b9378d73bb341fa5',
+    SlippageEnhanced: '0x7149242b3950e81282a3d8fa8b4da4d3b42d34ec',
     
     // Uniswap V4 Infrastructure (Official Deployments)
     UniswapV4PoolManager: '0x05e73354cfdd6745c338b50bcfdfa3aa6fa03408',
