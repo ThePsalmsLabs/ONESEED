@@ -6,6 +6,7 @@ import { getContractAddress } from '@/contracts/addresses';
 import { TokenModuleABI } from '@/contracts/abis/Token';
 import { useSpendSaveContracts } from './useSpendSaveContracts';
 import { useActiveChainId } from './useActiveChainId';
+import { useBiconomy } from '@/components/BiconomyProvider';
 
 export interface TokenBalance {
   token: `0x${string}`;
@@ -16,19 +17,34 @@ export interface TokenBalance {
 }
 
 export function useSavingsBalance() {
-  const { address } = useAccount();
+  const { address: eoaAddress } = useAccount();
+  const { smartAccountAddress } = useBiconomy();
   const chainId = useActiveChainId();
   const publicClient = usePublicClient();
   const contracts = useSpendSaveContracts();
 
+  // Use Smart Account address if available, fallback to EOA
+  const address = smartAccountAddress || eoaAddress;
+
   // Get contract address for current chain
   const contractAddress = getContractAddress(chainId, 'Token');
+
+  console.log('🔍 useSavingsBalance - Address check:', {
+    eoaAddress,
+    smartAccountAddress,
+    addressUsed: address,
+    chainId,
+    savingsContract: contracts.savings.address
+  });
 
   // Fetch actual token balances from the contract
   const { data: tokenBalances, isLoading } = useQuery<TokenBalance[]>({
     queryKey: ['tokenBalances', address, chainId],
     queryFn: async (): Promise<TokenBalance[]> => {
-      if (!address || !publicClient) return [];
+      if (!address || !publicClient) {
+        console.warn('❌ Missing address or publicClient');
+        return [];
+      }
       
       // Check if contracts are deployed on this chain
       if (!contractAddress || contractAddress === '0x0000000000000000000000000000000000000000') {
@@ -42,17 +58,30 @@ export function useSavingsBalance() {
       }
       
       try {
+        console.log('📞 Calling getUserSavings with address:', address);
+
         // Get user's savings data from Savings contract
         const savingsData = await publicClient.readContract({
-          address: contracts.savings.address,
+          address: contracts.savings.address as `0x${string}`,
           abi: contracts.savings.abi,
           functionName: 'getUserSavings',
-          args: [address]
+          args: [address as `0x${string}`]
         });
 
+        console.log('📊 getUserSavings response:', savingsData);
+
         const [tokens, amounts] = savingsData as [readonly `0x${string}`[], readonly bigint[]];
-        
-        if (!tokens || tokens.length === 0) return [];
+
+        console.log('🪙 Tokens found:', {
+          tokens,
+          amounts: amounts?.map(a => a.toString()),
+          count: tokens?.length || 0
+        });
+
+        if (!tokens || tokens.length === 0) {
+          console.warn('⚠️ No tokens returned from getUserSavings');
+          return [];
+        }
 
         const balances: TokenBalance[] = [];
 
