@@ -10,9 +10,9 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-bg-primary">
       <Header />
-      
+
       <div className="flex">
         {/* Sidebar Navigation */}
         <aside className="hidden md:flex md:flex-shrink-0">
@@ -20,15 +20,15 @@ export function Layout({ children }: LayoutProps) {
             <Navigation />
           </div>
         </aside>
-        
+
         {/* Main Content */}
         <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full">
           {children}
         </main>
       </div>
-      
+
       {/* Mobile Navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 glass-solid-dark border-t border-border z-40">
         <Navigation isMobile />
       </div>
     </div>

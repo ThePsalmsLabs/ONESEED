@@ -8,7 +8,7 @@ export function Header() {
   const { isConnected } = useAccount();
 
   return (
-    <header className="sticky top-0 z-50 glass bg-white/90 backdrop-blur-lg border-b border-white/20 shadow-lg">
+    <header className="sticky top-0 z-50 glass-elevated-dark backdrop-blur-lg border-b border-border shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
@@ -17,10 +17,10 @@ export function Header() {
               <span className="text-white font-bold text-xl">🌱</span>
             </div>
             <div>
-              <span className="text-2xl font-black text-gray-900 group-hover:gradient-text transition-all duration-300">
+              <span className="text-2xl font-black text-text-primary group-hover:gradient-text transition-all duration-300">
                 OneSeed
               </span>
-              <div className="text-xs text-gray-500 -mt-1">Grow your wealth</div>
+              <div className="text-xs text-text-muted -mt-1">Grow your wealth</div>
             </div>
           </Link>
 
@@ -35,7 +35,7 @@ export function Header() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-700 hover:bg-white/60 hover:text-primary-700 transition-all duration-200 hover-lift"
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-text-secondary hover:bg-bg-tertiary hover:text-primary-400 transition-all duration-200 hover-lift"
                 >
                   <span className="text-lg">{link.icon}</span>
                   {link.label}
@@ -51,11 +51,11 @@ export function Header() {
                 <NetworkIndicator />
               </div>
             )}
-            
+
             {/* Quick Stats Badge - Only show if connected */}
             {isConnected && (
-              <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-primary-50 text-primary-700 rounded-full text-sm font-medium">
-                <div className="w-2 h-2 bg-primary-500 rounded-full animate-pulse"></div>
+              <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-primary-400/10 text-primary-400 rounded-full text-sm font-medium border border-primary-400/20">
+                <div className="w-2 h-2 bg-primary-400 rounded-full animate-pulse"></div>
                 Savings Active
               </div>
             )}

@@ -19,11 +19,11 @@ function NavLink({ href, icon, label, isActive, isMobile }: NavLinkProps) {
   
   const activeStyles = isActive
     ? isMobile
-      ? 'text-primary-600'
-      : 'bg-primary-50 text-primary-700 font-medium'
+      ? 'text-primary-400'
+      : 'bg-primary-400/10 text-primary-400 font-medium border border-primary-400/20'
     : isMobile
-    ? 'text-gray-600'
-    : 'text-gray-700 hover:bg-gray-100';
+    ? 'text-text-muted'
+    : 'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary';
 
   return (
     <Link href={href} className={`${baseStyles} ${activeStyles}`}>
@@ -69,7 +69,7 @@ export function Navigation({ isMobile }: NavigationProps) {
   return (
     <nav className="p-4 space-y-1">
       <div className="mb-4 px-4">
-        <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+        <h2 className="text-xs font-semibold text-text-muted uppercase tracking-wider">
           Menu
         </h2>
       </div>
