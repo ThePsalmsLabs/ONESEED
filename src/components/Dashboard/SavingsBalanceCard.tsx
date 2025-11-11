@@ -71,14 +71,27 @@ function TokenBalanceItem({
           </span>
         </div>
         <div>
-          <div className="font-semibold text-gray-800">
-            {formattedAmount} {displaySymbol}
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-gray-800">
+              {formattedAmount} {displaySymbol}
+            </span>
+            {(balance as any).tokenId !== undefined && (balance as any).tokenId > BigInt(0) && (
+              <span className="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full font-medium">
+                ERC6909 #{(balance as any).tokenId.toString()}
+              </span>
+            )}
           </div>
           <div className="text-sm text-gray-500">
             {metadataLoading ? 'Loading...' : tokenName}
           </div>
-          <div className="text-xs text-gray-400">
-            ~${usdValue}
+          <div className="flex items-center gap-2 text-xs text-gray-400">
+            <span>~${usdValue}</span>
+            {(balance as any).storageBalance !== undefined && 
+             (balance as any).storageBalance !== balance.amount && (
+              <span className="text-xs text-gray-300">
+                (Storage: {formatBalance((balance as any).storageBalance, balance.decimals)})
+              </span>
+            )}
           </div>
         </div>
       </div>
