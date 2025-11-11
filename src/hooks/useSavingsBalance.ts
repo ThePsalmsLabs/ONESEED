@@ -105,7 +105,7 @@ export function useSavingsBalance() {
             }) as bigint;
 
             // If token not registered (tokenId = 0), register it first
-            let registeredTokenId = tokenId;
+            const registeredTokenId = tokenId;
             if (tokenId === BigInt(0)) {
               console.log(`⚠️ Token ${tokenAddress} not registered, attempting registration...`);
               // Note: Registration requires a write transaction, so we'll just use 0 for now
