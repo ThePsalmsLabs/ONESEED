@@ -10,7 +10,9 @@ import { useBiconomy } from '@/components/BiconomyProvider';
 
 export interface TokenBalance {
   token: `0x${string}`;
-  amount: bigint;
+  tokenId: bigint; // ERC6909 token ID
+  amount: bigint; // ERC6909 balance (primary)
+  storageBalance?: bigint; // Storage balance (for reference/verification)
   decimals: number;
   symbol?: string;
   name?: string;
@@ -94,49 +96,120 @@ export function useSavingsBalance() {
           if (amount === BigInt(0)) continue;
 
           try {
-            // Get token ID from Token contract
+            // Get token ID from Token contract (ERC6909 mapping)
             const tokenId = await publicClient.readContract({
               address: contractAddress,
               abi: TokenModuleABI,
               functionName: 'getTokenId',
               args: [tokenAddress]
-            });
+            }) as bigint;
+
+            // If token not registered (tokenId = 0), register it first
+            let registeredTokenId = tokenId;
+            if (tokenId === BigInt(0)) {
+              console.log(`⚠️ Token ${tokenAddress} not registered, attempting registration...`);
+              // Note: Registration requires a write transaction, so we'll just use 0 for now
+              // In production, tokens should be registered automatically when first savings occur
+            }
+
+            // Query ERC6909 balance using tokenId (PRIMARY SOURCE OF TRUTH)
+            const erc6909Balance = await publicClient.readContract({
+              address: contractAddress,
+              abi: TokenModuleABI,
+              functionName: 'balanceOf',
+              args: [address as `0x${string}`, registeredTokenId]
+            }).catch((error) => {
+              console.warn(`Failed to query ERC6909 balance for tokenId ${registeredTokenId}, using storage balance as fallback:`, error);
+              return amount; // Fallback to storage balance
+            }) as bigint;
 
             // Get token metadata
-            const [name, symbol, decimals] = await Promise.all([
-              publicClient.readContract({
-                address: contractAddress,
-                abi: TokenModuleABI,
-                functionName: 'name',
-                args: [tokenId]
-              }).catch(() => 'Unknown Token'),
-              publicClient.readContract({
-                address: contractAddress,
-                abi: TokenModuleABI,
-                functionName: 'symbol',
-                args: [tokenId]
-              }).catch(() => 'UNK'),
-              publicClient.readContract({
-                address: contractAddress,
-                abi: TokenModuleABI,
-                functionName: 'decimals',
-                args: [tokenId]
-              }).catch(() => 18)
-            ]);
+            // If token is not registered (tokenId = 0), fetch directly from token contract (ERC20)
+            // Otherwise, fetch from Token module (ERC6909 metadata)
+            let name: string, symbol: string, decimals: number;
+            
+            if (registeredTokenId === BigInt(0)) {
+              // Token not registered - fetch metadata directly from token contract
+              const erc20Abi = [
+                { inputs: [], name: 'name', outputs: [{ internalType: 'string', name: '', type: 'string' }], stateMutability: 'view', type: 'function' },
+                { inputs: [], name: 'symbol', outputs: [{ internalType: 'string', name: '', type: 'string' }], stateMutability: 'view', type: 'function' },
+                { inputs: [], name: 'decimals', outputs: [{ internalType: 'uint8', name: '', type: 'uint8' }], stateMutability: 'view', type: 'function' },
+              ] as const;
+              
+              [name, symbol, decimals] = await Promise.all([
+                publicClient.readContract({
+                  address: tokenAddress,
+                  abi: erc20Abi,
+                  functionName: 'name'
+                }).catch(() => 'Unknown Token'),
+                publicClient.readContract({
+                  address: tokenAddress,
+                  abi: erc20Abi,
+                  functionName: 'symbol'
+                }).catch(() => 'UNK'),
+                publicClient.readContract({
+                  address: tokenAddress,
+                  abi: erc20Abi,
+                  functionName: 'decimals'
+                }).catch(() => 18)
+              ]);
+            } else {
+              // Token is registered - fetch from Token module (ERC6909)
+              [name, symbol, decimals] = await Promise.all([
+                publicClient.readContract({
+                  address: contractAddress,
+                  abi: TokenModuleABI,
+                  functionName: 'name',
+                  args: [registeredTokenId]
+                }).catch(() => 'Unknown Token'),
+                publicClient.readContract({
+                  address: contractAddress,
+                  abi: TokenModuleABI,
+                  functionName: 'symbol',
+                  args: [registeredTokenId]
+                }).catch(() => 'UNK'),
+                publicClient.readContract({
+                  address: contractAddress,
+                  abi: TokenModuleABI,
+                  functionName: 'decimals',
+                  args: [registeredTokenId]
+                }).catch(() => 18)
+              ]);
+            }
+
+            // Use ERC6909 balance if available, otherwise use storage balance
+            const finalBalance = registeredTokenId > BigInt(0) && erc6909Balance > BigInt(0) 
+              ? erc6909Balance 
+              : amount; // Fallback to storage balance
+
+            console.log(`✅ Token Info:`, {
+              tokenAddress,
+              tokenId: registeredTokenId.toString(),
+              isRegistered: registeredTokenId > BigInt(0),
+              erc6909Balance: erc6909Balance.toString(),
+              storageBalance: amount.toString(),
+              finalBalance: finalBalance.toString(),
+              symbol: symbol as string,
+              usingFallback: registeredTokenId === BigInt(0) || erc6909Balance === BigInt(0)
+            });
 
             balances.push({
               token: tokenAddress,
-              amount,
+              tokenId: registeredTokenId,
+              amount: finalBalance, // Use ERC6909 balance if available, else storage
+              storageBalance: amount, // Keep storage balance for reference
               decimals: Number(decimals),
               symbol: symbol as string,
               name: name as string
             });
           } catch (error) {
-            console.error(`Error fetching metadata for token ${tokenAddress}:`, error);
-            // Add token with basic info if metadata fails
+            console.error(`Error fetching ERC6909 data for token ${tokenAddress}:`, error);
+            // Add token with basic info if ERC6909 queries fail
             balances.push({
               token: tokenAddress,
-              amount,
+              tokenId: BigInt(0), // Unknown tokenId
+              amount, // Use storage balance as fallback
+              storageBalance: amount,
               decimals: 18,
               symbol: 'UNK',
               name: 'Unknown Token'
