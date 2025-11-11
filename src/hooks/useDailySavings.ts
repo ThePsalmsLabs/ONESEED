@@ -30,14 +30,16 @@ export function useDailySavings() {
   // Biconomy write hook for gasless transactions
   const { write: writeContract, isPending: isWritePending, hash } = useSmartContractWrite();
 
-  // Check if user has pending daily savings
+  // Check if user has pending daily savings with periodic refetch
   const { data: hasPending, isLoading: isLoadingPending, refetch: refetchPending } = useReadContract({
     address: contractAddress as `0x${string}`,
     abi: DailySavingsABI,
     functionName: 'hasPendingDailySavings',
     args: address ? [address as `0x${string}`] : undefined,
     query: {
-      enabled: !!address && !!contractAddress
+      enabled: !!address && !!contractAddress,
+      refetchInterval: 30000, // Poll every 30 seconds
+      refetchIntervalInBackground: false // Only poll when tab is active
     }
   });
 
@@ -111,6 +113,11 @@ export function useDailySavings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dailySavingsStatus'] });
       queryClient.invalidateQueries({ queryKey: ['dailyExecutionStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['dailySavingsStats'] });
+      queryClient.invalidateQueries({ queryKey: ['dailySavingsTokens'] });
+    },
+    onError: (error) => {
+      console.error('Failed to configure daily savings:', error);
     }
   });
 
@@ -132,6 +139,11 @@ export function useDailySavings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dailySavingsStatus'] });
       queryClient.invalidateQueries({ queryKey: ['dailyExecutionStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['dailySavingsStats'] });
+      queryClient.invalidateQueries({ queryKey: ['dailySavingsTokens'] });
+    },
+    onError: (error) => {
+      console.error('Failed to configure daily savings:', error);
     }
   });
 
@@ -156,6 +168,11 @@ export function useDailySavings() {
       queryClient.invalidateQueries({ queryKey: ['dailySavingsStatus'] });
       queryClient.invalidateQueries({ queryKey: ['dailyExecutionStatus'] });
       queryClient.invalidateQueries({ queryKey: ['hasPendingDailySavings'] });
+      queryClient.invalidateQueries({ queryKey: ['dailySavingsStats'] });
+      queryClient.invalidateQueries({ queryKey: ['dailySavingsTokens'] });
+    },
+    onError: (error) => {
+      console.error('Failed to execute daily savings:', error);
     }
   });
 
@@ -180,6 +197,11 @@ export function useDailySavings() {
       queryClient.invalidateQueries({ queryKey: ['dailySavingsStatus'] });
       queryClient.invalidateQueries({ queryKey: ['dailyExecutionStatus'] });
       queryClient.invalidateQueries({ queryKey: ['hasPendingDailySavings'] });
+      queryClient.invalidateQueries({ queryKey: ['dailySavingsStats'] });
+      queryClient.invalidateQueries({ queryKey: ['dailySavingsTokens'] });
+    },
+    onError: (error) => {
+      console.error('Failed to execute daily savings:', error);
     }
   });
 
@@ -206,6 +228,11 @@ export function useDailySavings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dailySavingsStatus'] });
       queryClient.invalidateQueries({ queryKey: ['dailyExecutionStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['dailySavingsStats'] });
+      queryClient.invalidateQueries({ queryKey: ['dailySavingsTokens'] });
+    },
+    onError: (error) => {
+      console.error('Failed to configure daily savings:', error);
     }
   });
 
@@ -227,6 +254,11 @@ export function useDailySavings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dailySavingsStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['dailySavingsStats'] });
+      queryClient.invalidateQueries({ queryKey: ['dailySavingsTokens'] });
+    },
+    onError: (error) => {
+      console.error('Failed to set yield strategy:', error);
     }
   });
 
@@ -250,6 +282,11 @@ export function useDailySavings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dailySavingsStatus'] });
       queryClient.invalidateQueries({ queryKey: ['dailyExecutionStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['dailySavingsStats'] });
+      queryClient.invalidateQueries({ queryKey: ['dailySavingsTokens'] });
+    },
+    onError: (error) => {
+      console.error('Failed to configure daily savings:', error);
     }
   });
 
