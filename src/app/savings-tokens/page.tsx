@@ -17,7 +17,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useToken } from '@/hooks/useToken';
 import { useQueryClient } from '@tanstack/react-query';
-import { parseUnits, formatUnits } from 'viem';
+import { formatUnits } from 'viem';
 
 export default function SavingsTokensPage() {
   const router = useRouter();
@@ -28,7 +28,7 @@ export default function SavingsTokensPage() {
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
 
-  const { transferToken, isPending: isTransferring, registerToken, isPending: isRegistering } = useToken();
+  const { transferToken, isTransferring, registerToken, isRegistering } = useToken();
 
   // Redirect if not connected
   useEffect(() => {
@@ -246,7 +246,7 @@ export default function SavingsTokensPage() {
                               onClick={async (e) => {
                                 e.stopPropagation();
                                 try {
-                                  await registerToken.mutateAsync(balance.token);
+                                  await registerToken(balance.token);
                                   // Invalidate queries to refresh
                                   queryClient.invalidateQueries({ queryKey: ['tokenBalances', address] });
                                 } catch (error) {
@@ -418,7 +418,7 @@ function TransferModal({ balance, onClose, onSuccess }: TransferModalProps) {
   const [receiver, setReceiver] = useState('');
   const [amount, setAmount] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const { transferToken, isPending } = useToken();
+  const { transferToken, isTransferring } = useToken();
 
   const handleTransfer = async () => {
     if (!receiver || !amount) {
@@ -448,7 +448,7 @@ function TransferModal({ balance, onClose, onSuccess }: TransferModalProps) {
     try {
       setError(null);
       
-      const hash = await transferToken.mutateAsync({
+      const hash = await transferToken({
         receiver: receiver as `0x${string}`,
         tokenId: balance.tokenId,
         amount: amount, // Pass as string
@@ -539,16 +539,16 @@ function TransferModal({ balance, onClose, onSuccess }: TransferModalProps) {
             onClick={onClose}
             variant="outline"
             className="flex-1 border-border text-text-secondary hover:text-text-primary"
-            disabled={isPending}
+            disabled={isTransferring}
           >
             Cancel
           </Button>
           <Button
             onClick={handleTransfer}
             className="flex-1 bg-primary-500 hover:bg-primary-600 text-white"
-            disabled={isPending || !receiver || !amount}
+            disabled={isTransferring || !receiver || !amount}
           >
-            {isPending ? 'Transferring...' : 'Transfer'}
+            {isTransferring ? 'Transferring...' : 'Transfer'}
           </Button>
         </div>
       </motion.div>
