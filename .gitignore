@@ -93,6 +93,7 @@ DEPLOYMENT_REPORT.md
 WITHDRAW_FIX_SUMMARY.md
 ERC6909_AUDIT_REPORT.md
 ERC6909_FLOW_ANALYSIS.md
+.cursor/
 
 frontend integration/*
 scripts/*
