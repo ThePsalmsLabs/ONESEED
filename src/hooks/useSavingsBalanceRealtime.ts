@@ -7,16 +7,21 @@ import { formatUnits } from 'viem';
 import { getContractAddress } from '@/contracts/addresses';
 import { SpendSaveStorageABI } from '@/contracts/abis/SpendSaveStorage';
 import { SpendSaveHookABI } from '@/contracts/abis/SpendSaveHook';
+import { TokenModuleABI } from '@/contracts/abis/Token';
 import { useActiveChainId } from './useActiveChainId';
 import { BASE_SEPOLIA_TOKENS } from '@/config/network';
 import { useBiconomy } from '@/components/BiconomyProvider';
 
 export interface RealtimeSavingsBalance {
   token: string;
-  amount: bigint;
+  tokenId: bigint; // ERC6909 token ID
+  amount: bigint; // ERC6909 balance (primary)
+  storageBalance?: bigint; // Storage balance (for reference)
   formatted: string;
   symbol: string;
+  name?: string; // ERC6909 token name
   decimals: number;
+  totalSupply?: bigint; // ERC6909 total supply
   lastUpdated: number;
 }
 
@@ -39,8 +44,9 @@ export function useSavingsBalanceRealtime() {
   // Use Smart Account address if available, fallback to EOA
   const address = smartAccountAddress || eoaAddress;
 
-  // Get contract address
+  // Get contract addresses
   const storageAddress = getContractAddress(chainId, 'SpendSaveStorage');
+  const tokenAddress = getContractAddress(chainId, 'Token');
 
   // Tracked tokens for Base Sepolia
   const trackedTokens = [
@@ -96,7 +102,7 @@ export function useSavingsBalanceRealtime() {
       console.error(`❌ Error fetching savings for token ${tokenAddress}:`, error);
       return BigInt(0);
     }
-  }, [address, publicClient, storageAddress, eoaAddress, smartAccountAddress]);
+  }, [address, publicClient, storageAddress, eoaAddress, smartAccountAddress, tokenAddress]);
 
   // Fetch all savings balances with optimized caching
   const { data: savingsData, isLoading, error, refetch } = useQuery<RealtimeSavingsData>({
@@ -114,13 +120,75 @@ export function useSavingsBalanceRealtime() {
 
       try {
         const balancePromises = trackedTokens.map(async (token) => {
-          const amount = await fetchTokenSavings(token.address);
+          // Get storage balance (legacy)
+          const storageAmount = await fetchTokenSavings(token.address);
+          
+          // Get ERC6909 tokenId and balance
+          let tokenId = BigInt(0);
+          let erc6909Balance = storageAmount || BigInt(0);
+          let erc6909Name: string | undefined;
+          let erc6909Symbol = token.symbol;
+          let totalSupply: bigint | undefined;
+          
+          if (tokenAddress && tokenAddress !== '0x0000000000000000000000000000000000000000') {
+            try {
+              // Get tokenId from Token contract
+              tokenId = await publicClient.readContract({
+                address: tokenAddress as `0x${string}`,
+                abi: TokenModuleABI,
+                functionName: 'getTokenId',
+                args: [token.address as `0x${string}`]
+              }) as bigint;
+              
+              // If token is registered, get ERC6909 balance and metadata
+              if (tokenId > BigInt(0)) {
+                const [balance, name, symbol, supply] = await Promise.all([
+                  publicClient.readContract({
+                    address: tokenAddress as `0x${string}`,
+                    abi: TokenModuleABI,
+                    functionName: 'balanceOf',
+                    args: [address as `0x${string}`, tokenId]
+                  }).catch(() => storageAmount || BigInt(0)),
+                  publicClient.readContract({
+                    address: tokenAddress as `0x${string}`,
+                    abi: TokenModuleABI,
+                    functionName: 'name',
+                    args: [tokenId]
+                  }).catch(() => undefined),
+                  publicClient.readContract({
+                    address: tokenAddress as `0x${string}`,
+                    abi: TokenModuleABI,
+                    functionName: 'symbol',
+                    args: [tokenId]
+                  }).catch(() => token.symbol),
+                  publicClient.readContract({
+                    address: tokenAddress as `0x${string}`,
+                    abi: TokenModuleABI,
+                    functionName: 'totalSupply',
+                    args: [tokenId]
+                  }).catch(() => undefined)
+                ]);
+                
+                erc6909Balance = balance as bigint;
+                erc6909Name = name as string | undefined;
+                erc6909Symbol = (symbol as string) || token.symbol;
+                totalSupply = supply as bigint | undefined;
+              }
+            } catch (error) {
+              console.warn(`Failed to fetch ERC6909 data for ${token.address}:`, error);
+            }
+          }
+          
           return {
             token: token.address,
-            amount: amount || BigInt(0),
-            formatted: amount ? formatUnits(amount, token.decimals) : '0',
-            symbol: token.symbol,
+            tokenId,
+            amount: erc6909Balance, // Use ERC6909 balance as primary
+            storageBalance: storageAmount || BigInt(0), // Keep storage balance for reference
+            formatted: erc6909Balance ? formatUnits(erc6909Balance, token.decimals) : '0',
+            symbol: erc6909Symbol,
+            name: erc6909Name,
             decimals: token.decimals,
+            totalSupply,
             lastUpdated: Date.now()
           };
         });
@@ -161,7 +229,7 @@ export function useSavingsBalanceRealtime() {
         };
       }
     },
-    enabled: !!address && !!publicClient && !!storageAddress && storageAddress !== '0x0000000000000000000000000000000000000000',
+    enabled: !!address && !!publicClient && !!storageAddress && storageAddress !== '0x0000000000000000000000000000000000000000' && !!tokenAddress && tokenAddress !== '0x0000000000000000000000000000000000000000',
     refetchInterval: 30000, // Refetch every 30 seconds
     refetchIntervalInBackground: false, // Only refetch when tab is active
     retry: 2,
