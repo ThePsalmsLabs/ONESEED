@@ -6,15 +6,20 @@ import { QuickActions } from '@/components/Dashboard/QuickActions';
 import { SavingsRadialProgress } from '@/components/Dashboard/SavingsRadialProgress';
 import { ActivityTimeline } from '@/components/Dashboard/ActivityTimeline';
 import { SavingsGoalSetter } from '@/components/Dashboard/SavingsGoalSetter';
+import { DailySavingsOverview } from '@/components/Dashboard/DailySavingsOverview';
+import { DailySavingsGoals } from '@/components/Dashboard/DailySavingsGoals';
+import { DailySavingsStatsCard } from '@/components/Dashboard/DailySavingsStatsCard';
+import { DailySavingsExecutionPrompt } from '@/components/DailySavings/DailySavingsExecutionPrompt';
 import { useSavingsBalance } from '@/hooks/useSavingsBalance';
 import { useSavingsStrategy } from '@/hooks/useSavingsStrategy';
 import { useActivityFeed } from '@/hooks/useActivityFeed';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
 import { useSavingsTrend } from '@/hooks/useSavingsTrend';
 import { useSavingsGoal } from '@/hooks/useSavingsGoal';
+import { useDailySavingsPolling } from '@/hooks/useDailySavingsPolling';
 import { useAccount } from 'wagmi';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { formatUnits } from 'viem';
 
@@ -27,6 +32,10 @@ export default function DashboardPage() {
   const { goal, setSavingsGoal, isLoading: isLoadingGoal } = useSavingsGoal();
   const { thisMonth, thisMonthChange, totalSwaps, totalSwapsChange, gasSaved, gasSavedChange, isLoading: isLoadingStats } = useDashboardStats();
   const { savingsTrend, swapsTrend } = useSavingsTrend();
+  const [showDailySavingsSetup, setShowDailySavingsSetup] = useState(false);
+
+  // Enable polling for daily savings
+  useDailySavingsPolling();
 
   // Redirect to home if not connected
   useEffect(() => {
@@ -152,30 +161,54 @@ export default function DashboardPage() {
                 </span>
               </motion.button>
 
-              {/* Strategy Status Badge */}
-              {hasStrategy && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.4, delay: 0.3 }}
-                  className="glass-solid-dark rounded-full px-6 py-3 border border-primary-400/30 flex items-center gap-3"
-                >
-                  <motion.div
-                    className="w-3 h-3 bg-primary-400 rounded-full"
-                    animate={{
-                      scale: [1, 1.2, 1],
-                      opacity: [1, 0.7, 1],
-                    }}
-                    transition={{
-                      duration: 2,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                    }}
-                  />
-                  <span className="text-sm font-medium text-primary-400">
-                    Strategy Active
-                  </span>
-                </motion.div>
+              {/* Strategy Status Badge - Shows Configure prompt for first timers, Configured for existing users */}
+              {isConnected && (
+                <>
+                  {!hasStrategy && !isLoadingStrategy ? (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.4, delay: 0.3 }}
+                      className="glass-solid-dark rounded-full px-6 py-3 border border-accent-amber/50 bg-gradient-to-r from-accent-amber/10 to-accent-amber/5 flex items-center gap-3 cursor-pointer hover:border-accent-amber/70 transition-all"
+                      onClick={() => router.push('/configure')}
+                    >
+                      <svg 
+                        className="w-4 h-4 text-accent-amber" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <span className="text-sm font-medium text-accent-amber">
+                        Configure Strategy
+                      </span>
+                    </motion.div>
+                  ) : hasStrategy ? (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.4, delay: 0.3 }}
+                      className="glass-solid-dark rounded-full px-6 py-3 border border-primary-400/30 flex items-center gap-3"
+                    >
+                      <motion.div
+                        className="w-3 h-3 bg-primary-400 rounded-full"
+                        animate={{
+                          scale: [1, 1.2, 1],
+                          opacity: [1, 0.7, 1],
+                        }}
+                        transition={{
+                          duration: 2,
+                          repeat: Infinity,
+                          ease: "easeInOut",
+                        }}
+                      />
+                      <span className="text-sm font-medium text-primary-400">
+                        Configured
+                      </span>
+                    </motion.div>
+                  ) : null}
+                </>
               )}
             </div>
           </div>
@@ -233,8 +266,26 @@ export default function DashboardPage() {
             />
           </div>
 
+          {/* Daily Savings Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <DailySavingsStatsCard type="total" />
+            <DailySavingsStatsCard type="goals" />
+            <DailySavingsStatsCard type="pending" />
+          </div>
+
           {/* Quick Actions */}
           <QuickActions />
+
+          {/* Daily Savings Section */}
+          <DailySavingsExecutionPrompt />
+          <div className="space-y-6">
+            <DailySavingsOverview 
+              onConfigure={() => setShowDailySavingsSetup(true)}
+            />
+            <DailySavingsGoals 
+              onConfigure={() => setShowDailySavingsSetup(true)}
+            />
+          </div>
 
           {/* Main Content Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
