@@ -71,7 +71,7 @@ export function useDailySavingsStats(): DailySavingsStats {
         let totalProgress = 0;
         let totalPenalties = 0;
         let thisMonthSaved = 0;
-        let lastMonthSaved = 0;
+        const lastMonthSaved = 0;
 
         // Fetch stats for each token
         const statsPromises = trackedTokens.map(async (token) => {
