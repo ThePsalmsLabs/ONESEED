@@ -1,6 +1,6 @@
 import { useAccount, usePublicClient } from 'wagmi';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { parseEther } from 'viem';
+import { parseEther, parseUnits } from 'viem';
 import { getContractAddress } from '@/contracts/addresses';
 import { TokenModuleABI } from '@/contracts/abis/Token';
 import { useSmartContractWrite } from './useSmartContractWrite';
@@ -158,11 +158,17 @@ export function useToken() {
     mutationFn: async (params: {
       receiver: `0x${string}`;
       tokenId: bigint;
-      amount: string;
+      amount: string | bigint; // Accept either string (will parse) or bigint (already in wei)
+      decimals?: number; // Optional decimals for parsing string amounts
     }): Promise<`0x${string}`> => {
       if (!address) throw new Error('No wallet connected');
 
-      const amountWei = parseEther(params.amount);
+      // If amount is bigint, use directly; if string, parse it
+      const amountWei = typeof params.amount === 'bigint' 
+        ? params.amount 
+        : params.decimals 
+          ? parseUnits(params.amount, params.decimals)
+          : parseEther(params.amount); // Default to 18 decimals if not specified
 
       const hash = await writeSmartContract({
         address: getContractAddress(chainId, 'Token'),
