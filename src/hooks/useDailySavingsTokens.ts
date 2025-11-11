@@ -79,7 +79,10 @@ export function useDailySavingsTokens() {
 
             if (!status) {
               return {
-                ...token,
+                token: token.address,
+                symbol: token.symbol,
+                name: token.name,
+                icon: token.icon,
                 enabled: false,
                 dailyAmount: BigInt(0),
                 goalAmount: BigInt(0),
