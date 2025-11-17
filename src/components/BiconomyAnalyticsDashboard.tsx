@@ -15,7 +15,7 @@ import {
 import { formatEther } from 'viem';
 
 export function BiconomyAnalyticsDashboard() {
-  const { analyticsData, isLoading, error, loadAnalytics } = useBiconomyAnalytics();
+  const { analyticsData, isLoading, error, refreshAnalytics } = useBiconomyAnalytics();
 
   if (isLoading) {
     return (
@@ -31,7 +31,7 @@ export function BiconomyAnalyticsDashboard() {
       <div className="flex items-center justify-center p-8">
         <div className="text-center">
           <p className="text-red-500 mb-4">Error loading analytics: {error}</p>
-        <Button onClick={loadAnalytics} variant="secondary">
+        <Button onClick={refreshAnalytics} variant="secondary">
           <HiArrowPath className="h-4 w-4 mr-2" />
           Retry
         </Button>
@@ -44,7 +44,7 @@ export function BiconomyAnalyticsDashboard() {
     return (
       <div className="text-center p-8">
         <p className="text-gray-500">No analytics data available</p>
-        <Button onClick={loadAnalytics} variant="secondary" className="mt-4">
+        <Button onClick={refreshAnalytics} variant="secondary" className="mt-4">
           <HiArrowPath className="h-4 w-4 mr-2" />
           Load Analytics
         </Button>
@@ -62,7 +62,7 @@ export function BiconomyAnalyticsDashboard() {
           <h2 className="text-3xl font-bold">Your Gas Savings</h2>
           <p className="text-gray-500">Track your Biconomy gas savings and transaction history</p>
         </div>
-        <Button onClick={loadAnalytics} variant="secondary">
+        <Button onClick={refreshAnalytics} variant="secondary">
           <HiArrowPath className="h-4 w-4 mr-2" />
           Refresh
         </Button>

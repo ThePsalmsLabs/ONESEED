@@ -5,16 +5,19 @@ import { getActiveChainId, getActiveNetwork, getNetworkDisplayName } from '@/con
 import { useEffect, useState } from 'react';
 
 /**
- * Hook that returns the chain ID from environment configuration
- * This ensures all contract interactions use the configured network
- * regardless of which network the user's wallet is connected to.
+ * Hook that returns the wallet's current chain ID
+ * This ensures balance checks and contract calls use the wallet's actual network
+ * For Base Sepolia testing, we want to use the wallet's current network, not env config
  *
- * @returns {number} The active chain ID from NEXT_PUBLIC_NETWORK env var
+ * @returns {number} The wallet's current chain ID
  */
 export function useActiveChainId(): number {
   const envChainId = getActiveChainId();
   const walletChainId = useWagmiChainId();
   const [hasWarned, setHasWarned] = useState(false);
+
+  // For Base Sepolia testing, prioritize wallet's actual network
+  const activeChainId = walletChainId || envChainId;
 
   useEffect(() => {
     // Warn if wallet is connected to different network than configured
@@ -29,14 +32,21 @@ export function useActiveChainId(): number {
         `⚠️ Network Mismatch:\n` +
         `  App configured for: ${envNetworkName} (${envChainId})\n` +
         `  Wallet connected to: ${walletNetworkName} (${walletChainId})\n` +
-        `  All transactions will use ${envNetworkName}.\n` +
+        `  Using wallet's network: ${walletNetworkName}.\n` +
         `  Please switch your wallet to ${envNetworkName} for optimal experience.`
       );
       setHasWarned(true);
     }
   }, [walletChainId, envChainId, hasWarned]);
 
-  return envChainId;
+  console.log('🔍 useActiveChainId Debug:', {
+    walletChainId,
+    envChainId,
+    activeChainId,
+    isWalletConnected: !!walletChainId
+  });
+
+  return activeChainId;
 }
 
 /**

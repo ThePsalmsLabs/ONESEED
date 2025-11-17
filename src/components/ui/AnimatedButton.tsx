@@ -6,7 +6,7 @@ import { Button } from './Button';
 
 interface AnimatedButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
-  variant?: 'default' | 'outline' | 'ghost' | 'destructive';
+  variant?: 'default' | 'outline' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   className?: string;
   delay?: number;

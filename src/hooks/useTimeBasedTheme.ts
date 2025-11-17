@@ -61,7 +61,7 @@ export function useTimeBasedTheme(): TimeBasedThemeConfig {
     if (isAuto) {
       setTheme(newTimeBasedTheme);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // Reset to auto mode (remove manual override)
   const resetToAuto = () => {

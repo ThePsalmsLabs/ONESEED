@@ -64,7 +64,7 @@ export function useEnhancedTokenData(tokenAddress?: Address) {
     },
     enabled: !!tokenAddress,
     staleTime: 30000, // 30 seconds
-    cacheTime: 60000, // 1 minute
+    gcTime: 60000, // 1 minute
   });
 }
 

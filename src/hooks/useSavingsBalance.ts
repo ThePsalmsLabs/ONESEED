@@ -122,7 +122,10 @@ export function useSavingsBalance() {
       }
     },
     enabled: !!address && !!contractAddress && contractAddress !== '0x0000000000000000000000000000000000000000',
-    staleTime: 30000, // 30 seconds
+    staleTime: 90000, // 90 seconds (increased from 30s)
+    refetchInterval: 120000, // Refetch every 2 minutes
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
+    refetchOnMount: false, // Don't refetch on component mount if data exists
   });
 
   // Calculate total balance across all tokens

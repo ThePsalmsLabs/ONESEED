@@ -17,7 +17,7 @@ import {
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon
 } from '@heroicons/react/24/outline';
-import { SlippageAction } from '@/contracts/types';
+import { SlippageAction } from '@/contracts/abis/SlippageControl';
 
 interface SlippageSettingsPanelProps {
   className?: string;
@@ -64,7 +64,7 @@ const slippagePresets: SlippagePreset[] = [
 
 export function SlippageSettingsPanel({ className = '' }: SlippageSettingsPanelProps) {
   const {
-    settings,
+    userSlippageTolerance,
     setSlippageTolerance,
     setTokenSlippageTolerance,
     setSlippageAction,
@@ -79,7 +79,7 @@ export function SlippageSettingsPanel({ className = '' }: SlippageSettingsPanelP
   const [selectedPreset, setSelectedPreset] = useState<string>('standard');
   const [customTolerance, setCustomTolerance] = useState<number>(0.5);
   const [tokenTolerances, setTokenTolerances] = useState<Record<string, number>>({});
-  const [slippageAction, setLocalSlippageAction] = useState<SlippageAction>(SlippageAction.CONTINUE);
+  const [slippageAction, setLocalSlippageAction] = useState<SlippageAction>(SlippageAction.CONTINUE_ANYWAY);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const handlePresetSelect = (preset: SlippagePreset) => {
@@ -92,17 +92,17 @@ export function SlippageSettingsPanel({ className = '' }: SlippageSettingsPanelP
   const handleSaveSettings = async () => {
     try {
       // Set global slippage tolerance
-      await setSlippageTolerance(customTolerance * 100); // Convert to basis points
+      await setSlippageTolerance({ tolerance: customTolerance * 100 }); // Convert to basis points
       
       // Set slippage action
-      await setSlippageAction(slippageAction);
+      await setSlippageAction({ action: slippageAction });
       
       // Set token-specific tolerances
       for (const [token, tolerance] of Object.entries(tokenTolerances)) {
         if (tolerance > 0) {
           await setTokenSlippageTolerance({
             token: token as `0x${string}`,
-            basisPoints: tolerance * 100
+            tolerance: tolerance * 100
           });
         }
       }
@@ -235,8 +235,8 @@ export function SlippageSettingsPanel({ className = '' }: SlippageSettingsPanelP
               <input
                 type="radio"
                 name="slippageAction"
-                value={SlippageAction.CONTINUE}
-                checked={slippageAction === SlippageAction.CONTINUE}
+                value={SlippageAction.CONTINUE_ANYWAY}
+                checked={slippageAction === SlippageAction.CONTINUE_ANYWAY}
                 onChange={(e) => setLocalSlippageAction(Number(e.target.value) as SlippageAction)}
                 className="w-4 h-4 text-primary"
               />
@@ -349,7 +349,7 @@ export function SlippageSettingsPanel({ className = '' }: SlippageSettingsPanelP
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold">
-              {slippageAction === SlippageAction.REVERT ? 'Revert' : 'Continue'}
+              {slippageAction === SlippageAction.REVERT ? 'Revert' : 'Continue Anyway'}
             </div>
             <div className="text-sm text-muted-foreground">Slippage Action</div>
           </div>

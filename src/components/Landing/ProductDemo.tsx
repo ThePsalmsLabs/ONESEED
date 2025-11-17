@@ -5,15 +5,36 @@ import { useEffect, useState } from 'react';
 export function ProductDemo() {
   const [savingsAmount, setSavingsAmount] = useState(5954.83);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [chartProgress, setChartProgress] = useState(0);
 
+  // Main animation cycle
   useEffect(() => {
     const interval = setInterval(() => {
       setIsAnimating(true);
       setSavingsAmount(prev => prev + Math.random() * 50 + 10);
-      setTimeout(() => setIsAnimating(false), 1000);
-    }, 3000);
+      setTimeout(() => setIsAnimating(false), 2000);
+    }, 4000);
 
     return () => clearInterval(interval);
+  }, []);
+
+  // Progress bar animation
+  useEffect(() => {
+    const progressInterval = setInterval(() => {
+      setProgress((prev) => (prev >= 100 ? 0 : prev + 1));
+    }, 50);
+
+    return () => clearInterval(progressInterval);
+  }, []);
+
+  // Chart animation
+  useEffect(() => {
+    const chartInterval = setInterval(() => {
+      setChartProgress((prev) => (prev >= 100 ? 0 : prev + 2));
+    }, 100);
+
+    return () => clearInterval(chartInterval);
   }, []);
 
   return (
@@ -40,13 +61,14 @@ export function ProductDemo() {
                   <div className="text-xl font-bold text-white">1,000 USDC</div>
                 </div>
               </div>
-              <div className="text-3xl">🔄</div>
+              <div className={`text-3xl transition-transform duration-500 ${isAnimating ? 'rotate-180' : ''}`}>🔄</div>
             </div>
             
             {/* Animated split indicator */}
             <div className="relative h-2 bg-gray-800 rounded-full overflow-hidden">
               <div 
-                className={`absolute left-0 top-0 h-full bg-gradient-to-r from-primary-500 to-accent-cyan rounded-full transition-all duration-1000 ${isAnimating ? 'w-[10%]' : 'w-0'}`}
+                className="absolute left-0 top-0 h-full bg-gradient-to-r from-primary-500 to-accent-cyan rounded-full transition-all duration-1000"
+                style={{ width: `${isAnimating ? '10%' : '0%'}` }}
               />
             </div>
             <div className="flex justify-between mt-2 text-xs text-gray-400">
@@ -57,7 +79,7 @@ export function ProductDemo() {
 
           {/* Arrow indicator */}
           <div className="flex justify-center">
-            <div className={`transition-transform duration-500 ${isAnimating ? 'translate-y-2' : ''}`}>
+            <div className={`transition-all duration-500 ${isAnimating ? 'translate-y-2 scale-110' : ''}`}>
               <svg className="w-8 h-8 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
               </svg>
@@ -79,7 +101,7 @@ export function ProductDemo() {
                   </div>
                   <div>
                     <div className="text-sm text-gray-400">Your Savings</div>
-                    <div className="text-2xl font-bold text-white">
+                    <div className={`text-2xl font-bold text-white transition-all duration-500 ${isAnimating ? 'scale-105' : ''}`}>
                       ${savingsAmount.toFixed(2)}
                     </div>
                   </div>
@@ -92,15 +114,34 @@ export function ProductDemo() {
                 </div>
               </div>
 
-              {/* Mini chart */}
-              <div className="flex items-end gap-1 h-16">
+              {/* Animated Mini chart - similar to DCA features */}
+              <div className="h-16 flex items-end gap-1">
                 {[40, 55, 45, 70, 65, 80, 75, 90, 85, 100].map((height, i) => (
                   <div
                     key={i}
-                    className="flex-1 bg-gradient-to-t from-primary-500/50 to-primary-400/80 rounded-t transition-all duration-300"
-                    style={{ height: `${height}%` }}
+                    className="flex-1 rounded-t transition-all duration-300"
+                    style={{
+                      height: `${height}%`,
+                      background: i <= (chartProgress / 100) * 10
+                        ? 'linear-gradient(to top, rgb(16, 185, 129), rgb(34, 197, 94))'
+                        : 'rgba(55, 65, 81, 0.5)',
+                    }}
                   />
                 ))}
+              </div>
+
+              {/* Progress indicator */}
+              <div className="mt-4 space-y-2">
+                <div className="flex justify-between text-xs text-gray-400">
+                  <span>Progress</span>
+                  <span>{progress}%</span>
+                </div>
+                <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-primary-500 to-accent-cyan transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
               </div>
             </div>
           </div>

@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { Address } from 'viem';
-import { useTokenMetadata } from '@/hooks/useTokenMetadata';
+import { useTokenMetadata, TokenMetadata } from '@/hooks/useTokenMetadata';
 import { validateAndNormalizeAddress, looksLikeERC20Address } from '@/utils/tokenValidation';
 import { getCachedToken, cacheToken, CachedToken } from '@/utils/tokenCache';
 
@@ -34,7 +34,7 @@ export function useTokenFromCA(): UseTokenFromCAResult {
   const [error, setError] = useState<string | null>(null);
   
   const { metadata, isLoading: isLoadingMetadata, error: metadataError } = useTokenMetadata(
-    address ?? undefined
+    address as `0x${string}` | undefined
   );
   
   const fetchToken = useCallback(async (inputAddress: string) => {
@@ -90,12 +90,13 @@ export function useTokenFromCA(): UseTokenFromCAResult {
     }
     
     if (metadata && !isLoadingMetadata) {
+      const typedMetadata = metadata as TokenMetadata;
       const tokenData: TokenFromCA = {
-        address: metadata.address,
-        symbol: metadata.symbol,
-        name: metadata.name,
-        decimals: metadata.decimals,
-        logoURI: metadata.logoURI,
+        address: typedMetadata.address,
+        symbol: typedMetadata.symbol,
+        name: typedMetadata.name,
+        decimals: typedMetadata.decimals,
+        logoURI: typedMetadata.logoURI,
         isCommon: false,
       };
       
@@ -104,11 +105,11 @@ export function useTokenFromCA(): UseTokenFromCAResult {
       
       // Cache the token
       cacheToken({
-        address: metadata.address,
-        symbol: metadata.symbol,
-        name: metadata.name,
-        decimals: metadata.decimals,
-        logoURI: metadata.logoURI,
+        address: typedMetadata.address,
+        symbol: typedMetadata.symbol,
+        name: typedMetadata.name,
+        decimals: typedMetadata.decimals,
+        logoURI: typedMetadata.logoURI,
       });
     }
   }, [metadata, isLoadingMetadata, metadataError, address]);

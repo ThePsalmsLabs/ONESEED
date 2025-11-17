@@ -19,17 +19,20 @@ interface PaymasterServiceData {
 }
 
 export function useSmartPaymaster() {
-  const { smartAccount } = useBiconomy();
-  const { address } = useAccount();
+  const { smartAccount, smartAccountAddress } = useBiconomy();
+  const { address: eoaAddress } = useAccount();
   const chainId = useActiveChainId();
   const [isCalculating, setIsCalculating] = useState(false);
+
+  // Use Smart Account address if available, fallback to EOA
+  const address = smartAccountAddress || eoaAddress;
 
   // Get user's savings balance for policy determination
   const { data: userBalance } = useReadContract({
     address: getContractAddress(chainId, 'Savings'),
     abi: SavingsModuleABI,
     functionName: 'getUserSavings',
-    args: address ? [address] : undefined,
+    args: address ? [address as `0x${string}`] : undefined,
     query: {
       enabled: !!address
     }

@@ -51,6 +51,14 @@ export function TokenInput({
   
   // Calculate USD value
   const usdValue = amount && parseFloat(amount) > 0 ? parseFloat(amount) * priceUSD : 0;
+  
+  // Format USD value with appropriate precision
+  const formatUSDValue = (value: number) => {
+    if (value >= 1) return value.toFixed(2);
+    if (value >= 0.01) return value.toFixed(4);
+    if (value >= 0.001) return value.toFixed(6);
+    return value.toFixed(8);
+  };
 
   return (
     <>
@@ -117,7 +125,7 @@ export function TokenInput({
             {isLoadingPrice ? (
               <span>Loading price...</span>
             ) : (
-              <span>≈ ${usdValue.toFixed(2)} USD</span>
+              <span>≈ ${formatUSDValue(usdValue)} USD</span>
             )}
           </div>
         )}

@@ -9,6 +9,7 @@ export interface SwapQuote {
   fee: bigint;
   gas: bigint;
   minOutputAmount: bigint;
+  savedAmount?: bigint; // Amount that will be saved (if savings enabled)
 }
 
 /**

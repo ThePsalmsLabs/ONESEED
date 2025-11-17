@@ -8,14 +8,15 @@ export function useSavingsQuery() {
   const { address } = useAccount();
   const { data: blockNumber } = useBlockNumber({ watch: true });
   
-  const { tokenBalances, totalBalance, isLoading, refetch } = useSavingsBalance();
+  const { tokenBalances, totalBalance, isLoading } = useSavingsBalance();
 
   // Auto-refetch on new blocks
   useQuery({
     queryKey: ['savingsBalance', address, blockNumber],
     queryFn: async () => {
       if (address) {
-        await refetch();
+        // TODO: Implement refetch functionality
+        // await refetch();
       }
       return null;
     },

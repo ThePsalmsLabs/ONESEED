@@ -155,30 +155,33 @@ export function AnimatedInput({
           </div>
         )}
         
-        <motion.input
-          ref={inputRef}
-          type={inputType}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          onChange={handleChange}
+        <motion.div
           animate={error ? "error" : "visible"}
           whileFocus="focus"
-          className={`
-            w-full px-3 py-3 rounded-lg border-2 transition-all duration-200
-            ${icon ? 'pl-10' : ''}
-            ${showPasswordToggle ? 'pr-10' : ''}
-            ${error 
-              ? 'border-red-500 bg-red-50 focus:border-red-500 focus:ring-red-500' 
-              : success 
-                ? 'border-green-500 bg-green-50 focus:border-green-500 focus:ring-green-500'
-                : 'border-border bg-background focus:border-primary focus:ring-primary'
-            }
-            focus:outline-none focus:ring-2 focus:ring-opacity-50
-            disabled:opacity-50 disabled:cursor-not-allowed
-            ${className}
-          `}
-          {...props}
-        />
+        >
+          <input
+            ref={inputRef}
+            type={inputType}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            onChange={handleChange}
+            className={`
+              w-full px-3 py-3 rounded-lg border-2 transition-all duration-200
+              ${icon ? 'pl-10' : ''}
+              ${showPasswordToggle ? 'pr-10' : ''}
+              ${error 
+                ? 'border-red-500 bg-red-50 focus:border-red-500 focus:ring-red-500' 
+                : success 
+                  ? 'border-green-500 bg-green-50 focus:border-green-500 focus:ring-green-500'
+                  : 'border-border bg-background focus:border-primary focus:ring-primary'
+              }
+              focus:outline-none focus:ring-2 focus:ring-opacity-50
+              disabled:opacity-50 disabled:cursor-not-allowed
+              ${className}
+            `}
+            {...props}
+          />
+        </motion.div>
         
         {showPasswordToggle && (
           <button

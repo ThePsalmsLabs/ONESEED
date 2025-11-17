@@ -11,9 +11,16 @@ interface SwapStatusModalProps {
   isOpen: boolean;
   status: SwapStatus;
   txHash: string | null;
+  userOpHash?: string | null;
   error: string | null;
   savingsAmount?: bigint;
   tokenSymbol?: string;
+  tokenDecimals?: number;
+  inputAmount?: string;
+  inputTokenSymbol?: string;
+  outputAmount?: string;
+  outputTokenSymbol?: string;
+  savingsPercentage?: number;
   onClose: () => void;
 }
 
@@ -67,9 +74,16 @@ export function SwapStatusModal({
   isOpen,
   status,
   txHash,
+  userOpHash,
   error,
   savingsAmount,
   tokenSymbol,
+  tokenDecimals = 18,
+  inputAmount,
+  inputTokenSymbol,
+  outputAmount,
+  outputTokenSymbol,
+  savingsPercentage = 0,
   onClose,
 }: SwapStatusModalProps) {
   const chainId = useActiveChainId();
@@ -88,6 +102,30 @@ export function SwapStatusModal({
   
   const isComplete = status === 'success';
   const hasError = status === 'error';
+  
+  // Debug logging
+  console.log('🔍 SwapStatusModal props:', {
+    status,
+    savingsAmount: savingsAmount?.toString(),
+    tokenSymbol,
+    tokenDecimals,
+    isComplete,
+    hasError,
+    isZero: savingsAmount === BigInt(0),
+    isUndefined: savingsAmount === undefined,
+  });
+  
+  // Calculate formatted amount for debugging
+  const formattedAmount = savingsAmount !== undefined 
+    ? (Number(savingsAmount) / Math.pow(10, tokenDecimals)).toFixed(6)
+    : 'undefined';
+  
+  console.log('🧮 Savings amount calculation:', {
+    rawAmount: savingsAmount?.toString(),
+    tokenDecimals,
+    formattedAmount,
+    isRealValue: savingsAmount !== undefined && savingsAmount > BigInt(0),
+  });
   
   return (
     <AnimatePresence>
@@ -138,22 +176,146 @@ export function SwapStatusModal({
               )}
 
               {/* Success State with Savings */}
-              {isComplete && savingsAmount && (
-                <div className="glass-neon rounded-xl p-6 mb-6 border border-primary-400/30">
+              {isComplete && savingsAmount !== undefined && savingsAmount > BigInt(0) && (
+                <motion.div 
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: "spring", duration: 0.6 }}
+                  className="glass-neon rounded-xl p-6 mb-6 border border-primary-400/30"
+                >
+                  {/* Celebration Animation */}
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                    className="flex items-center gap-3 mb-4"
+                  >
+                    <motion.div
+                      animate={{ rotate: [0, 10, -10, 0] }}
+                      transition={{ duration: 0.5, delay: 0.3 }}
+                    >
+                      <CheckCircleIcon className="w-8 h-8 text-primary-400" />
+                    </motion.div>
+                    <div className="text-xl font-bold text-white">🎉 Swap Successful!</div>
+                  </motion.div>
+                  
+                  {/* Savings Breakdown */}
+                  <motion.div 
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.4 }}
+                    className="bg-white/5 rounded-lg p-4 mb-4"
+                  >
+                    <div className="text-sm text-gray-400 mb-2">Savings Captured</div>
+                    <motion.div 
+                      initial={{ scale: 0.5 }}
+                      animate={{ scale: 1 }}
+                      transition={{ delay: 0.5, type: "spring" }}
+                      className="text-3xl font-bold text-primary-400 mb-2"
+                    >
+                      {(Number(savingsAmount) / Math.pow(10, tokenDecimals)).toFixed(4)} {tokenSymbol || 'tokens'}
+                    </motion.div>
+                    <div className="text-xs text-gray-300">
+                      ✨ Automatically deposited to your savings vault
+                    </div>
+                  </motion.div>
+
+                  {/* Transaction Summary */}
+                  <motion.div 
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.6 }}
+                    className="bg-white/5 rounded-lg p-4"
+                  >
+                    <div className="text-sm text-gray-400 mb-3">Transaction Summary</div>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-300">Gas Fee</span>
+                        <span className="text-green-400 font-medium">$0.00</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-300">Savings Rate</span>
+                        <span className="text-primary-400 font-medium">{savingsPercentage}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-300">Hook Status</span>
+                        <span className="text-green-400 font-medium">✓ Active</span>
+                      </div>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+
+              {/* No Savings Captured */}
+              {isComplete && (savingsAmount === undefined || savingsAmount === BigInt(0)) && (
+                <div className="bg-white/5 rounded-xl p-6 mb-6 border border-white/10">
                   <div className="flex items-center gap-3 mb-4">
-                    <CheckCircleIcon className="w-8 h-8 text-primary-400" />
+                    <CheckCircleIcon className="w-8 h-8 text-green-400" />
                     <div className="text-xl font-bold text-white">Swap Successful!</div>
                   </div>
-                  <div className="bg-white/5 rounded-lg p-4">
-                    <div className="text-sm text-gray-400 mb-1">Savings Captured</div>
-                    <div className="text-3xl font-bold text-primary-400">
-                      {(Number(savingsAmount) / 1e18).toFixed(4)} {tokenSymbol || 'tokens'}
-                    </div>
-                    <div className="text-xs text-gray-300 mt-2">
-                      Automatically deposited to your savings vault
-                    </div>
+                  <div className="text-sm text-gray-400">
+                    No savings were captured in this transaction. This could be because:
+                    <ul className="mt-2 ml-4 list-disc text-xs">
+                      <li>Savings percentage was set to 0%</li>
+                      <li>Savings strategy not configured</li>
+                      <li>Amount too small to capture savings</li>
+                    </ul>
                   </div>
                 </div>
+              )}
+
+              {/* Swap Preview - Show before execution */}
+              {status === 'idle' && inputAmount && outputAmount && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-white/5 rounded-xl p-6 mb-6 border border-white/10"
+                >
+                  <h3 className="text-lg font-bold text-white mb-4">Swap Preview</h3>
+                  
+                  {/* Input/Output Breakdown */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-300">You&apos;re swapping</span>
+                      <span className="text-white font-medium">
+                        {inputAmount} {inputTokenSymbol}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-300">You&apos;ll receive</span>
+                      <span className="text-white font-medium">
+                        {outputAmount} {outputTokenSymbol}
+                      </span>
+                    </div>
+                    
+                    {savingsPercentage > 0 && (
+                      <>
+                        <div className="border-t border-white/10 pt-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-gray-300">Savings ({savingsPercentage}%)</span>
+                            <span className="text-primary-400 font-medium">
+                              {(parseFloat(inputAmount) * savingsPercentage / 100).toFixed(4)} {inputTokenSymbol}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-300">Amount to swap</span>
+                            <span className="text-white font-medium">
+                              {(parseFloat(inputAmount) * (100 - savingsPercentage) / 100).toFixed(4)} {inputTokenSymbol}
+                            </span>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                    
+                    <div className="border-t border-white/10 pt-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-300">Gas Fee</span>
+                        <span className="text-green-400 font-medium">$0.00</span>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
               )}
 
               {/* Progress Steps */}
@@ -194,8 +356,52 @@ export function SwapStatusModal({
                 </div>
               )}
 
-              {/* Explorer Link */}
-              {explorerUrl && (
+              {/* Transaction Details */}
+              {(txHash || userOpHash) && (
+                <div className="mb-6 space-y-3">
+                  {/* UserOp Hash */}
+                  {userOpHash && (
+                    <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                      <div className="text-xs text-gray-400 mb-2">UserOp Hash (Biconomy)</div>
+                      <div className="font-mono text-sm text-gray-300 break-all">{userOpHash}</div>
+                      <a 
+                        href={`${getExplorerUrl(chainId)}/tx/${userOpHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary-400 hover:text-primary-300 mt-2 inline-block"
+                      >
+                        View UserOp →
+                      </a>
+                    </div>
+                  )}
+                  
+                  {/* Transaction Hash */}
+                  {txHash && txHash !== userOpHash && (
+                    <div className="bg-white/5 rounded-xl p-4 border border-primary-400/30">
+                      <div className="text-xs text-gray-400 mb-2">Transaction Hash</div>
+                      <div className="font-mono text-sm text-white break-all">{txHash}</div>
+                      <a 
+                        href={`${getExplorerUrl(chainId)}/tx/${txHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary-400 hover:text-primary-300 mt-2 inline-block"
+                      >
+                        View on Block Explorer →
+                      </a>
+                    </div>
+                  )}
+                  
+                  {/* Loading state for transaction hash */}
+                  {userOpHash && !txHash && status === 'confirming' && (
+                    <div className="text-xs text-gray-400 text-center">
+                      Waiting for blockchain transaction hash...
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Legacy Explorer Link (fallback) */}
+              {explorerUrl && !userOpHash && !txHash && (
                 <div className="mb-6">
                   <a
                     href={explorerUrl}
@@ -226,7 +432,7 @@ export function SwapStatusModal({
               {/* Processing Note */}
               {!isComplete && !hasError && (
                 <div className="text-center text-sm text-gray-300">
-                  Please don't close this window while the transaction is processing
+                  Please don&apos;t close this window while the transaction is processing
                 </div>
               )}
             </motion.div>

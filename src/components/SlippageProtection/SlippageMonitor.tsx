@@ -12,7 +12,7 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   ChartBarIcon,
-  RefreshIcon
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 
 interface SlippageMonitorProps {
@@ -21,8 +21,7 @@ interface SlippageMonitorProps {
 
 export function SlippageMonitor({ className = '' }: SlippageMonitorProps) {
   const {
-    settings,
-    isLoadingSettings,
+    userSlippageTolerance,
     setSlippageTolerance,
     isSettingTolerance
   } = useSlippageControl();
@@ -48,15 +47,15 @@ export function SlippageMonitor({ className = '' }: SlippageMonitorProps) {
     if (!newTolerance) return;
     try {
       const bps = Math.floor(parseFloat(newTolerance) * 100); // Convert percentage to basis points
-      await setSlippageTolerance(bps);
+      await setSlippageTolerance({ tolerance: bps });
       setNewTolerance('');
     } catch (error) {
       console.error('Failed to update tolerance:', error);
     }
   };
 
-  const isLoading = isLoadingSettings || isLoadingAnalytics;
-  const currentTolerance = settings ? Number(settings.tolerance) / 100 : 3; // Default 3%
+  const isLoading = isLoadingAnalytics;
+  const currentTolerance = userSlippageTolerance ? Number(userSlippageTolerance) / 100 : 3; // Default 3%
   const recentEvents = events.slice(0, 5);
 
   if (isLoading) {
@@ -88,7 +87,7 @@ export function SlippageMonitor({ className = '' }: SlippageMonitorProps) {
           onClick={handleRefresh}
           disabled={isRefreshing}
         >
-          <RefreshIcon className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          <ArrowPathIcon className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
         </Button>
       </div>
 

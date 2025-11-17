@@ -14,7 +14,7 @@ import {
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon,
   CheckCircleIcon,
-  RefreshIcon
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import { formatDistance } from 'date-fns';
 
@@ -126,7 +126,7 @@ export function ActivityFeed({ className = '', limit }: ActivityFeedProps) {
             onClick={handleRefresh}
             disabled={isRefreshing}
           >
-            <RefreshIcon className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <ArrowPathIcon className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
           </Button>
         </div>
         <div className="text-center py-12">
@@ -158,7 +158,7 @@ export function ActivityFeed({ className = '', limit }: ActivityFeedProps) {
             onClick={handleRefresh}
             disabled={isRefreshing}
           >
-            <RefreshIcon className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <ArrowPathIcon className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
           </Button>
         </div>
       </div>
@@ -237,7 +237,7 @@ export function ActivityFeed({ className = '', limit }: ActivityFeedProps) {
                     <>
                       <span className="text-gray-300">•</span>
                       <a
-                        href={`${getExplorerUrl(chainId, activity.hash)}`}
+                        href={`${getExplorerUrl(chainId, activity.hash as `0x${string}`)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-xs text-blue-600 hover:underline"

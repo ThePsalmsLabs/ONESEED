@@ -24,14 +24,14 @@ const overlayVariants = {
     opacity: 1,
     transition: {
       duration: 0.3,
-      ease: 'easeOut'
+      ease: 'easeOut' as const
     }
   },
   exit: {
     opacity: 0,
     transition: {
       duration: 0.2,
-      ease: 'easeIn'
+      ease: 'easeIn' as const
     }
   }
 };
@@ -47,7 +47,7 @@ const modalVariants = {
     scale: 1,
     y: 0,
     transition: {
-      type: 'spring',
+      type: 'spring' as const,
       stiffness: 300,
       damping: 30,
       delay: 0.1
@@ -59,7 +59,7 @@ const modalVariants = {
     y: 50,
     transition: {
       duration: 0.2,
-      ease: 'easeIn'
+      ease: 'easeIn' as const
     }
   }
 };
