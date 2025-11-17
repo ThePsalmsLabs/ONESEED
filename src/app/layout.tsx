@@ -5,6 +5,7 @@ import { WalletProvider } from "@/components/WalletProvider";
 import { ToastProvider } from "@/components/ui/Toast";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ThemeProvider } from "@/providers/ThemeProvider";
+import { NetworkAutoSwitch } from "@/components/NetworkAutoSwitch";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,6 +37,7 @@ export default function RootLayout({
             <WalletProvider>
               <ToastProvider>
                 {children}
+                <NetworkAutoSwitch />
               </ToastProvider>
             </WalletProvider>
           </ErrorBoundary>

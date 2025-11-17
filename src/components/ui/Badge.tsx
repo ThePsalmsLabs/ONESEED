@@ -2,7 +2,7 @@
 
 interface BadgeProps {
   children: React.ReactNode;
-  variant?: 'default' | 'success' | 'warning' | 'error' | 'info' | 'secondary';
+  variant?: 'default' | 'success' | 'warning' | 'error' | 'info' | 'secondary' | 'outline';
 }
 
 const variantStyles = {
@@ -12,6 +12,7 @@ const variantStyles = {
   error: 'bg-red-100 text-red-700',
   info: 'bg-blue-100 text-blue-700',
   secondary: 'bg-gray-200 text-gray-800',
+  outline: 'border border-gray-300 text-gray-700 bg-transparent',
 };
 
 export function Badge({ children, variant = 'default' }: BadgeProps) {

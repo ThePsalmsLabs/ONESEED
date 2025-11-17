@@ -315,7 +315,7 @@ export function BatchSetupWizard({ onComplete }: BatchSetupWizardProps) {
                     roundUpSavings: false,
                     savingsTokenType: tokenType,
                     enableDCA,
-                    dcaTargetToken: enableDCA ? dcaTargetToken as `0x${string}` : undefined,
+                    dcaTarget: enableDCA ? dcaTargetToken as `0x${string}` : undefined,
                     enableDailySavings,
                     dailyAmount: enableDailySavings ? dailyAmount : undefined
                   });

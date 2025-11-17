@@ -87,6 +87,32 @@ function initializeAppKit() {
   }
 
   try {
+    // Suppress console warnings during initialization
+    const originalConsoleError = console.error
+    const originalConsoleWarn = console.warn
+    
+    console.error = (...args) => {
+      // Suppress specific Reown AppKit warnings
+      const message = args.join(' ')
+      if (message.includes('Restore will override') || 
+          message.includes('history') ||
+          message.includes('AppKit')) {
+        return // Suppress these warnings
+      }
+      originalConsoleError.apply(console, args)
+    }
+    
+    console.warn = (...args) => {
+      // Suppress specific Reown AppKit warnings
+      const message = args.join(' ')
+      if (message.includes('Restore will override') || 
+          message.includes('history') ||
+          message.includes('AppKit')) {
+        return // Suppress these warnings
+      }
+      originalConsoleWarn.apply(console, args)
+    }
+
     appKitInstance = createAppKit({
       adapters: [wagmiAdapter],
       projectId,
@@ -103,6 +129,11 @@ function initializeAppKit() {
       enableInjected: true,
       enableCoinbase: false,
     })
+
+    // Restore original console methods
+    console.error = originalConsoleError
+    console.warn = originalConsoleWarn
+    
   } catch (error) {
     // Suppress initialization errors in development (hot reload issues)
     if (process.env.NODE_ENV === 'development') {

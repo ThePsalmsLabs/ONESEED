@@ -13,11 +13,16 @@ import {
 } from '@/contracts/types';
 import { useSmartContractWrite } from './useSmartContractWrite';
 import { useActiveChainId } from './useActiveChainId';
+import { useBiconomy } from '@/components/BiconomyProvider';
 
 export function useDailySavings() {
-  const { address } = useAccount();
+  const { address: eoaAddress } = useAccount();
+  const { smartAccountAddress } = useBiconomy();
   const chainId = useActiveChainId();
   const queryClient = useQueryClient();
+
+  // Use Smart Account address if available, fallback to EOA
+  const address = smartAccountAddress || eoaAddress;
 
   // Get contract address for current chain
   const contractAddress = getContractAddress(chainId, 'DailySavings');
@@ -30,7 +35,7 @@ export function useDailySavings() {
     address: contractAddress as `0x${string}`,
     abi: DailySavingsABI,
     functionName: 'hasPendingDailySavings',
-    args: address ? [address] : undefined,
+    args: address ? [address as `0x${string}`] : undefined,
     query: {
       enabled: !!address && !!contractAddress
     }
@@ -42,7 +47,7 @@ export function useDailySavings() {
       address: contractAddress as `0x${string}`,
       abi: DailySavingsABI,
       functionName: 'getDailySavingsStatus',
-      args: address && token ? [address, token] : undefined,
+      args: address && token ? [address as `0x${string}`, token] : undefined,
       query: {
         enabled: !!address && !!token && !!contractAddress
       }
@@ -60,7 +65,7 @@ export function useDailySavings() {
       address: contractAddress as `0x${string}`,
       abi: DailySavingsABI,
       functionName: 'getDailyExecutionStatus',
-      args: address && token ? [address, token] : undefined,
+      args: address && token ? [address as `0x${string}`, token] : undefined,
       query: {
         enabled: !!address && !!token && !!contractAddress
       }

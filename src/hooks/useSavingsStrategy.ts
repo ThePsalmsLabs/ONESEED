@@ -6,10 +6,15 @@ import { SavingsStrategyABI } from '@/contracts/abis/SavingStrategy';
 import { SavingsTokenType } from '@/contracts/types';
 import { useSmartContractWrite } from './useSmartContractWrite';
 import { useActiveChainId } from './useActiveChainId';
+import { useBiconomy } from '@/components/BiconomyProvider';
 
 export function useSavingsStrategy() {
-  const { address } = useAccount();
+  const { address: eoaAddress } = useAccount();
+  const { smartAccountAddress } = useBiconomy();
   const chainId = useActiveChainId();
+
+  // Use Smart Account address if available, fallback to EOA
+  const address = smartAccountAddress || eoaAddress;
 
   // Get contract address for current chain
   const contractAddress = getContractAddress(chainId, 'SavingStrategy');
@@ -19,9 +24,13 @@ export function useSavingsStrategy() {
     address: contractAddress as `0x${string}`,
     abi: SavingsStrategyABI,
     functionName: 'getUserStrategy',
-    args: address ? [address] : undefined,
+    args: address ? [address as `0x${string}`] : undefined,
     query: {
-      enabled: !!address && !!contractAddress
+      enabled: !!address && !!contractAddress,
+      staleTime: 180000, // Consider data fresh for 3 minutes (strategy changes rarely)
+      refetchInterval: 300000, // Refetch every 5 minutes (strategy rarely changes)
+      refetchOnWindowFocus: false,
+      refetchOnMount: false
     }
   });
 
@@ -30,9 +39,13 @@ export function useSavingsStrategy() {
     address: contractAddress as `0x${string}`,
     abi: SavingsStrategyABI,
     functionName: 'hasActiveStrategy',
-    args: address ? [address] : undefined,
+    args: address ? [address as `0x${string}`] : undefined,
     query: {
-      enabled: !!address && !!contractAddress
+      enabled: !!address && !!contractAddress,
+      staleTime: 180000, // Consider data fresh for 3 minutes
+      refetchInterval: 300000, // Refetch every 5 minutes
+      refetchOnWindowFocus: false,
+      refetchOnMount: false
     }
   });
 
@@ -42,7 +55,7 @@ export function useSavingsStrategy() {
       address: contractAddress as `0x${string}`,
       abi: SavingsStrategyABI,
       functionName: 'previewSavings',
-      args: address && swapAmount ? [address, swapAmount] : undefined,
+      args: address && swapAmount ? [address as `0x${string}`, swapAmount] : undefined,
       query: {
         enabled: !!address && !!swapAmount && !!contractAddress
       }

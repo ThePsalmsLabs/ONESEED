@@ -13,11 +13,16 @@ import {
 } from '@/contracts/types';
 import { useSmartContractWrite } from './useSmartContractWrite';
 import { useActiveChainId } from './useActiveChainId';
+import { useBiconomy } from '@/components/BiconomyProvider';
 
 export function useDCA() {
-  const { address } = useAccount();
+  const { address: eoaAddress } = useAccount();
+  const { smartAccountAddress } = useBiconomy();
   const chainId = useActiveChainId();
   const queryClient = useQueryClient();
+
+  // Use Smart Account address if available, fallback to EOA
+  const address = smartAccountAddress || eoaAddress;
 
   // Get contract address for current chain
   const contractAddress = getContractAddress(chainId, 'DCA');
@@ -27,7 +32,7 @@ export function useDCA() {
     address: contractAddress as `0x${string}`,
     abi: DCAABI,
     functionName: 'getDCAConfig',
-    args: address ? [address] : undefined,
+    args: address ? [address as `0x${string}`] : undefined,
     query: {
       enabled: !!address && !!contractAddress
     }
@@ -38,7 +43,7 @@ export function useDCA() {
     address: contractAddress as `0x${string}`,
     abi: DCAABI,
     functionName: 'getPendingDCA',
-    args: address ? [address] : undefined,
+    args: address ? [address as `0x${string}`] : undefined,
     query: {
       enabled: !!address && !!contractAddress
     }
@@ -49,7 +54,7 @@ export function useDCA() {
     address: contractAddress as `0x${string}`,
     abi: DCAABI,
     functionName: 'getDCAHistory',
-    args: address ? [address, BigInt(50)] : undefined, // Limit to 50 recent executions
+    args: address ? [address as `0x${string}`, BigInt(50)] : undefined, // Limit to 50 recent executions
     query: {
       enabled: !!address && !!contractAddress
     }
@@ -196,7 +201,7 @@ export function useDCA() {
       abi: DCAABI,
       functionName: 'calculateOptimalDCAAmount',
       args: address && params.fromToken && params.toToken ? [
-        address,
+        address as `0x${string}`,
         params.fromToken,
         params.toToken,
         availableAmountWei
@@ -219,7 +224,7 @@ export function useDCA() {
       address: contractAddress as `0x${string}`,
       abi: DCAABI,
       functionName: 'shouldExecuteDCA',
-      args: address && poolKey ? [address, poolKey] : undefined,
+      args: address && poolKey ? [address as `0x${string}`, poolKey] : undefined,
       query: {
         enabled: !!address && !!poolKey && !!contractAddress
       }

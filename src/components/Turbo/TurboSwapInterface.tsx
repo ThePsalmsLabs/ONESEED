@@ -81,6 +81,7 @@ export function TurboSwapInterface() {
     inputToken,
     outputToken,
     swapAmount: savingsSplit.swapAmount,
+    savingsPercentage: effectiveSavingsPercentage,
     enabled: !!inputToken && !!outputToken && savingsSplit.swapAmount > BigInt(0),
   });
   

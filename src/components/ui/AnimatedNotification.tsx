@@ -28,7 +28,7 @@ const notificationVariants = {
     x: 0,
     scale: 1,
     transition: {
-      type: 'spring',
+      type: 'spring' as const,
       stiffness: 300,
       damping: 30
     }
@@ -39,7 +39,7 @@ const notificationVariants = {
     scale: 0.8,
     transition: {
       duration: 0.3,
-      ease: 'easeIn'
+      ease: 'easeIn' as const
     }
   }
 };

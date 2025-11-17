@@ -1,6 +1,9 @@
 'use client';
 
-import { cn } from '@/lib/utils';
+// Utility function to combine class names
+const cn = (...classes: (string | undefined | null | false)[]) => {
+  return classes.filter(Boolean).join(' ');
+};
 
 interface LabelProps {
   children: React.ReactNode;
